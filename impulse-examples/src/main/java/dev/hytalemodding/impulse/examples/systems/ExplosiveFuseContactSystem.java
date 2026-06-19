@@ -8,14 +8,12 @@ import com.hypixel.hytale.component.system.WorldEventSystem;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.PhysicsContactPhase;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.BodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.PhysicsEntityAttachments;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsContactEvent;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsEventFramePublishedEvent;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsFrameEvent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsBodies;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkCollision;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
 import dev.hytalemodding.impulse.examples.explosive.ExplosiveBlockComponent;
 import dev.hytalemodding.impulse.examples.explosive.ExplosiveBlockRuntime;
@@ -99,9 +97,7 @@ public final class ExplosiveFuseContactSystem
 
     private static boolean isTerrain(@Nonnull Store<PhysicsStore> physicsStore,
         @Nonnull UUID bodyUuid) {
-        PhysicsBodyRegistrationView registration = PhysicsBodies.registrationView(physicsStore,
-            bodyUuid);
-        return registration != null && registration.kind().isTerrain();
+        return PhysicsChunkCollision.isChunkCollisionBody(physicsStore, bodyUuid);
     }
 
     @Nonnull

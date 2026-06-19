@@ -34,8 +34,6 @@ import dev.hytalemodding.impulse.core.internal.resources.PhysicsResourceTypes;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRestoreStatusResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.testsupport.TestInstanceFactory;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.components.BodyComponent;
 import dev.hytalemodding.impulse.core.plugin.components.ColliderComponent;
 import dev.hytalemodding.impulse.core.plugin.components.CollisionFilterComponent;
@@ -167,9 +165,7 @@ class ChunkCollisionVoxelStitchingSystemTest {
             sourceKey,
             PartKind.NATIVE_VOXELS,
             0);
-        BodyComponent body = new BodyComponent(spaceUuid,
-            PhysicsBodyKind.TERRAIN,
-            PhysicsBodyPersistenceMode.RUNTIME_ONLY);
+        BodyComponent body = new BodyComponent(spaceUuid);
         body.setSpaceRef(runtime.spaceRef());
         Holder<PhysicsStore> holder = PhysicsEntities.bodyHolder(store,
             bodyUuid,

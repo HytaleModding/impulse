@@ -15,8 +15,6 @@ import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceBinding;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldLifecycleState;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRegistry;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsEventFrame;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsSnapshotPublicationEvent;
 import dev.hytalemodding.impulse.core.plugin.snapshot.PublishedPhysicsSnapshotFrame;
@@ -46,7 +44,7 @@ class PhysicsWorldLifecycleStateTest {
 
         assertEquals(0, fixture.state.applyPublishedSnapshotFrame(staleFrame, fixture.registry, 21L));
         assertEquals(0, fixture.state.bodySnapshotCount());
-        assertNull(fixture.registry.getPublishedRegistrationView(bodyUuid));
+        assertNull(fixture.registry.getPublishedRegistrationSpaceId(bodyUuid));
         assertEquals(0, fixture.state.latestEventFrame().snapshotPublicationCount());
     }
 
@@ -138,9 +136,7 @@ class PhysicsWorldLifecycleStateTest {
         UUID bodyUuid = UUID.randomUUID();
         fixture.registry.registerBody(bodyUuid,
             new BackendBodyHandle(backendBodyId),
-            fixture.binding.spaceId(),
-            PhysicsBodyKind.BODY,
-            PhysicsBodyPersistenceMode.RUNTIME_ONLY);
+            fixture.binding.spaceId());
         return bodyUuid;
     }
 

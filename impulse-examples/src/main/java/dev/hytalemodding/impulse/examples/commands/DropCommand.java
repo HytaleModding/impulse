@@ -1,6 +1,7 @@
 package dev.hytalemodding.impulse.examples.commands;
 
 import com.hypixel.hytale.component.AddReason;
+import com.hypixel.hytale.component.Holder;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.Message;
@@ -8,12 +9,21 @@ import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.command.system.arguments.system.OptionalArg;
 import com.hypixel.hytale.server.core.command.system.arguments.types.ArgTypes;
 import com.hypixel.hytale.server.core.command.system.basecommands.AbstractAsyncPlayerCommand;
+import com.hypixel.hytale.server.core.entity.entities.BlockEntity;
+import com.hypixel.hytale.server.core.modules.entity.DespawnComponent;
+import com.hypixel.hytale.server.core.modules.physics.component.Velocity;
 import com.hypixel.hytale.server.core.modules.time.TimeResource;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
+import dev.hytalemodding.impulse.core.plugin.modules.control.ImpulseControllableComponent;
+import dev.hytalemodding.impulse.core.plugin.modules.control.PhysicsControlSessions;
+import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.PhysicsEntityAttachments;
+import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.BodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.BodyEntityDescriptor;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsBodyEntities;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsEntities;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
 import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
@@ -69,18 +79,27 @@ public class DropCommand extends AbstractAsyncPlayerCommand {
         PhysicsThreading.requireWorldThread(physicsStore,
             "spawn an example PhysicsStore body entity");
         UUID bodyUuid = UUID.randomUUID();
-        BodyEntityDescriptor descriptor = ExamplePhysicsUtils.bodyEntity(space.spaceRef(),
+        BodyEntityDescriptor descriptor = PhysicsBodyEntities.dynamicBody(space.spaceRef(),
             bodyUuid,
-            ExamplePhysicsUtils.toVector3f(position),
+            toVector3f(position),
             PhysicsShapeSpec.box(0.5f, 0.5f, 0.5f),
             1.0f,
             RigidBodySpawnSettings.material(0.5f, 0.5f),
             null);
         Ref<PhysicsStore> bodyRef = physicsStore.addEntity(
-            ExamplePhysicsUtils.bodyHolder(physicsStore, descriptor),
+            PhysicsEntities.bodyHolder(physicsStore,
+                descriptor.bodyUuid(),
+                descriptor.body(),
+                descriptor.dynamics(),
+                descriptor.target(),
+                descriptor.collider(),
+                descriptor.shape(),
+                descriptor.material(),
+                descriptor.filter()),
             AddReason.SPAWN);
-        store.addEntity(ExamplePhysicsUtils.attachedPhysicsStoreBlockEntityHolder(
-            time,
+
+        assert bodyRef != null;
+        store.addEntity(attachedPhysicsBlockEntityHolder(time,
             bodyRef,
             bodyUuid,
             blockType(ctx),
@@ -102,5 +121,48 @@ public class DropCommand extends AbstractAsyncPlayerCommand {
         return blockTypeArg.provided(ctx)
             ? ExampleBlockEntityVisuals.resolveBlockType(blockTypeArg.get(ctx))
             : ExamplePhysicsUtils.DEFAULT_BLOCK_TYPE;
+    }
+
+    @Nonnull
+    private static Holder<EntityStore> attachedPhysicsBlockEntityHolder(@Nonnull TimeResource time,
+        @Nonnull Ref<PhysicsStore> bodyRef,
+        @Nonnull UUID bodyUuid,
+        @Nonnull String blockType,
+        @Nonnull Vector3d position,
+        @Nonnull Vector3f localPositionOffset,
+        @Nonnull Quaternionf localRotationOffset,
+        float visualOriginOffsetY,
+        boolean controllable) {
+        requirePhysicsEntityVisuals();
+        Holder<EntityStore> holder = BlockEntity.assembleDefaultBlockEntity(time,
+            ExampleBlockEntityVisuals.resolveBlockType(blockType),
+            new Vector3d(position));
+        holder.tryRemoveComponent(DespawnComponent.getComponentType());
+        holder.tryRemoveComponent(Velocity.getComponentType());
+
+        BodyAttachmentComponent attachment = BodyAttachmentComponent.impulseOwnedVisual(bodyUuid,
+            localPositionOffset,
+            localRotationOffset,
+            visualOriginOffsetY);
+        attachment.setBodyRef(bodyRef);
+        holder.addComponent(BodyAttachmentComponent.getComponentType(), attachment);
+        if (controllable && PhysicsControlSessions.isAvailable()) {
+            holder.addComponent(ImpulseControllableComponent.getComponentType(),
+                new ImpulseControllableComponent());
+        }
+        return holder;
+    }
+
+    private static void requirePhysicsEntityVisuals() {
+        if (!PhysicsEntityAttachments.isAvailable()) {
+            throw new IllegalStateException(
+                "Impulse PhysicsEntity integration is not available. "
+                    + "Enable HytaleModding:ImpulsePhysicsEntity to spawn entity-backed example visuals.");
+        }
+    }
+
+    @Nonnull
+    private static Vector3f toVector3f(@Nonnull Vector3d vector) {
+        return new Vector3f((float) vector.x, (float) vector.y, (float) vector.z);
     }
 }

@@ -5,8 +5,6 @@ import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRegistry;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodySnapshotVisitor;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodySnapshotStore;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRegistration;
 import dev.hytalemodding.impulse.core.plugin.snapshot.PhysicsBodySnapshotEntry;
 import dev.hytalemodding.impulse.core.plugin.snapshot.PublishedPhysicsSnapshotFrame;
@@ -58,11 +56,9 @@ public final class PhysicsWorldSnapshotState {
 
     public void putBodySnapshot(@Nonnull UUID bodyUuid,
         @Nonnull PhysicsBodySnapshot snapshot,
-        @Nonnull SpaceId spaceId,
-        @Nonnull PhysicsBodyKind kind,
-        @Nonnull PhysicsBodyPersistenceMode persistenceMode) {
-        bodySnapshots.put(bodyUuid, snapshot, spaceId, kind, persistenceMode);
-        captureBodySnapshots.put(bodyUuid, snapshot, spaceId, kind, persistenceMode);
+        @Nonnull SpaceId spaceId) {
+        bodySnapshots.put(bodyUuid, snapshot, spaceId);
+        captureBodySnapshots.put(bodyUuid, snapshot, spaceId);
     }
 
     @Nonnull
@@ -105,12 +101,10 @@ public final class PhysicsWorldSnapshotState {
             int spaceBodyCount = captureBodySnapshots.bodyCount(spaceId);
             frameBuilder.addSpace(spaceId, frameWorldEpoch, spaceBodyCount);
             captureBodySnapshots.forEachIndexed(spaceId,
-                (bodyUuid, snapshot, bodySpaceId, kind, persistenceMode) -> frameBuilder.addBody(bodyUuid,
+                (bodyUuid, snapshot, bodySpaceId) -> frameBuilder.addBody(bodyUuid,
                     bodySpaceId,
                     frameWorldEpoch,
                     frameWorldEpoch,
-                    kind,
-                    persistenceMode,
                     snapshot));
         }
         PublishedPhysicsSnapshotFrame frame = frameBuilder.build();

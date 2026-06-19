@@ -8,9 +8,9 @@ import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkCollisionStreamingResource;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.components.ChunkCollisionSourceComponent;
 import dev.hytalemodding.impulse.core.internal.physicsstore.PhysicsStoreSpaceMutations;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSnapshotResource;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
 import dev.hytalemodding.impulse.core.plugin.components.BodyComponent;
 import dev.hytalemodding.impulse.core.plugin.components.ShapeComponent;
@@ -66,15 +66,17 @@ final class PhysicsStoreBenchmarkQueries {
                 continue;
             }
             ShapeComponent shape = chunk.getComponent(index, ShapeComponent.getComponentType());
-            classifyBody(stats, body, shape, snapshot, query);
+            boolean chunkCollisionBody = chunk.getComponent(index,
+                ChunkCollisionSourceComponent.getComponentType()) != null;
+            classifyBody(stats, shape, snapshot, query, chunkCollisionBody);
         }
     }
 
     private static void classifyBody(@Nonnull BenchmarkSpaceStatsAccumulator stats,
-        @Nonnull BodyComponent body,
         @Nullable ShapeComponent shape,
         @Nonnull PhysicsBodySnapshot snapshot,
-        @Nonnull BenchmarkSpaceStatsRequest query) {
+        @Nonnull BenchmarkSpaceStatsRequest query,
+        boolean chunkCollisionBody) {
         stats.bodies++;
         if (snapshot.bodyType() == PhysicsBodyType.DYNAMIC) {
             stats.dynamicBodies++;
@@ -100,18 +102,13 @@ final class PhysicsStoreBenchmarkQueries {
             }
         }
 
-        if (body.getKind() == PhysicsBodyKind.BODY) {
-            stats.detachedBodies++;
-            return;
-        }
-        if (shape != null && shape.getShapeType() == ShapeType.PLANE) {
-            return;
-        }
-        if (body.getKind().isTerrain()) {
+        if (chunkCollisionBody) {
             stats.terrainBodies++;
             return;
         }
-        stats.rawBodies++;
+        if (shape == null || shape.getShapeType() != ShapeType.PLANE) {
+            stats.detachedBodies++;
+        }
     }
 
     private static final class BenchmarkSpaceStatsAccumulator {

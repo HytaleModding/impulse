@@ -10,8 +10,6 @@ import dev.hytalemodding.impulse.core.internal.resources.PhysicsVisualRuntime;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldLifecycleState;
 import dev.hytalemodding.impulse.core.internal.resources.joint.PhysicsJointRegistry;
 import dev.hytalemodding.impulse.core.internal.resources.joint.PhysicsJointRegistration;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import java.util.ArrayList;
 import java.util.UUID;
 import javax.annotation.Nonnull;
@@ -60,9 +58,7 @@ public final class PhysicsBodyRuntime {
     @Nonnull
     public UUID addBody(@Nonnull UUID bodyUuid,
         @Nonnull SpaceId spaceId,
-        @Nonnull BackendBodyHandle backendBodyHandle,
-        @Nonnull PhysicsBodyKind kind,
-        @Nonnull PhysicsBodyPersistenceMode persistenceMode) {
+        @Nonnull BackendBodyHandle backendBodyHandle) {
         PhysicsSpaceBinding binding = spaceRuntime.requireBinding(spaceId);
         long backendBodyId = backendBodyHandle.value();
         if (!binding.runtime().containsBody(binding.backendSpaceHandle().value(), backendBodyId)) {
@@ -71,14 +67,12 @@ public final class PhysicsBodyRuntime {
         }
         bodyRegistry.validateRegisterable(bodyUuid, backendBodyHandle, spaceId);
         PhysicsBodyRegistration registration =
-            bodyRegistry.registerBody(bodyUuid, backendBodyHandle, spaceId, kind, persistenceMode);
+            bodyRegistry.registerBody(bodyUuid, backendBodyHandle, spaceId);
         PhysicsBodySnapshot snapshot = PhysicsBodySnapshots.read(binding, backendBodyId);
         if (snapshot != null) {
             lifecycleState.putBodySnapshot(registration.bodyUuid(),
                 snapshot,
-                spaceId,
-                registration.kind(),
-                registration.persistenceMode());
+                spaceId);
         }
         worldChangedMarker.run();
         return bodyUuid;

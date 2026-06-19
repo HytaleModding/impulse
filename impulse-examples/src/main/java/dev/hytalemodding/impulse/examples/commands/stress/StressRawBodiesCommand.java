@@ -12,8 +12,6 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.SpaceId;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
 import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
 import dev.hytalemodding.impulse.examples.utils.ExamplePhysicsUtils;
@@ -83,8 +81,6 @@ public class StressRawBodiesCommand extends AbstractAsyncPlayerCommand {
             box,
             1.0f,
             spawnSettings,
-            PhysicsBodyKind.TEMPORARY,
-            PhysicsBodyPersistenceMode.RUNTIME_ONLY,
             spawns -> {
                 for (int i = 0; i < count; i++) {
                     int x = i % side;

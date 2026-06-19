@@ -15,7 +15,6 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
 import dev.hytalemodding.impulse.api.SpaceId;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsBodies;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.BodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.snapshots.PhysicsBodySnapshot;
@@ -134,13 +133,13 @@ public final class ExplosiveFuseTickSystem extends EntityTickingSystem<EntitySto
         @Nonnull BodyAttachmentComponent attachment) {
         Store<PhysicsStore> physics = PhysicsThreading.store(store.getExternalData().getWorld());
         Ref<PhysicsStore> bodyRef = attachment.getBodyRef();
-        PhysicsBodyRegistrationView registration = bodyRef != null && bodyRef.isValid()
-            ? PhysicsBodies.registrationView(physics, bodyRef)
+        SpaceId spaceId = bodyRef != null && bodyRef.isValid()
+            ? PhysicsBodies.spaceId(physics, bodyRef)
             : null;
-        if (registration == null) {
-            registration = PhysicsBodies.registrationView(physics, attachment.getBodyUuid());
+        if (spaceId == null) {
+            spaceId = PhysicsBodies.spaceId(physics, attachment.getBodyUuid());
         }
-        return registration != null ? registration.spaceId() : null;
+        return spaceId;
     }
 
     @Nullable

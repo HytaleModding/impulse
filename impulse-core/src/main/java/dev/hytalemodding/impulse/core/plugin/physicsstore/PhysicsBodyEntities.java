@@ -4,8 +4,6 @@ import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.PhysicsCollisionFilters;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.components.BodyComponent;
 import dev.hytalemodding.impulse.core.plugin.components.ColliderComponent;
 import dev.hytalemodding.impulse.core.plugin.components.CollisionFilterComponent;
@@ -37,8 +35,7 @@ public final class PhysicsBodyEntities {
         @Nonnull PhysicsShapeSpec shape,
         float mass,
         @Nonnull RigidBodySpawnSettings settings,
-        @Nullable Vector3f linearVelocity,
-        @Nonnull PhysicsBodyPersistenceMode persistenceMode) {
+        @Nullable Vector3f linearVelocity) {
         return body(spaceRef,
             bodyUuid,
             bodyCenter,
@@ -46,9 +43,7 @@ public final class PhysicsBodyEntities {
             PhysicsBodyType.DYNAMIC,
             mass,
             settings,
-            linearVelocity,
-            PhysicsBodyKind.BODY,
-            persistenceMode);
+            linearVelocity);
     }
 
     @Nonnull
@@ -59,9 +54,7 @@ public final class PhysicsBodyEntities {
         @Nonnull PhysicsBodyType bodyType,
         float mass,
         @Nonnull RigidBodySpawnSettings settings,
-        @Nullable Vector3f linearVelocity,
-        @Nonnull PhysicsBodyKind kind,
-        @Nonnull PhysicsBodyPersistenceMode persistenceMode) {
+        @Nullable Vector3f linearVelocity) {
         BodyEntityDescriptor descriptor = bodyWithSpaceUuid(PhysicsEntityRefs.entityUuid(spaceRef),
             bodyUuid,
             bodyCenter,
@@ -69,9 +62,7 @@ public final class PhysicsBodyEntities {
             bodyType,
             mass,
             settings,
-            linearVelocity,
-            kind,
-            persistenceMode);
+            linearVelocity);
         descriptor.body().setSpaceRef(spaceRef);
         return descriptor;
     }
@@ -84,22 +75,16 @@ public final class PhysicsBodyEntities {
         @Nonnull PhysicsBodyType bodyType,
         float mass,
         @Nonnull RigidBodySpawnSettings settings,
-        @Nullable Vector3f linearVelocity,
-        @Nonnull PhysicsBodyKind kind,
-        @Nonnull PhysicsBodyPersistenceMode persistenceMode) {
+        @Nullable Vector3f linearVelocity) {
         Objects.requireNonNull(spaceUuid, "spaceUuid");
         Objects.requireNonNull(bodyUuid, "bodyUuid");
         Objects.requireNonNull(bodyCenter, "bodyCenter");
         Objects.requireNonNull(shape, "shape");
         Objects.requireNonNull(bodyType, "bodyType");
         Objects.requireNonNull(settings, "settings");
-        Objects.requireNonNull(kind, "kind");
-        Objects.requireNonNull(persistenceMode, "persistenceMode");
 
         return BodyEntityDescriptor.of(bodyUuid,
-            new BodyComponent(spaceUuid,
-                kind,
-                persistenceMode),
+            new BodyComponent(spaceUuid),
             new DynamicsComponent(bodyType,
                 mass,
                 settings.hasLinearDamping() ? settings.linearDamping() : 0.0f,

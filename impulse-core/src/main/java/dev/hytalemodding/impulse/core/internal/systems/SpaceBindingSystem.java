@@ -39,8 +39,7 @@ public final class SpaceBindingSystem extends TickingSystem<PhysicsStore>
     implements QuerySystem<PhysicsStore> {
 
     private static final Set<Dependency<PhysicsStore>> DEPENDENCIES = Set.of(
-        new SystemDependency<>(Order.AFTER, IdentityIndexSystem.class),
-        new SystemDependency<>(Order.AFTER, PhysicsChunkSettingsIndexSystem.class)
+        new SystemDependency<>(Order.AFTER, IdentityIndexSystem.class)
     );
 
     @Override

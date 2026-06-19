@@ -36,7 +36,8 @@ public final class ChunkCollisionVoxelStitchingSystem extends TickingSystem<Phys
     implements QuerySystem<PhysicsStore> {
 
     private static final Set<Dependency<PhysicsStore>> DEPENDENCIES = Set.of(
-        new SystemDependency<>(Order.AFTER, BodyBindingSystem.class)
+        new SystemDependency<>(Order.AFTER, BodyBindingSystem.class),
+        new SystemDependency<>(Order.BEFORE, TargetBindingSystem.class)
     );
 
     @Override

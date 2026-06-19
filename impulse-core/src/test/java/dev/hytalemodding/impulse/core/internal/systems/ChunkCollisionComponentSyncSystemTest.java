@@ -30,8 +30,6 @@ import dev.hytalemodding.impulse.core.internal.resources.PhysicsResourceTypes;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRestoreStatusResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.testsupport.TestInstanceFactory;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.components.BodyComponent;
 import dev.hytalemodding.impulse.core.plugin.components.ColliderComponent;
 import dev.hytalemodding.impulse.core.plugin.components.CollisionFilterComponent;
@@ -62,11 +60,11 @@ class ChunkCollisionComponentSyncSystemTest {
         PhysicsChunkStoreTypes.registerPhysicsStoreResourceTypes(proxy);
         proxy.registerSystem(new PersistenceHydrationSystem());
         proxy.registerSystem(new IdentityIndexSystem());
-        proxy.registerSystem(new PhysicsChunkSettingsIndexSystem());
         proxy.registerSystem(new SpaceBindingSystem());
         proxy.registerSystem(new SpaceSettingsApplicationSystem());
-        proxy.registerSystem(new ChunkCollisionMutationDrainSystem());
         proxy.registerSystem(new BodyBindingSystem());
+        proxy.registerSystem(new PhysicsChunkSettingsIndexSystem());
+        proxy.registerSystem(new ChunkCollisionMutationDrainSystem());
         proxy.registerSystem(new ChunkCollisionComponentSyncSystem());
         Store<PhysicsStore> store = registry.addStore(
             new PhysicsStore(TestInstanceFactory.world("chunk-collision-component-sync-test")),
@@ -169,9 +167,7 @@ class ChunkCollisionComponentSyncSystemTest {
             sourceKey,
             PartKind.BOX,
             0);
-        BodyComponent body = new BodyComponent(spaceUuid,
-            PhysicsBodyKind.TERRAIN,
-            PhysicsBodyPersistenceMode.RUNTIME_ONLY);
+        BodyComponent body = new BodyComponent(spaceUuid);
         body.setSpaceRef(runtime.spaceRef());
         Holder<PhysicsStore> holder = PhysicsEntities.bodyHolder(store,
             bodyUuid,

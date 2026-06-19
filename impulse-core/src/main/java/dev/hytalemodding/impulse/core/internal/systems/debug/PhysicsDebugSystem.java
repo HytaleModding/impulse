@@ -22,8 +22,7 @@ import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.PhysicsEntity
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.BodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.BodyAttachmentComponent.AttachmentLifecycle;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsDebugResource;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkCollision;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsBodies;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.SectionCollisionGeometry.BoxCollider;
@@ -142,6 +141,7 @@ public class PhysicsDebugSystem extends TickingSystem<EntityStore> {
                     overlayLifetime);
                 renderDetachedBodies(target,
                     store,
+                    physicsStore,
                     resource,
                     viewerPosition,
                     debug.getViewRadius(),
@@ -232,10 +232,12 @@ public class PhysicsDebugSystem extends TickingSystem<EntityStore> {
             return 0;
         }
         double maxDistanceSquared = viewRadius * viewRadius;
-        for (PhysicsBodyRegistrationView registration : PhysicsBodies.registrationViews(physicsStore,
-            PhysicsBodyKind.BODY)) {
+        for (UUID bodyUuid : PhysicsBodies.bodyUuids(physicsStore)) {
+            if (PhysicsChunkCollision.isChunkCollisionBody(physicsStore, bodyUuid)) {
+                continue;
+            }
             Collection<Ref<EntityStore>> attachments = PhysicsEntityAttachments.attachments(store,
-                registration.bodyUuid(),
+                bodyUuid,
                 null);
             if (attachments.isEmpty()) {
                 continue;
@@ -254,7 +256,7 @@ public class PhysicsDebugSystem extends TickingSystem<EntityStore> {
                     continue;
                 }
 
-                PhysicsBodySnapshot snapshot = resource.getBodySnapshotIfRegistered(registration.bodyUuid(),
+                PhysicsBodySnapshot snapshot = resource.getBodySnapshotIfRegistered(bodyUuid,
                     null);
                 if (snapshot == null) {
                     continue;
@@ -287,6 +289,7 @@ public class PhysicsDebugSystem extends TickingSystem<EntityStore> {
 
     private static int renderDetachedBodies(@Nonnull Collection<PlayerRef> viewers,
         @Nonnull Store<EntityStore> store,
+        @Nonnull Store<PhysicsStore> physicsStore,
         @Nonnull PhysicsWorldRuntimeResource resource,
         @Nonnull Vector3d viewerPosition,
         double viewRadius,
@@ -301,12 +304,12 @@ public class PhysicsDebugSystem extends TickingSystem<EntityStore> {
         RenderedBodyCount rendered = new RenderedBodyCount();
         double maxDistanceSquared = viewRadius * viewRadius;
         for (SpaceId spaceId : resource.getSpaceIds()) {
-            resource.forEachIndexedBodySnapshot(spaceId, (bodyUuid, snapshot, _, kind, _) -> {
+            resource.forEachIndexedBodySnapshot(spaceId, (bodyUuid, snapshot, _) -> {
                 if (rendered.hasReached(maxBodies)) {
                     return;
                 }
 
-                if (kind != PhysicsBodyKind.BODY
+                if (PhysicsChunkCollision.isChunkCollisionBody(physicsStore, bodyUuid)
                     || PhysicsEntityAttachments.hasAttachments(store, bodyUuid, null)) {
                     return;
                 }
@@ -358,7 +361,7 @@ public class PhysicsDebugSystem extends TickingSystem<EntityStore> {
         @Nonnull PhysicsWorldRuntimeResource resource,
         @Nonnull SpaceId spaceId,
         float time) {
-        resource.forEachIndexedBodySnapshot(spaceId, (bodyUuid, snapshot, snapshotSpaceId, kind, persistenceMode) -> {
+        resource.forEachIndexedBodySnapshot(spaceId, (bodyUuid, snapshot, snapshotSpaceId) -> {
             if (snapshot.shapeType() != ShapeType.PLANE) {
                 return;
             }

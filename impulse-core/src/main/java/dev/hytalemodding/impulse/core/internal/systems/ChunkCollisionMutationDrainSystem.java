@@ -26,8 +26,6 @@ import dev.hytalemodding.impulse.core.internal.modules.physicschunk.ChunkCollisi
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkLifecycle;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkCollisionDefaults;
 import dev.hytalemodding.impulse.core.internal.physicsstore.PhysicsStoreRowCleanup;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.components.BodyComponent;
 import dev.hytalemodding.impulse.core.plugin.components.ColliderComponent;
 import dev.hytalemodding.impulse.core.plugin.components.CollisionFilterComponent;
@@ -54,14 +52,15 @@ import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
 /**
- * Applies copied PhysicsChunk chunk collision mutations as runtime-only chunk collision body rows.
+ * Applies copied PhysicsChunk chunk collision mutations as chunk collision body rows.
  */
 public final class ChunkCollisionMutationDrainSystem extends TickingSystem<PhysicsStore> {
 
     private static final Set<Dependency<PhysicsStore>> DEPENDENCIES = Set.of(
         new SystemDependency<>(Order.AFTER, SpaceBindingSystem.class),
         new SystemDependency<>(Order.AFTER, SpaceSettingsApplicationSystem.class),
-        new SystemDependency<>(Order.AFTER, PhysicsChunkSettingsIndexSystem.class)
+        new SystemDependency<>(Order.AFTER, PhysicsChunkSettingsIndexSystem.class),
+        new SystemDependency<>(Order.BEFORE, BodyBindingSystem.class)
     );
 
     @Override
@@ -291,9 +290,7 @@ public final class ChunkCollisionMutationDrainSystem extends TickingSystem<Physi
             mutation.sourceKey(),
             partKind,
             partIndex);
-        BodyComponent body = new BodyComponent(mutation.spaceUuid(),
-            PhysicsBodyKind.TERRAIN,
-            PhysicsBodyPersistenceMode.RUNTIME_ONLY);
+        BodyComponent body = new BodyComponent(mutation.spaceUuid());
         body.setSpaceRef(spaceRef);
         var holder = PhysicsEntities.bodyHolder(store,
             bodyUuid,

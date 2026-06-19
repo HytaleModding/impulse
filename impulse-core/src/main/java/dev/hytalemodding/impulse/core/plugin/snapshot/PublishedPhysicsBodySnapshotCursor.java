@@ -5,8 +5,6 @@ import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.SpaceId;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import java.util.UUID;
 import javax.annotation.Nonnull;
 import org.joml.Quaternionf;
@@ -34,12 +32,6 @@ public interface PublishedPhysicsBodySnapshotCursor {
     long spaceEpoch();
 
     long registrationGeneration();
-
-    @Nonnull
-    PhysicsBodyKind kind();
-
-    @Nonnull
-    PhysicsBodyPersistenceMode persistenceMode();
 
     float positionX();
 

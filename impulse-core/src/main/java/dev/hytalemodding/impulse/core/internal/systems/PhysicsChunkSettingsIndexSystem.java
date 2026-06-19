@@ -30,7 +30,8 @@ public final class PhysicsChunkSettingsIndexSystem extends TickingSystem<Physics
     implements QuerySystem<PhysicsStore> {
 
     private static final Set<Dependency<PhysicsStore>> DEPENDENCIES = Set.of(
-        new SystemDependency<>(Order.AFTER, IdentityIndexSystem.class)
+        new SystemDependency<>(Order.AFTER, IdentityIndexSystem.class),
+        new SystemDependency<>(Order.BEFORE, SpaceBindingSystem.class)
     );
 
     @Override

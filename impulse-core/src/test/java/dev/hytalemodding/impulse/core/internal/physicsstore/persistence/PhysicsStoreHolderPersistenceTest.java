@@ -35,8 +35,6 @@ import dev.hytalemodding.impulse.core.internal.resources.PhysicsRestoreStatusRes
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSnapshotResource;
 import dev.hytalemodding.impulse.core.internal.systems.PersistenceHydrationSystem;
 import dev.hytalemodding.impulse.core.internal.testsupport.TestInstanceFactory;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.components.BodyCommandComponent;
 import dev.hytalemodding.impulse.core.plugin.components.BodyComponent;
 import dev.hytalemodding.impulse.core.plugin.components.ColliderComponent;
@@ -82,18 +80,16 @@ class PhysicsStoreHolderPersistenceTest {
     Path tempDir;
 
     @Test
-    void holderBlobsPersistDurableRowsWithSnapshotTargetsOnly() {
+    void holderBlobsPersistUuidBodyRowsWithSnapshotTargetsOnly() {
         StoreFixture fixture = store("holder-capture", tempDir.resolve("capture"));
         try {
             Ref<PhysicsStore> spaceRef = addSpace(fixture.store(), SPACE_UUID);
             Ref<PhysicsStore> bodyARef = addBody(fixture.store(),
                 BODY_A_UUID,
-                PhysicsBodyPersistenceMode.PERSISTENT,
                 spaceRef,
                 null);
             Ref<PhysicsStore> bodyBRef = addBody(fixture.store(),
                 BODY_B_UUID,
-                PhysicsBodyPersistenceMode.PERSISTENT,
                 spaceRef,
                 null);
             fixture.store().putComponent(bodyARef,
@@ -101,7 +97,6 @@ class PhysicsStoreHolderPersistenceTest {
                 BodyCommandComponent.wake());
             addBody(fixture.store(),
                 GENERATED_BODY_UUID,
-                PhysicsBodyPersistenceMode.RUNTIME_ONLY,
                 spaceRef,
                 new ChunkCollisionSourceComponent("0:0:0",
                     0,
@@ -126,7 +121,9 @@ class PhysicsStoreHolderPersistenceTest {
             assertNotNull(bodyA);
             assertNotNull(holder(decoded, BODY_B_UUID));
             assertNotNull(holder(decoded, JOINT_UUID));
-            assertNull(holder(decoded, GENERATED_BODY_UUID));
+            Holder<PhysicsStore> generatedBody = holder(decoded, GENERATED_BODY_UUID);
+            assertNotNull(generatedBody);
+            assertNull(generatedBody.getComponent(ChunkCollisionSourceComponent.getComponentType()));
 
             assertNull(bodyA.getComponent(BodyCommandComponent.getComponentType()));
             BodyComponent body = bodyA.getComponent(BodyComponent.getComponentType());
@@ -151,7 +148,6 @@ class PhysicsStoreHolderPersistenceTest {
             Ref<PhysicsStore> spaceRef = addSpace(source.store(), SPACE_UUID);
             addBody(source.store(),
                 BODY_A_UUID,
-                PhysicsBodyPersistenceMode.PERSISTENT,
                 spaceRef,
                 null);
             PhysicsStoreHolderStorage.save(source.store()).join();
@@ -242,9 +238,7 @@ class PhysicsStoreHolderPersistenceTest {
             Holder<PhysicsStore> second = fixture.store().getRegistry().newHolder();
             second.addComponent(UuidComponent.getComponentType(), new UuidComponent(SPACE_UUID));
             second.addComponent(BodyComponent.getComponentType(),
-                new BodyComponent(SPACE_UUID,
-                    PhysicsBodyKind.BODY,
-                    PhysicsBodyPersistenceMode.PERSISTENT));
+                new BodyComponent(SPACE_UUID));
             writeHolderStorage(fixture.store(), List.of(first, second));
 
             new PersistenceHydrationSystem().tick(0.0f, 0, fixture.store());
@@ -267,9 +261,7 @@ class PhysicsStoreHolderPersistenceTest {
             Holder<PhysicsStore> body = fixture.store().getRegistry().newHolder();
             body.addComponent(UuidComponent.getComponentType(), new UuidComponent(BODY_A_UUID));
             body.addComponent(BodyComponent.getComponentType(),
-                new BodyComponent(SPACE_UUID,
-                    PhysicsBodyKind.BODY,
-                    PhysicsBodyPersistenceMode.PERSISTENT));
+                new BodyComponent(SPACE_UUID));
             writeHolderStorage(fixture.store(), List.of(body));
 
             new PersistenceHydrationSystem().tick(0.0f, 0, fixture.store());
@@ -330,12 +322,11 @@ class PhysicsStoreHolderPersistenceTest {
     @Nonnull
     private static Ref<PhysicsStore> addBody(@Nonnull Store<PhysicsStore> store,
         @Nonnull UUID bodyUuid,
-        @Nonnull PhysicsBodyPersistenceMode persistenceMode,
         @Nonnull Ref<PhysicsStore> spaceRef,
         ChunkCollisionSourceComponent source) {
         Holder<PhysicsStore> holder = PhysicsEntities.bodyHolder(store,
             bodyUuid,
-            body(SPACE_UUID, persistenceMode, spaceRef),
+            body(SPACE_UUID, spaceRef),
             new DynamicsComponent(PhysicsBodyType.DYNAMIC, 1.0f, 0.0f, 0.0f, false),
             target(),
             new ColliderComponent(new Vector3f(), new Quaternionf(), false),
@@ -361,9 +352,8 @@ class PhysicsStoreHolderPersistenceTest {
 
     @Nonnull
     private static BodyComponent body(@Nonnull UUID spaceUuid,
-        @Nonnull PhysicsBodyPersistenceMode persistenceMode,
         @Nonnull Ref<PhysicsStore> spaceRef) {
-        BodyComponent body = new BodyComponent(spaceUuid, PhysicsBodyKind.BODY, persistenceMode);
+        BodyComponent body = new BodyComponent(spaceUuid);
         body.setSpaceRef(spaceRef);
         return body;
     }

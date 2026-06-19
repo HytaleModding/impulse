@@ -5,8 +5,6 @@ import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.SpaceId;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.function.Consumer;
@@ -56,8 +54,6 @@ final class PublishedPhysicsBodyFrameStorage {
     private final SpaceId[] bodySpaceIds;
     private final long[] bodySpaceEpochs;
     private final long[] registrationGenerations;
-    private final PhysicsBodyKind[] kinds;
-    private final PhysicsBodyPersistenceMode[] persistenceModes;
     private final PhysicsBodyType[] bodyTypes;
     private final ShapeType[] shapeTypes;
     private final PhysicsAxis[] shapeAxes;
@@ -77,8 +73,6 @@ final class PublishedPhysicsBodyFrameStorage {
         SpaceId[] bodySpaceIds,
         long[] bodySpaceEpochs,
         long[] registrationGenerations,
-        PhysicsBodyKind[] kinds,
-        PhysicsBodyPersistenceMode[] persistenceModes,
         PhysicsBodyType[] bodyTypes,
         ShapeType[] shapeTypes,
         PhysicsAxis[] shapeAxes,
@@ -97,8 +91,6 @@ final class PublishedPhysicsBodyFrameStorage {
         this.bodySpaceIds = bodySpaceIds;
         this.bodySpaceEpochs = bodySpaceEpochs;
         this.registrationGenerations = registrationGenerations;
-        this.kinds = kinds;
-        this.persistenceModes = persistenceModes;
         this.bodyTypes = bodyTypes;
         this.shapeTypes = shapeTypes;
         this.shapeAxes = shapeAxes;
@@ -144,8 +136,6 @@ final class PublishedPhysicsBodyFrameStorage {
             worldEpoch,
             bodySpaceEpoch(bodyIndex),
             registrationGeneration(bodyIndex),
-            kind(bodyIndex),
-            persistenceMode(bodyIndex),
             positionX(bodyIndex),
             positionY(bodyIndex),
             positionZ(bodyIndex),
@@ -213,14 +203,6 @@ final class PublishedPhysicsBodyFrameStorage {
 
     private long registrationGeneration(int bodyIndex) {
         return registrationGenerations[bodyIndex];
-    }
-
-    private PhysicsBodyKind kind(int bodyIndex) {
-        return kinds[bodyIndex];
-    }
-
-    private PhysicsBodyPersistenceMode persistenceMode(int bodyIndex) {
-        return persistenceModes[bodyIndex];
     }
 
     private PhysicsBodyType bodyType(int bodyIndex) {
@@ -372,8 +354,6 @@ final class PublishedPhysicsBodyFrameStorage {
         private final SpaceId[] bodySpaceIds;
         private final long[] bodySpaceEpochs;
         private final long[] registrationGenerations;
-        private final PhysicsBodyKind[] kinds;
-        private final PhysicsBodyPersistenceMode[] persistenceModes;
         private final PhysicsBodyType[] bodyTypes;
         private final ShapeType[] shapeTypes;
         private final PhysicsAxis[] shapeAxes;
@@ -404,8 +384,6 @@ final class PublishedPhysicsBodyFrameStorage {
             this.bodySpaceIds = new SpaceId[expectedBodies];
             this.bodySpaceEpochs = new long[expectedBodies];
             this.registrationGenerations = new long[expectedBodies];
-            this.kinds = new PhysicsBodyKind[expectedBodies];
-            this.persistenceModes = new PhysicsBodyPersistenceMode[expectedBodies];
             this.bodyTypes = new PhysicsBodyType[expectedBodies];
             this.shapeTypes = new ShapeType[expectedBodies];
             this.shapeAxes = new PhysicsAxis[expectedBodies];
@@ -436,8 +414,6 @@ final class PublishedPhysicsBodyFrameStorage {
             @Nonnull SpaceId spaceId,
             long spaceEpoch,
             long registrationGeneration,
-            @Nonnull PhysicsBodyKind kind,
-            @Nonnull PhysicsBodyPersistenceMode persistenceMode,
             @Nonnull PhysicsBodySnapshot snapshot) {
             Objects.requireNonNull(bodyUuid, "bodyUuid");
             addBody(bodyUuid.getMostSignificantBits(),
@@ -445,8 +421,6 @@ final class PublishedPhysicsBodyFrameStorage {
                 spaceId,
                 spaceEpoch,
                 registrationGeneration,
-                kind,
-                persistenceMode,
                 snapshot);
         }
 
@@ -455,8 +429,6 @@ final class PublishedPhysicsBodyFrameStorage {
             @Nonnull SpaceId spaceId,
             long spaceEpoch,
             long registrationGeneration,
-            @Nonnull PhysicsBodyKind kind,
-            @Nonnull PhysicsBodyPersistenceMode persistenceMode,
             @Nonnull PhysicsBodySnapshot snapshot) {
             Objects.requireNonNull(snapshot, "snapshot");
             if (currentSpace < 0) {
@@ -476,8 +448,6 @@ final class PublishedPhysicsBodyFrameStorage {
             bodySpaceIds[nextBody] = Objects.requireNonNull(spaceId, "spaceId");
             bodySpaceEpochs[nextBody] = spaceEpoch;
             registrationGenerations[nextBody] = registrationGeneration;
-            kinds[nextBody] = Objects.requireNonNull(kind, "kind");
-            persistenceModes[nextBody] = Objects.requireNonNull(persistenceMode, "persistenceMode");
             bodyTypes[nextBody] = snapshot.bodyType();
             shapeTypes[nextBody] = snapshot.shapeType();
             shapeAxes[nextBody] = snapshot.shapeAxis();
@@ -544,8 +514,6 @@ final class PublishedPhysicsBodyFrameStorage {
                 bodySpaceIds,
                 bodySpaceEpochs,
                 registrationGenerations,
-                kinds,
-                persistenceModes,
                 bodyTypes,
                 shapeTypes,
                 shapeAxes,
@@ -600,18 +568,6 @@ final class PublishedPhysicsBodyFrameStorage {
         @Override
         public long registrationGeneration() {
             return PublishedPhysicsBodyFrameStorage.this.registrationGeneration(index);
-        }
-
-        @Nonnull
-        @Override
-        public PhysicsBodyKind kind() {
-            return PublishedPhysicsBodyFrameStorage.this.kind(index);
-        }
-
-        @Nonnull
-        @Override
-        public PhysicsBodyPersistenceMode persistenceMode() {
-            return PublishedPhysicsBodyFrameStorage.this.persistenceMode(index);
         }
 
         @Override

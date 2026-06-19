@@ -15,7 +15,6 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.PhysicsAxis;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.BodyEntityDescriptor;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
 import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
 import dev.hytalemodding.impulse.examples.utils.ExamplePhysicsUtils;
@@ -66,9 +65,6 @@ public class StressShapesCommand extends AbstractAsyncPlayerCommand {
             return CompletableFuture.completedFuture(null);
         }
         TimeResource time = store.getResource(TimeResource.getResourceType());
-        Store<PhysicsStore> physicsStore = PhysicsThreading.store(world);
-        PhysicsThreading.requireWorldThread(physicsStore,
-            "spawn stress shape PhysicsStore body entities");
 
         Vector3d origin = new Vector3d(playerPos).add(-12.0, 5.0, 5.0);
         for (int set = 0; set < sets; set++) {
@@ -78,35 +74,35 @@ public class StressShapesCommand extends AbstractAsyncPlayerCommand {
             Vector3d base = new Vector3d(origin).add(col * 7.0, row * 2.2, row * 1.5);
 
             spawn(store,
-                physicsStore,
+                world,
                 time,
                 space.spaceRef(),
                 ShapeType.BOX,
                 axis,
                 base, 0.0);
             spawn(store,
-                physicsStore,
+                world,
                 time,
                 space.spaceRef(),
                 ShapeType.SPHERE,
                 axis,
                 base, 1.2);
             spawn(store,
-                physicsStore,
+                world,
                 time,
                 space.spaceRef(),
                 ShapeType.CAPSULE,
                 axis,
                 base, 2.4);
             spawn(store,
-                physicsStore,
+                world,
                 time,
                 space.spaceRef(),
                 ShapeType.CYLINDER,
                 axis,
                 base, 3.6);
             spawn(store,
-                physicsStore,
+                world,
                 time,
                 space.spaceRef(),
                 ShapeType.CONE,
@@ -120,7 +116,7 @@ public class StressShapesCommand extends AbstractAsyncPlayerCommand {
     }
 
     private static void spawn(@Nonnull Store<EntityStore> store,
-        @Nonnull Store<PhysicsStore> physicsStore,
+        @Nonnull World world,
         @Nonnull TimeResource time,
         @Nonnull Ref<PhysicsStore> spaceRef,
         @Nonnull ShapeType type,
@@ -136,10 +132,8 @@ public class StressShapesCommand extends AbstractAsyncPlayerCommand {
             1.0f,
             RigidBodySpawnSettings.material(0.6f, 0.25f),
             null);
-        Ref<PhysicsStore> bodyRef = physicsStore.addEntity(
-            ExamplePhysicsUtils.bodyHolder(physicsStore, descriptor),
-            AddReason.SPAWN);
-        store.addEntity(ExamplePhysicsUtils.attachedPhysicsStoreBlockEntityHolder(
+        Ref<PhysicsStore> bodyRef = ExamplePhysicsUtils.addPhysicsStoreBody(world, descriptor);
+        store.addEntity(ExamplePhysicsUtils.attachedPhysicsBlockEntityHolder(
             time,
             bodyRef,
             bodyUuid,

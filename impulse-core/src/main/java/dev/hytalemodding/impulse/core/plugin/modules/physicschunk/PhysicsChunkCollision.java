@@ -7,6 +7,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkLifecycle;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkCollisionStreamingResource;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.components.ChunkCollisionSourceComponent;
 import dev.hytalemodding.impulse.core.internal.physicsstore.PhysicsStoreTopologyMutations;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkSettingsIndexResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkSettingsIndexResource.PhysicsChunkSpaceSettings;
@@ -14,11 +15,13 @@ import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkCollisionMu
 import dev.hytalemodding.impulse.core.plugin.components.SpaceComponent;
 import dev.hytalemodding.impulse.core.plugin.components.UuidComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.ChunkCollisionSettingsComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsEntities;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.joml.Vector3d;
 
 /**
@@ -31,6 +34,26 @@ public final class PhysicsChunkCollision {
 
     public static boolean isSubPluginEnabled() {
         return PhysicsChunkLifecycle.isEnabled();
+    }
+
+    public static boolean isChunkCollisionBody(@Nonnull Store<PhysicsStore> store,
+        @Nonnull UUID bodyUuid) {
+        Store<PhysicsStore> checkedStore = requireWorldThread(store,
+            "read PhysicsChunk body ownership");
+        Ref<PhysicsStore> bodyRef = PhysicsEntities.resolveRef(checkedStore,
+            Objects.requireNonNull(bodyUuid, "bodyUuid"));
+        return bodyRef != null && isChunkCollisionBody(checkedStore, bodyRef);
+    }
+
+    public static boolean isChunkCollisionBody(@Nonnull Store<PhysicsStore> store,
+        @Nullable Ref<PhysicsStore> bodyRef) {
+        Store<PhysicsStore> checkedStore = requireWorldThread(store,
+            "read PhysicsChunk body ownership");
+        if (bodyRef == null || bodyRef.getStore() != checkedStore || !bodyRef.isValid()) {
+            return false;
+        }
+        return checkedStore.getComponent(bodyRef, ChunkCollisionSourceComponent.getComponentType())
+            != null;
     }
 
     @Nonnull
@@ -158,12 +181,19 @@ public final class PhysicsChunkCollision {
     }
 
     @Nonnull
+    private static Store<PhysicsStore> requireWorldThread(@Nonnull Store<PhysicsStore> store,
+        @Nonnull String operation) {
+        Store<PhysicsStore> checkedStore = Objects.requireNonNull(store, "store");
+        PhysicsThreading.requireWorldThread(checkedStore, operation);
+        return checkedStore;
+    }
+
+    @Nonnull
     private static Store<PhysicsStore> requireMatchingWorldThread(@Nonnull World world,
         @Nonnull Store<PhysicsStore> store,
         @Nonnull String operation) {
         World checkedWorld = Objects.requireNonNull(world, "world");
-        Store<PhysicsStore> checkedStore = Objects.requireNonNull(store, "store");
-        PhysicsThreading.requireWorldThread(checkedStore, operation);
+        Store<PhysicsStore> checkedStore = requireWorldThread(store, operation);
         if (PhysicsThreading.world(checkedStore) != checkedWorld) {
             throw new IllegalArgumentException("PhysicsStore does not belong to the supplied world");
         }

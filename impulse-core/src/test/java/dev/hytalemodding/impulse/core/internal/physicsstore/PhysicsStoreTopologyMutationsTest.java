@@ -32,9 +32,6 @@ import dev.hytalemodding.impulse.core.internal.resources.PhysicsResourceTypes;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSnapshotResource;
 import dev.hytalemodding.impulse.core.internal.testsupport.TestInstanceFactory;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
 import dev.hytalemodding.impulse.core.plugin.components.BodyComponent;
 import dev.hytalemodding.impulse.core.plugin.components.ColliderComponent;
 import dev.hytalemodding.impulse.core.plugin.components.CollisionFilterComponent;
@@ -118,8 +115,8 @@ class PhysicsStoreTopologyMutationsTest {
             assertEquals(0, space.runtime().jointCount(space.handle().value()));
             assertNull(snapshots.getBody(bodyAUuid));
             assertNotNull(snapshots.getBody(bodyBUuid));
-            assertNull(registrations.getBodyRegistrationView(bodyAUuid));
-            assertNotNull(registrations.getBodyRegistrationView(bodyBUuid));
+            assertFalse(registrations.hasBody(bodyAUuid));
+            assertNotNull(registrations.getBodySpaceId(bodyBUuid));
             assertFalse(bodyARef.isValid());
             assertFalse(jointRef.isValid());
             assertNotNull(store.getComponent(remainingBodyRef, BodyComponent.getComponentType()));
@@ -157,9 +154,7 @@ class PhysicsStoreTopologyMutationsTest {
         @Nonnull UUID spaceUuid,
         @Nonnull Ref<PhysicsStore> spaceRef,
         @Nonnull UUID bodyUuid) {
-        BodyComponent body = new BodyComponent(spaceUuid,
-            PhysicsBodyKind.BODY,
-            PhysicsBodyPersistenceMode.RUNTIME_ONLY);
+        BodyComponent body = new BodyComponent(spaceUuid);
         body.setSpaceRef(spaceRef);
         Ref<PhysicsStore> bodyRef = store.addEntity(PhysicsEntities.bodyHolder(store,
                 bodyUuid,
@@ -334,10 +329,8 @@ class PhysicsStoreTopologyMutationsTest {
         @Nonnull Ref<PhysicsStore> bodyRef,
         @Nonnull UUID bodyUuid) {
         return new PhysicsBodyRegistrationResource.BodyRegistrationPublication(bodyRef,
-            new PhysicsBodyRegistrationView(bodyUuid,
-                new SpaceId(42),
-                PhysicsBodyKind.BODY,
-                PhysicsBodyPersistenceMode.RUNTIME_ONLY));
+            bodyUuid,
+            new SpaceId(42));
     }
 
     private static void markCurrentThreadAsWorldThread(@Nonnull Store<PhysicsStore> store) {

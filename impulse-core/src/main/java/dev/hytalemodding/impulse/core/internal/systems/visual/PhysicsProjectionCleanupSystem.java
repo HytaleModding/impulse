@@ -95,7 +95,7 @@ public class PhysicsProjectionCleanupSystem extends TickingSystem<EntityStore> {
             return false;
         }
         return store != null
-            ? PhysicsBodies.registrationView(store, attachment.getBodyUuid()) == null
+            ? !PhysicsBodies.isRegistered(store, attachment.getBodyUuid())
             : !resource.hasPublishedBodyRegistration(attachment.getBodyUuid());
     }
 

@@ -13,8 +13,6 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.SpaceId;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsAsync;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsDiagnostics;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
@@ -175,8 +173,6 @@ public class StressBenchmarkCommand extends AbstractAsyncPlayerCommand {
                 box,
                 1.0f,
                 spawnSettings,
-                PhysicsBodyKind.TEMPORARY,
-                PhysicsBodyPersistenceMode.RUNTIME_ONLY,
                 bodies -> {
                     for (int i = 0; i < count; i++) {
                         bodies.addBody(layout.positionX(i),

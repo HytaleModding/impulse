@@ -20,10 +20,8 @@ import dev.hytalemodding.impulse.api.PhysicsCollisionFilters;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.modules.control.ImpulseControllableComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.BodyAttachmentComponent;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
 import dev.hytalemodding.impulse.core.plugin.modules.control.PhysicsControlSessions;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkCollision;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsBodyEntities;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsJointEntities;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsAsync;
@@ -231,9 +229,7 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
             RigidBodySpawnSettings.material(0.5f, 0.0f)
                 .withSensor(true)
                 .withCollisionFilter(PhysicsCollisionFilters.TERRAIN, 0),
-            null,
-            PhysicsBodyKind.TEMPORARY,
-            PhysicsBodyPersistenceMode.RUNTIME_ONLY);
+            null);
     }
 
     @Nonnull
@@ -262,13 +258,13 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
                 || !hit.bodyRef().isValid()) {
                 continue;
             }
-            PhysicsBodyRegistrationView registration =
-                PhysicsBodies.registrationView(physicsStore, hit.bodyRef());
-            if (registration == null || registration.kind() != PhysicsBodyKind.BODY) {
+            SpaceId bodySpaceId = PhysicsBodies.spaceId(physicsStore, hit.bodyRef());
+            if (bodySpaceId == null
+                || PhysicsChunkCollision.isChunkCollisionBody(physicsStore, hit.bodyRef())) {
                 continue;
             }
             candidates.add(new HitCandidate(hit.bodyRef(),
-                registration.spaceId(),
+                bodySpaceId,
                 hit.point(),
                 hit.fraction(),
                 hit.distance()));

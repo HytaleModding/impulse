@@ -17,7 +17,6 @@ import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntimeProvider;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
 import dev.hytalemodding.impulse.core.internal.physicsstore.PhysicsStoreSpaceMutations;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodySnapshots;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.BodyEntityDescriptor;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsBodies;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsBodyEntities;
@@ -236,7 +235,7 @@ final class ImpulseApiCrucibleTests {
                     _ -> {
                         boolean spaceEmpty = bodyCount == 0;
                         boolean noRegistrations =
-                            PhysicsBodies.registrationViews(state.store()).isEmpty();
+                            PhysicsBodies.bodyUuids(state.store()).isEmpty();
                         boolean removedSpace = true;
                         if (checkSpaceRemoval || spaceEmpty) {
                             PhysicsStoreSpaceMutations.removeEmptySpace(
@@ -310,8 +309,7 @@ final class ImpulseApiCrucibleTests {
             PhysicsShapeSpec.box(0.5f, 0.5f, 0.5f),
             1.0f,
             RigidBodySpawnSettings.defaults(),
-            null,
-            PhysicsBodyPersistenceMode.RUNTIME_ONLY);
+            null);
         return store.addEntity(PhysicsEntities.bodyHolder(store,
             descriptor.bodyUuid(),
             descriptor.body(),

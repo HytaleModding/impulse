@@ -13,8 +13,6 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.SpaceId;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.components.BodyCommandComponent;
 import dev.hytalemodding.impulse.core.plugin.components.DynamicsComponent;
 import dev.hytalemodding.impulse.core.plugin.components.JointComponent;
@@ -163,22 +161,7 @@ public final class ExamplePhysicsUtils {
         @Nullable TargetComponent target) {
         Objects.requireNonNull(descriptor, "descriptor");
         PhysicsThreading.requireWorldThread(store, "add a PhysicsStore body entity");
-        return addPhysicsStoreBodyUnchecked(store, descriptor, dynamics, target);
-    }
-
-    @Nonnull
-    private static Ref<PhysicsStore> addPhysicsStoreBodyUnchecked(@Nonnull Store<PhysicsStore> store,
-        @Nonnull BodyEntityDescriptor descriptor,
-        @Nonnull DynamicsComponent dynamics,
-        @Nullable TargetComponent target) {
         return store.addEntity(bodyHolder(store, descriptor, dynamics, target), AddReason.SPAWN);
-    }
-
-    @Nonnull
-    public static Holder<PhysicsStore> bodyHolder(@Nonnull Store<PhysicsStore> store,
-        @Nonnull BodyEntityDescriptor descriptor) {
-        Objects.requireNonNull(descriptor, "descriptor");
-        return bodyHolder(store, descriptor, descriptor.dynamics(), descriptor.target());
     }
 
     @Nonnull
@@ -252,61 +235,7 @@ public final class ExamplePhysicsUtils {
             shape,
             mass,
             settings,
-            linearVelocity,
-            PhysicsBodyPersistenceMode.PERSISTENT);
-    }
-
-    @Nonnull
-    private static BodyEntityDescriptor bodyEntity(@Nonnull Ref<PhysicsStore> spaceRef,
-        @Nonnull UUID bodyUuid,
-        @Nonnull Vector3f bodyCenter,
-        @Nonnull PhysicsShapeSpec shape,
-        float mass,
-        @Nonnull RigidBodySpawnSettings settings,
-        @Nullable Vector3f linearVelocity,
-        @Nonnull PhysicsBodyKind kind,
-        @Nonnull PhysicsBodyPersistenceMode persistenceMode) {
-        return PhysicsBodyEntities.body(spaceRef,
-            bodyUuid,
-            bodyCenter,
-            shape,
-            PhysicsBodyType.DYNAMIC,
-            mass,
-            settings,
-            linearVelocity,
-            kind,
-            persistenceMode);
-    }
-
-    @Nonnull
-    public static BodyEntityBatchTiming addDynamicBodyBatchMeasured(@Nonnull World world,
-        @Nonnull SpaceId spaceId,
-        int expectedBodies,
-        @Nonnull PhysicsShapeSpec shape,
-        float mass,
-        @Nonnull RigidBodySpawnSettings settings,
-        @Nonnull PhysicsBodyKind kind,
-        @Nonnull PhysicsBodyPersistenceMode persistenceMode,
-        @Nonnull Consumer<BlockBodyBatchBuilder> builder) {
-        DynamicBodyBatchPlan plan = dynamicBodyBatchPlan(world,
-            spaceId,
-            expectedBodies,
-            shape,
-            mass,
-            settings,
-            kind,
-            persistenceMode,
-            builder);
-        if (plan.isEmpty()) {
-            return new BodyEntityBatchTiming(0, plan.setupWallNanos(), 0L);
-        }
-
-        long applyStartNanos = System.nanoTime();
-        addPhysicsStoreBodies(world, plan.bodies());
-        long physicsStoreApplyNanos = System.nanoTime() - applyStartNanos;
-        return new BodyEntityBatchTiming(plan.count(),
-            plan.setupWallNanos(),
-            physicsStoreApplyNanos);
+            linearVelocity);
     }
 
     @Nonnull
@@ -317,8 +246,6 @@ public final class ExamplePhysicsUtils {
         @Nonnull PhysicsShapeSpec shape,
         float mass,
         @Nonnull RigidBodySpawnSettings settings,
-        @Nonnull PhysicsBodyKind kind,
-        @Nonnull PhysicsBodyPersistenceMode persistenceMode,
         @Nonnull Consumer<BlockBodyBatchBuilder> builder) {
         DynamicBodyBatchPlan plan = dynamicBodyBatchPlan(spaceRef,
             spaceId,
@@ -326,8 +253,6 @@ public final class ExamplePhysicsUtils {
             shape,
             mass,
             settings,
-            kind,
-            persistenceMode,
             builder);
         if (plan.isEmpty()) {
             return new BodyEntityBatchTiming(0, plan.setupWallNanos(), 0L);
@@ -348,15 +273,11 @@ public final class ExamplePhysicsUtils {
         @Nonnull PhysicsShapeSpec shape,
         float mass,
         @Nonnull RigidBodySpawnSettings settings,
-        @Nonnull PhysicsBodyKind kind,
-        @Nonnull PhysicsBodyPersistenceMode persistenceMode,
         @Nonnull Consumer<BlockBodyBatchBuilder> builder) {
         Objects.requireNonNull(world, "world");
         Objects.requireNonNull(spaceId, "spaceId");
         Objects.requireNonNull(shape, "shape");
         Objects.requireNonNull(settings, "settings");
-        Objects.requireNonNull(kind, "kind");
-        Objects.requireNonNull(persistenceMode, "persistenceMode");
 
         long setupStartNanos = System.nanoTime();
         BlockBodyBatchBuilder batch = new BlockBodyBatchBuilder(expectedBodies);
@@ -377,8 +298,6 @@ public final class ExamplePhysicsUtils {
             shape,
             mass,
             settings,
-            kind,
-            persistenceMode,
             batch,
             setupStartNanos);
     }
@@ -390,15 +309,11 @@ public final class ExamplePhysicsUtils {
         @Nonnull PhysicsShapeSpec shape,
         float mass,
         @Nonnull RigidBodySpawnSettings settings,
-        @Nonnull PhysicsBodyKind kind,
-        @Nonnull PhysicsBodyPersistenceMode persistenceMode,
         @Nonnull Consumer<BlockBodyBatchBuilder> builder) {
         Objects.requireNonNull(spaceRef, "spaceRef");
         Objects.requireNonNull(spaceId, "spaceId");
         Objects.requireNonNull(shape, "shape");
         Objects.requireNonNull(settings, "settings");
-        Objects.requireNonNull(kind, "kind");
-        Objects.requireNonNull(persistenceMode, "persistenceMode");
 
         PhysicsThreading.requireWorldThread(spaceRef.getStore(),
             "add dynamic PhysicsStore body entities");
@@ -420,8 +335,6 @@ public final class ExamplePhysicsUtils {
             shape,
             mass,
             settings,
-            kind,
-            persistenceMode,
             batch,
             setupStartNanos);
     }
@@ -432,22 +345,19 @@ public final class ExamplePhysicsUtils {
         @Nonnull PhysicsShapeSpec shape,
         float mass,
         @Nonnull RigidBodySpawnSettings settings,
-        @Nonnull PhysicsBodyKind kind,
-        @Nonnull PhysicsBodyPersistenceMode persistenceMode,
         @Nonnull BlockBodyBatchBuilder batch,
         long setupStartNanos) {
         List<BodyEntityDescriptor> bodies = new ArrayList<>(batch.size());
         for (int i = 0; i < batch.size(); i++) {
             UUID bodyUuid = batch.bodyUuid(i);
-            bodies.add(bodyEntity(spaceRef,
+            bodies.add(PhysicsBodyEntities.body(spaceRef,
                 bodyUuid,
                 new Vector3f(batch.positionX(i), batch.positionY(i), batch.positionZ(i)),
                 shape,
+                PhysicsBodyType.DYNAMIC,
                 mass,
                 settings,
-                null,
-                kind,
-                persistenceMode));
+                null));
         }
 
         return new DynamicBodyBatchPlan(bodies, System.nanoTime() - setupStartNanos);
@@ -473,80 +383,6 @@ public final class ExamplePhysicsUtils {
             created.controllable());
         assert entity != null;
         return new SpawnedBlockBody(created.bodyUuid(), created.spaceId(), entity);
-    }
-
-    @Nonnull
-    public static SpawnedBlockBody[] spawnBlockBodies(@Nonnull Store<EntityStore> store,
-        @Nonnull TimeResource time,
-        long serverTick,
-        @Nonnull SpaceId spaceId,
-        int expectedBodies,
-        @Nullable String blockType,
-        @Nonnull PhysicsShapeSpec shape,
-        float mass,
-        @Nonnull RigidBodySpawnSettings settings,
-        @Nonnull Consumer<BlockBodyBatchBuilder> builder) {
-        return spawnBlockBodiesInternal(store,
-            time,
-            serverTick,
-            spaceId,
-            expectedBodies,
-            blockType,
-            shape,
-            mass,
-            settings,
-            builder,
-            true).collectedBodies();
-    }
-
-    @Nonnull
-    public static SpawnedBlockBody[] spawnBlockBodies(@Nonnull Store<EntityStore> store,
-        @Nonnull TimeResource time,
-        long serverTick,
-        @Nonnull Ref<PhysicsStore> spaceRef,
-        @Nonnull SpaceId spaceId,
-        int expectedBodies,
-        @Nullable String blockType,
-        @Nonnull PhysicsShapeSpec shape,
-        float mass,
-        @Nonnull RigidBodySpawnSettings settings,
-        @Nonnull Consumer<BlockBodyBatchBuilder> builder) {
-        return spawnBlockBodiesInternal(store,
-            time,
-            serverTick,
-            spaceRef,
-            spaceId,
-            expectedBodies,
-            blockType,
-            shape,
-            mass,
-            settings,
-            builder,
-            true).collectedBodies();
-    }
-
-    @Nonnull
-    public static BlockBodyBatchTiming spawnBlockBodiesMeasured(@Nonnull Store<EntityStore> store,
-        @Nonnull TimeResource time,
-        long serverTick,
-        @Nonnull SpaceId spaceId,
-        int expectedBodies,
-        @Nullable String blockType,
-        @Nonnull PhysicsShapeSpec shape,
-        float mass,
-        @Nonnull RigidBodySpawnSettings settings,
-        @Nonnull Consumer<BlockBodyBatchBuilder> builder) {
-        return spawnBlockBodiesInternal(store,
-            time,
-            serverTick,
-            spaceId,
-            expectedBodies,
-            blockType,
-            shape,
-            mass,
-            settings,
-            builder,
-            false).timing();
     }
 
     @Nonnull
@@ -730,26 +566,15 @@ public final class ExamplePhysicsUtils {
     @Nullable
     public static Ref<EntityStore> spawnExternalBodyViewBlockEntity(@Nonnull Store<EntityStore> store,
         @Nonnull TimeResource time,
-        @Nonnull UUID bodyUuid,
-        @Nonnull Vector3d visualPosition,
-        @Nullable String blockType) {
-        return spawnExternalBodyViewBlockEntity(store,
-            time,
-            null,
-            bodyUuid,
-            visualPosition,
-            blockType);
-    }
-
-    @Nullable
-    public static Ref<EntityStore> spawnExternalBodyViewBlockEntity(@Nonnull Store<EntityStore> store,
-        @Nonnull TimeResource time,
         @Nullable Ref<PhysicsStore> bodyRef,
         @Nonnull UUID bodyUuid,
         @Nonnull Vector3d visualPosition,
         @Nullable String blockType) {
         requirePhysicsEntityVisuals();
-        Holder<EntityStore> holder = blockEntityHolder(time, blockType, visualPosition);
+
+        Holder<EntityStore> holder =
+            ExampleBlockEntityVisuals.impulseOwnedBlockVisual(time, blockType, visualPosition);
+
         holder.addComponent(BodyAttachmentComponent.getComponentType(),
             externalBodyAttachment(bodyUuid, bodyRef));
         return store.addEntity(holder, AddReason.SPAWN);
@@ -763,7 +588,7 @@ public final class ExamplePhysicsUtils {
         @Nullable String blockType,
         @Nonnull Vector3d visualPosition,
         boolean controllable) {
-        Holder<EntityStore> holder = attachedPhysicsStoreBlockEntityHolder(time,
+        Holder<EntityStore> holder = attachedPhysicsBlockEntityHolder(time,
             bodyRef,
             physicsBodyUuid,
             blockType,
@@ -776,27 +601,7 @@ public final class ExamplePhysicsUtils {
     }
 
     @Nonnull
-    public static Holder<EntityStore> attachedPhysicsStoreBlockEntityHolder(@Nonnull TimeResource time,
-        @Nonnull UUID physicsBodyUuid,
-        @Nullable String blockType,
-        @Nonnull Vector3d visualPosition,
-        @Nonnull Vector3f localPositionOffset,
-        @Nonnull Quaternionf localRotationOffset,
-        float visualOriginOffsetY,
-        boolean controllable) {
-        return attachedPhysicsStoreBlockEntityHolder(time,
-            null,
-            physicsBodyUuid,
-            blockType,
-            visualPosition,
-            localPositionOffset,
-            localRotationOffset,
-            visualOriginOffsetY,
-            controllable);
-    }
-
-    @Nonnull
-    public static Holder<EntityStore> attachedPhysicsStoreBlockEntityHolder(@Nonnull TimeResource time,
+    public static Holder<EntityStore> attachedPhysicsBlockEntityHolder(@Nonnull TimeResource time,
         @Nullable Ref<PhysicsStore> bodyRef,
         @Nonnull UUID physicsBodyUuid,
         @Nullable String blockType,

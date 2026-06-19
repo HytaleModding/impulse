@@ -41,8 +41,6 @@ import dev.hytalemodding.impulse.core.internal.resources.PhysicsResourceTypes;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRestoreStatusResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.testsupport.TestInstanceFactory;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.components.BodyComponent;
 import dev.hytalemodding.impulse.core.plugin.components.CollisionFilterComponent;
 import dev.hytalemodding.impulse.core.plugin.components.DynamicsComponent;
@@ -668,8 +666,6 @@ class ChunkCollisionMutationDrainSystemTest {
         assertEquals(spaceUuid, body.getSpaceUuid());
         assertNotNull(body.getSpaceRef());
         assertEquals(spaceRef.getIndex(), body.getSpaceRef().getIndex());
-        assertEquals(PhysicsBodyKind.TERRAIN, body.getKind());
-        assertEquals(PhysicsBodyPersistenceMode.RUNTIME_ONLY, body.getPersistenceMode());
 
         ShapeComponent shape = store.getComponent(bodyRef, ShapeComponent.getComponentType());
         assertNotNull(shape);
@@ -726,8 +722,6 @@ class ChunkCollisionMutationDrainSystemTest {
         assertEquals(spaceUuid, body.getSpaceUuid());
         assertNotNull(body.getSpaceRef());
         assertEquals(spaceRef.getIndex(), body.getSpaceRef().getIndex());
-        assertEquals(PhysicsBodyKind.TERRAIN, body.getKind());
-        assertEquals(PhysicsBodyPersistenceMode.RUNTIME_ONLY, body.getPersistenceMode());
 
         DynamicsComponent dynamics = store.getComponent(bodyRef,
             DynamicsComponent.getComponentType());

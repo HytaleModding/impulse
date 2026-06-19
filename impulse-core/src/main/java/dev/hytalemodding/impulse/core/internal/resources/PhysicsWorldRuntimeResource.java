@@ -32,9 +32,7 @@ import dev.hytalemodding.impulse.core.internal.resources.PhysicsVisualRuntime.Bo
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsVisualRuntime.VisualInterest;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkLifecycle;
 import dev.hytalemodding.impulse.core.internal.PhysicsStoreEarlyPluginProbe;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRegistration;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsEventFrame;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsFrameEvent;
 import dev.hytalemodding.impulse.core.plugin.components.ColliderComponent;
@@ -46,6 +44,7 @@ import dev.hytalemodding.impulse.core.plugin.components.MaterialComponent;
 import dev.hytalemodding.impulse.core.plugin.components.ShapeComponent;
 import dev.hytalemodding.impulse.core.plugin.components.SolverSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.components.SpaceComponent;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkCollision;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.VisualMaterializationSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.VisualSyncSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.ChunkCollisionSettingsComponent;
@@ -628,9 +627,9 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         if (hasAttachedAuthoritativePhysicsStore()) {
             return authoritativePhysicsStore("check copied physics body registration")
                 .getResource(PhysicsBodyRegistrationResource.getResourceType())
-                .getBodyRegistrationView(bodyUuid) != null;
+                .hasBody(bodyUuid);
         }
-        return bodyRegistry.getPublishedRegistrationView(bodyUuid) != null;
+        return bodyRegistry.hasPublishedRegistration(bodyUuid);
     }
 
     @Nonnull
@@ -723,9 +722,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
             if (entry != null) {
                 visitor.accept(entry.bodyUuid(),
                     entry.snapshot(),
-                    entry.spaceId(),
-                    entry.kind(),
-                    entry.persistenceMode());
+                    entry.spaceId());
             }
         }
     }
@@ -788,9 +785,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
             if (withinRadius(entry.snapshot(), center, radiusSquared)) {
                 visitor.accept(entry.bodyUuid(),
                     entry.snapshot(),
-                    entry.spaceId(),
-                    entry.kind(),
-                    entry.persistenceMode());
+                    entry.spaceId());
             }
         }
         return candidates;
@@ -824,9 +819,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
                 visitor.accept(entry.bodyUuid(),
                     validSnapshotBodyRef(store, body),
                     entry.snapshot(),
-                    entry.spaceId(),
-                    entry.kind(),
-                    entry.persistenceMode());
+                    entry.spaceId());
             }
         }
         return candidates;
@@ -850,15 +843,13 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         @Nonnull Store<PhysicsStore> store,
         @Nonnull PhysicsBodyRegistrationResource registrations,
         @Nonnull PhysicsBodySnapshot body) {
-        PhysicsBodyRegistrationView registration = registrations.getBodyRegistrationView(body.bodyUuid());
-        if (registration == null) {
+        SpaceId spaceId = registrations.getBodySpaceId(body.bodyUuid());
+        if (spaceId == null) {
             return null;
         }
         return new PhysicsBodySnapshotEntry(body.bodyUuid(),
             toPublicBodySnapshot(store, body),
-            registration.spaceId(),
-            registration.kind(),
-            registration.persistenceMode());
+            spaceId);
     }
 
     @Nullable
@@ -1094,7 +1085,15 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     private void restoreCollisionLodFiltersDirect() {
         int fullDynamicMask = PhysicsCollisionFilters.TERRAIN
             | PhysicsCollisionFilters.DYNAMIC_BODY;
-        for (PhysicsBodyRegistration registration : bodyRegistry.getRegistrations(PhysicsBodyKind.BODY)) {
+        Store<PhysicsStore> physicsStore = hasAttachedAuthoritativePhysicsStore()
+            ? authoritativePhysicsStore("restore collision LOD filters")
+            : null;
+        for (PhysicsBodyRegistration registration : bodyRegistry.getRegistrations()) {
+            if (physicsStore != null
+                && PhysicsChunkCollision.isChunkCollisionBody(physicsStore,
+                    registration.bodyUuid())) {
+                continue;
+            }
             PhysicsSpaceBinding space = getSpaceBinding(registration.spaceId());
             if (space == null) {
                 continue;
@@ -1177,8 +1176,8 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         return lifecycleState.forEachIndexedBodySnapshotNear(spaceId,
             center,
             radius,
-            (bodyUuid, snapshot, bodySpaceId, kind, persistenceMode) ->
-                visitor.accept(bodyUuid, null, snapshot, bodySpaceId, kind, persistenceMode));
+            (bodyUuid, snapshot, bodySpaceId) ->
+                visitor.accept(bodyUuid, null, snapshot, bodySpaceId));
     }
 
     public void removeSpace(@Nonnull SpaceId spaceId) {

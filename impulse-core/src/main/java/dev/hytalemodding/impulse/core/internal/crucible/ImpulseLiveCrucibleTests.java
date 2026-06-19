@@ -25,7 +25,6 @@ import dev.hytalemodding.impulse.core.plugin.modules.control.ImpulseControllable
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.BodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.BodyAttachmentComponent.AttachmentLifecycle;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.BodyAttachmentComponent.TransformAuthority;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
 import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
@@ -153,8 +152,7 @@ final class ImpulseLiveCrucibleTests {
             PhysicsShapeSpec.box(0.5f, 0.5f, 0.5f),
             1.0f,
             RigidBodySpawnSettings.defaults(),
-            null,
-            PhysicsBodyPersistenceMode.PERSISTENT);
+            null);
         store.addEntity(PhysicsEntities.bodyHolder(store,
             descriptor.bodyUuid(),
             descriptor.body(),

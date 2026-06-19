@@ -179,9 +179,7 @@ public final class PersistenceHydrationSystem extends TickingSystem<PhysicsStore
         @Nonnull Map<UUID, PersistentShapeDto> shapesByUuid,
         @Nonnull Map<UUID, PersistentMaterialDto> materialsByUuid) {
         Holder<PhysicsStore> holder = row(store, dto.getBodyUuid());
-        BodyComponent body = new BodyComponent(dto.getSpaceUuid(),
-            dto.getKind(),
-            dto.getPersistenceMode());
+        BodyComponent body = new BodyComponent(dto.getSpaceUuid());
         DynamicsComponent dynamics = new DynamicsComponent(dto.getBodyType(),
             dto.getMass(),
             dto.getLinearDamping(),

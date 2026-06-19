@@ -2,6 +2,7 @@ package dev.hytalemodding.impulse.core.internal.commands;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import com.hypixel.hytale.component.AddReason;
 import com.hypixel.hytale.component.ComponentRegistry;
 import com.hypixel.hytale.component.ComponentRegistryProxy;
 import com.hypixel.hytale.component.EmptyResourceStorage;
@@ -9,16 +10,17 @@ import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import com.hypixel.hytale.server.core.util.thread.TickingThread;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.components.ChunkCollisionSourceComponent;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.components.ChunkCollisionSourceComponent.PartKind;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.internal.registration.PhysicsComponentTypeRegistry;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsBodyRegistrationResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsIdentityIndexResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsResourceTypes;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSnapshotResource;
 import dev.hytalemodding.impulse.core.internal.testsupport.TestInstanceFactory;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsEntities;
 import dev.hytalemodding.impulse.core.plugin.snapshots.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.core.plugin.snapshots.PhysicsSnapshotFrame;
 import java.lang.reflect.InvocationTargetException;
@@ -34,7 +36,7 @@ import org.junit.jupiter.api.Test;
 class CleanCommandLifecycleGuardTest {
 
     @Test
-    void radiusCleanSelectsOnlyNormalBodySnapshots() throws Exception {
+    void radiusCleanUsesEcsOwnershipInsteadOfLegacyKind() throws Exception {
         ComponentRegistry<PhysicsStore> registry = new ComponentRegistry<>();
         ComponentRegistryProxy<PhysicsStore> proxy =
             new ComponentRegistryProxy<>(new ArrayList<>(), registry);
@@ -46,10 +48,12 @@ class CleanCommandLifecycleGuardTest {
         try {
             markCurrentThreadAsWorldThread(store);
             UUID bodyUuid = UUID.randomUUID();
-            UUID terrainUuid = UUID.randomUUID();
+            UUID generatedUuid = UUID.randomUUID();
             UUID spaceUuid = UUID.randomUUID();
-            publishSnapshots(store, bodyUuid, terrainUuid, spaceUuid);
-            publishRegistrations(store, bodyUuid, terrainUuid);
+            Ref<PhysicsStore> bodyRef = addBodyIdentityRow(store, bodyUuid, false);
+            Ref<PhysicsStore> generatedRef = addBodyIdentityRow(store, generatedUuid, true);
+            publishSnapshots(store, bodyUuid, generatedUuid, spaceUuid);
+            publishRegistrations(store, bodyUuid, bodyRef, generatedUuid, generatedRef);
 
             Set<?> selected = selectBodyUuidsNear(store, new Vector3d(), 10.0f);
 
@@ -62,21 +66,46 @@ class CleanCommandLifecycleGuardTest {
 
     private static void publishSnapshots(@Nonnull Store<PhysicsStore> store,
         @Nonnull UUID bodyUuid,
-        @Nonnull UUID terrainUuid,
+        @Nonnull UUID generatedUuid,
         @Nonnull UUID spaceUuid) {
         store.getResource(PhysicsSnapshotResource.getResourceType())
             .publish(new PhysicsSnapshotFrame(1L,
                 0.05f,
-                List.of(snapshot(bodyUuid, spaceUuid), snapshot(terrainUuid, spaceUuid))));
+                List.of(snapshot(bodyUuid, spaceUuid), snapshot(generatedUuid, spaceUuid))));
     }
 
     private static void publishRegistrations(@Nonnull Store<PhysicsStore> store,
         @Nonnull UUID bodyUuid,
-        @Nonnull UUID terrainUuid) {
+        @Nonnull Ref<PhysicsStore> bodyRef,
+        @Nonnull UUID generatedUuid,
+        @Nonnull Ref<PhysicsStore> generatedRef) {
         store.getResource(PhysicsBodyRegistrationResource.getResourceType())
             .publish(1L,
-                List.of(publication(1, bodyUuid, PhysicsBodyKind.BODY),
-                    publication(2, terrainUuid, PhysicsBodyKind.TERRAIN)));
+                List.of(publication(bodyRef, bodyUuid),
+                    publication(generatedRef, generatedUuid)));
+    }
+
+    @Nonnull
+    private static Ref<PhysicsStore> addBodyIdentityRow(@Nonnull Store<PhysicsStore> store,
+        @Nonnull UUID bodyUuid,
+        boolean generatedChunkCollisionBody) {
+        Ref<PhysicsStore> ref = store.addEntity(PhysicsEntities.entityHolder(store,
+                bodyUuid),
+            AddReason.SPAWN);
+        store.getResource(PhysicsIdentityIndexResource.getResourceType()).putUuid(bodyUuid,
+            ref);
+        if (generatedChunkCollisionBody) {
+            store.putComponent(ref,
+                ChunkCollisionSourceComponent.getComponentType(),
+                new ChunkCollisionSourceComponent("test-source",
+                    0,
+                    0,
+                    0,
+                    "test-payload",
+                    PartKind.BOX,
+                    0));
+        }
+        return ref;
     }
 
     @Nonnull
@@ -104,15 +133,12 @@ class CleanCommandLifecycleGuardTest {
 
     @Nonnull
     private static PhysicsBodyRegistrationResource.BodyRegistrationPublication publication(
-        int rowIndex,
-        @Nonnull UUID bodyUuid,
-        @Nonnull PhysicsBodyKind kind) {
+        @Nonnull Ref<PhysicsStore> bodyRef,
+        @Nonnull UUID bodyUuid) {
         return new PhysicsBodyRegistrationResource.BodyRegistrationPublication(
-            new TestPhysicsRef(rowIndex),
-            new PhysicsBodyRegistrationView(bodyUuid,
-                new SpaceId(1),
-                kind,
-                PhysicsBodyPersistenceMode.RUNTIME_ONLY));
+            bodyRef,
+            bodyUuid,
+            new SpaceId(1));
     }
 
     @Nonnull
@@ -143,15 +169,4 @@ class CleanCommandLifecycleGuardTest {
         }
     }
 
-    private static final class TestPhysicsRef extends Ref<PhysicsStore> {
-
-        private TestPhysicsRef(int index) {
-            super(null, index);
-        }
-
-        @Override
-        public boolean isValid() {
-            return true;
-        }
-    }
 }

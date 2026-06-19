@@ -17,7 +17,6 @@ import dev.hytalemodding.impulse.api.Impulse;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntimeProvider;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsDiagnostics;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsAsync;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsBodies;
@@ -237,13 +236,7 @@ public class SpaceCommand extends AbstractCommandCollection {
 
     private static int countRegisteredBodies(@Nonnull Store<PhysicsStore> physicsStore,
         @Nonnull SpaceId spaceId) {
-        int count = 0;
-        for (PhysicsBodyRegistrationView registration : PhysicsBodies.registrationViews(physicsStore)) {
-            if (registration.spaceId().equals(spaceId)) {
-                count++;
-            }
-        }
-        return count;
+        return PhysicsBodies.registrationCount(physicsStore, spaceId);
     }
 
     @Nullable

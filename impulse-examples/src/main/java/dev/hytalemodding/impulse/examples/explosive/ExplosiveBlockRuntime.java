@@ -196,7 +196,7 @@ public final class ExplosiveBlockRuntime {
         boolean controllableAssigned = false;
         for (FragmentVisual visual : group.visualBlocks()) {
             boolean controllable = body.controllable() && !controllableAssigned;
-            Holder<EntityStore> holder = ExamplePhysicsUtils.attachedPhysicsStoreBlockEntityHolder(time,
+            Holder<EntityStore> holder = ExamplePhysicsUtils.attachedPhysicsBlockEntityHolder(time,
                 body.bodyRef(),
                 body.bodyUuid(),
                 visual.blockType(),
@@ -244,7 +244,6 @@ public final class ExplosiveBlockRuntime {
     }
 
     @Nullable
-    @SuppressWarnings({"deprecation", "removal"})
     private static FragmentBlock removeFragmentCandidate(@Nonnull World world,
         int x,
         int y,

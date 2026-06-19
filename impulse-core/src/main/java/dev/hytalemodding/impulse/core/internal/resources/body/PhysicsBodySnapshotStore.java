@@ -3,8 +3,6 @@ package dev.hytalemodding.impulse.core.internal.resources.body;
 import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceBinding;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.snapshot.PhysicsBodySnapshotEntry;
 import dev.hytalemodding.impulse.core.plugin.snapshot.PublishedPhysicsBodySnapshotCursor;
 import dev.hytalemodding.impulse.core.plugin.snapshot.PublishedPhysicsSnapshotFrame;
@@ -58,9 +56,7 @@ public final class PhysicsBodySnapshotStore {
                 }
                 spatialIndex.update(bodyUuid,
                     snapshot,
-                    spaceId,
-                    registration.kind(),
-                    registration.persistenceMode());
+                    spaceId);
             }
         }
 
@@ -77,12 +73,10 @@ public final class PhysicsBodySnapshotStore {
 
     public void put(@Nonnull UUID bodyUuid,
         @Nonnull PhysicsBodySnapshot snapshot,
-        @Nonnull SpaceId spaceId,
-        @Nonnull PhysicsBodyKind kind,
-        @Nonnull PhysicsBodyPersistenceMode persistenceMode) {
+        @Nonnull SpaceId spaceId) {
         snapshots.put(Objects.requireNonNull(bodyUuid, "bodyUuid"), snapshot);
         livenessMarks.put(bodyUuid, livenessGeneration);
-        spatialIndex.update(bodyUuid, snapshot, spaceId, kind, persistenceMode);
+        spatialIndex.update(bodyUuid, snapshot, spaceId);
     }
 
     @Nullable
@@ -199,9 +193,7 @@ public final class PhysicsBodySnapshotStore {
             }
             spatialIndex.update(bodyUuid,
                 snapshot,
-                bodyFrame.spaceId(),
-                bodyFrame.kind(),
-                bodyFrame.persistenceMode());
+                bodyFrame.spaceId());
             applied++;
         }
 

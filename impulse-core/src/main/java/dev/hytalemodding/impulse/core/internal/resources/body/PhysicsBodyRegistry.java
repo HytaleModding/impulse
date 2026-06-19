@@ -2,9 +2,6 @@ package dev.hytalemodding.impulse.core.internal.resources.body;
 
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.internal.resources.BackendBodyHandle;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.snapshot.PublishedPhysicsBodySnapshotCursor;
 import dev.hytalemodding.impulse.core.plugin.snapshot.PublishedPhysicsSnapshotFrame;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
@@ -32,9 +29,7 @@ public final class PhysicsBodyRegistry {
 
     private final Map<UUID, PhysicsBodyRegistration> registrationsByUuid =
         new Object2ObjectLinkedOpenHashMap<>();
-    private final Map<UUID, PhysicsBodyRegistrationView> registrationViewsByUuid =
-        new Object2ObjectOpenHashMap<>();
-    private final Map<UUID, PhysicsBodyRegistrationView> publishedRegistrationViewsByUuid =
+    private final Map<UUID, SpaceId> publishedRegistrationSpaceIdsByUuid =
         new Object2ObjectLinkedOpenHashMap<>();
     private final Object2LongOpenHashMap<UUID> publishedLivenessMarks =
         new Object2LongOpenHashMap<>();
@@ -47,9 +42,7 @@ public final class PhysicsBodyRegistry {
     @Nonnull
     public PhysicsBodyRegistration registerBody(@Nonnull UUID bodyUuid,
         @Nonnull BackendBodyHandle backendBodyHandle,
-        @Nonnull SpaceId spaceId,
-        @Nonnull PhysicsBodyKind kind,
-        @Nonnull PhysicsBodyPersistenceMode persistenceMode) {
+        @Nonnull SpaceId spaceId) {
         validateRegisterable(bodyUuid, backendBodyHandle, spaceId);
         PhysicsBodyRegistration existingRegistration = registrationsByUuid.get(bodyUuid);
         if (existingRegistration != null) {
@@ -57,10 +50,8 @@ public final class PhysicsBodyRegistry {
             removeBackendIndex(existingRegistration);
         }
         PhysicsBodyRegistration registration =
-            new PhysicsBodyRegistration(bodyUuid, backendBodyHandle, spaceId, kind, persistenceMode);
+            new PhysicsBodyRegistration(bodyUuid, backendBodyHandle, spaceId);
         registrationsByUuid.put(bodyUuid, registration);
-        registrationViewsByUuid.put(bodyUuid,
-            new PhysicsBodyRegistrationView(bodyUuid, spaceId, kind, persistenceMode));
         bodyUuidsByRawBackendId
             .computeIfAbsent(spaceId.value(), ignored -> new Long2ObjectOpenHashMap<>())
             .put(backendBodyHandle.value(), bodyUuid);
@@ -93,7 +84,6 @@ public final class PhysicsBodyRegistry {
             return null;
         }
 
-        registrationViewsByUuid.remove(bodyUuid);
         removeBackendIndex(registration);
         removeFromSpace(registration);
         return registration;
@@ -111,49 +101,17 @@ public final class PhysicsBodyRegistry {
     }
 
     @Nullable
-    public PhysicsBodyRegistrationView getRegistrationView(@Nonnull UUID bodyUuid) {
-        return registrationViewsByUuid.get(bodyUuid);
+    public SpaceId getPublishedRegistrationSpaceId(@Nonnull UUID bodyUuid) {
+        return publishedRegistrationSpaceIdsByUuid.get(bodyUuid);
     }
 
-    @Nullable
-    public PhysicsBodyRegistrationView getPublishedRegistrationView(@Nonnull UUID bodyUuid) {
-        return publishedRegistrationViewsByUuid.get(bodyUuid);
-    }
-
-    @Nonnull
-    public Collection<PhysicsBodyRegistrationView> getRegistrationViews() {
-        List<PhysicsBodyRegistrationView> views = new ArrayList<>();
-        for (PhysicsBodyRegistration registration : registrationsByUuid.values()) {
-            views.add(registrationViewsByUuid.get(registration.bodyUuid()));
-        }
-        return views;
+    public boolean hasPublishedRegistration(@Nonnull UUID bodyUuid) {
+        return publishedRegistrationSpaceIdsByUuid.containsKey(bodyUuid);
     }
 
     @Nonnull
-    public Collection<PhysicsBodyRegistrationView> getPublishedRegistrationViews() {
-        return new ArrayList<>(publishedRegistrationViewsByUuid.values());
-    }
-
-    @Nonnull
-    public Collection<PhysicsBodyRegistrationView> getPublishedRegistrationViews(@Nonnull PhysicsBodyKind kind) {
-        List<PhysicsBodyRegistrationView> views = new ArrayList<>();
-        for (PhysicsBodyRegistrationView view : publishedRegistrationViewsByUuid.values()) {
-            if (view.kind() == kind) {
-                views.add(view);
-            }
-        }
-        return views;
-    }
-
-    @Nonnull
-    public Collection<PhysicsBodyRegistrationView> getRegistrationViews(@Nonnull PhysicsBodyKind kind) {
-        List<PhysicsBodyRegistrationView> views = new ArrayList<>();
-        for (PhysicsBodyRegistration registration : registrationsByUuid.values()) {
-            if (registration.kind() == kind) {
-                views.add(registrationViewsByUuid.get(registration.bodyUuid()));
-            }
-        }
-        return views;
+    public Collection<UUID> getPublishedBodyUuids() {
+        return new ArrayList<>(publishedRegistrationSpaceIdsByUuid.keySet());
     }
 
     @Nullable
@@ -173,7 +131,7 @@ public final class PhysicsBodyRegistry {
     }
 
     public int getPublishedRegistrationCount() {
-        return publishedRegistrationViewsByUuid.size();
+        return publishedRegistrationSpaceIdsByUuid.size();
     }
 
     public void forEachRegistration(@Nonnull Consumer<PhysicsBodyRegistration> consumer) {
@@ -222,62 +180,28 @@ public final class PhysicsBodyRegistry {
         return registrations != null ? registrations.size() : 0;
     }
 
-    public int getRegistrationCount(@Nonnull PhysicsBodyPersistenceMode persistenceMode) {
-        int count = 0;
-        for (PhysicsBodyRegistration registration : registrationsByUuid.values()) {
-            if (registration.persistenceMode() == persistenceMode) {
-                count++;
-            }
-        }
-        return count;
-    }
-
-    public int getPublishedRegistrationCount(@Nonnull PhysicsBodyPersistenceMode persistenceMode) {
-        int count = 0;
-        for (PhysicsBodyRegistrationView view : publishedRegistrationViewsByUuid.values()) {
-            if (view.persistenceMode() == persistenceMode) {
-                count++;
-            }
-        }
-        return count;
-    }
-
-    @Nonnull
-    public Collection<PhysicsBodyRegistration> getRegistrations(@Nonnull PhysicsBodyKind kind) {
-        List<PhysicsBodyRegistration> registrations = new ArrayList<>();
-        for (PhysicsBodyRegistration registration : registrationsByUuid.values()) {
-            if (registration.kind() == kind) {
-                registrations.add(registration);
-            }
-        }
-        return registrations;
-    }
-
     public void clear() {
         registrationsByUuid.clear();
-        registrationViewsByUuid.clear();
-        publishedRegistrationViewsByUuid.clear();
+        publishedRegistrationSpaceIdsByUuid.clear();
         publishedLivenessMarks.clear();
         bodyUuidsByRawBackendId.clear();
         registrationsBySpace.clear();
     }
 
-    public void publishLiveRegistrationViews() {
+    public void publishLiveRegistrations() {
         long generation = nextPublishedLivenessGeneration();
         for (PhysicsBodyRegistration registration : registrationsByUuid.values()) {
-            publishRegistrationView(registration.bodyUuid(),
+            publishRegistration(registration.bodyUuid(),
                 registration.spaceId(),
-                registration.kind(),
-                registration.persistenceMode(),
                 generation);
         }
-        retainPublishedRegistrationViews(generation);
+        retainPublishedRegistrations(generation);
     }
 
     public void applyPublishedRegistrationFrame(@Nonnull PublishedPhysicsSnapshotFrame frame) {
         long generation = nextPublishedLivenessGeneration();
-        frame.forEachBodyCursor(body -> publishRegistrationView(body, generation));
-        retainPublishedRegistrationViews(generation);
+        frame.forEachBodyCursor(body -> publishRegistration(body, generation));
+        retainPublishedRegistrations(generation);
     }
 
     private void addToSpace(@Nonnull PhysicsBodyRegistration registration) {
@@ -310,27 +234,19 @@ public final class PhysicsBodyRegistry {
         }
     }
 
-    private void publishRegistrationView(@Nonnull PublishedPhysicsBodySnapshotCursor body,
+    private void publishRegistration(@Nonnull PublishedPhysicsBodySnapshotCursor body,
         long generation) {
-        publishRegistrationView(body.bodyUuid(),
+        publishRegistration(body.bodyUuid(),
             body.spaceId(),
-            body.kind(),
-            body.persistenceMode(),
             generation);
     }
 
-    private void publishRegistrationView(@Nonnull UUID bodyUuid,
+    private void publishRegistration(@Nonnull UUID bodyUuid,
         @Nonnull SpaceId spaceId,
-        @Nonnull PhysicsBodyKind kind,
-        @Nonnull PhysicsBodyPersistenceMode persistenceMode,
         long generation) {
-        PhysicsBodyRegistrationView existing = publishedRegistrationViewsByUuid.get(bodyUuid);
-        if (existing == null
-            || !existing.spaceId().equals(spaceId)
-            || existing.kind() != kind
-            || existing.persistenceMode() != persistenceMode) {
-            publishedRegistrationViewsByUuid.put(bodyUuid,
-                new PhysicsBodyRegistrationView(bodyUuid, spaceId, kind, persistenceMode));
+        SpaceId existing = publishedRegistrationSpaceIdsByUuid.get(bodyUuid);
+        if (existing == null || !existing.equals(spaceId)) {
+            publishedRegistrationSpaceIdsByUuid.put(bodyUuid, spaceId);
         }
         publishedLivenessMarks.put(bodyUuid, generation);
     }
@@ -344,8 +260,8 @@ public final class PhysicsBodyRegistry {
         return publishedLivenessGeneration;
     }
 
-    private void retainPublishedRegistrationViews(long generation) {
-        Iterator<UUID> iterator = publishedRegistrationViewsByUuid.keySet().iterator();
+    private void retainPublishedRegistrations(long generation) {
+        Iterator<UUID> iterator = publishedRegistrationSpaceIdsByUuid.keySet().iterator();
         while (iterator.hasNext()) {
             UUID bodyUuid = iterator.next();
             if (publishedLivenessMarks.getLong(bodyUuid) != generation) {

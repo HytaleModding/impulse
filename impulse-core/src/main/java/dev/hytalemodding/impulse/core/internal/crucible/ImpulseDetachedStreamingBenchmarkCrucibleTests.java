@@ -26,8 +26,6 @@ import dev.hytalemodding.impulse.core.internal.physicsstore.PhysicsStoreSpaceMut
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkCollisionMutationQueueResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsProfilingResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkCollisionPrewarmStats;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsBackendExtensionId;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
@@ -462,9 +460,7 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
                     PhysicsBodyType.DYNAMIC,
                     1.0f,
                     settings,
-                    null,
-                    PhysicsBodyKind.BODY,
-                    PhysicsBodyPersistenceMode.RUNTIME_ONLY);
+                    null);
             }
         }
 

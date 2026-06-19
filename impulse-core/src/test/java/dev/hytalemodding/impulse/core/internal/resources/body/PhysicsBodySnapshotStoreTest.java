@@ -16,8 +16,6 @@ import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackendRuntimeProvid
 import dev.hytalemodding.impulse.core.internal.resources.BackendBodyHandle;
 import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceBinding;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.snapshot.PublishedPhysicsBodySnapshot;
 import dev.hytalemodding.impulse.core.plugin.snapshot.PublishedPhysicsSnapshotFrame;
 import dev.hytalemodding.impulse.core.plugin.snapshot.PublishedPhysicsSpaceFrame;
@@ -63,9 +61,7 @@ class PhysicsBodySnapshotStoreTest {
         PhysicsBodyRegistry registry = new PhysicsBodyRegistry();
         registry.registerBody(bodyId,
             new BackendBodyHandle(backendBodyId),
-            spaceId,
-            PhysicsBodyKind.BODY,
-            PhysicsBodyPersistenceMode.RUNTIME_ONLY);
+            spaceId);
         PhysicsBodySnapshotStore store = new PhysicsBodySnapshotStore();
 
         assertEquals(1, store.refresh(List.of(binding), registry));
@@ -133,25 +129,19 @@ class PhysicsBodySnapshotStoreTest {
         PhysicsBodySnapshotStore store = new PhysicsBodySnapshotStore();
         store.put(nearBodyId,
             nearSnapshot,
-            spaceId,
-            PhysicsBodyKind.BODY,
-            PhysicsBodyPersistenceMode.RUNTIME_ONLY);
+            spaceId);
         store.put(farBodyId,
             farSnapshot,
-            spaceId,
-            PhysicsBodyKind.TEMPORARY,
-            PhysicsBodyPersistenceMode.PERSISTENT);
+            spaceId);
 
         List<UUID> visited = new ArrayList<>();
         int candidates = store.forEachIndexedNear(spaceId,
             new Vector3f(0.0f, 2.0f, 3.0f),
             4.0f,
-            (bodyId, snapshot, bodySpaceId, kind, persistenceMode) -> {
+            (bodyId, snapshot, bodySpaceId) -> {
                 visited.add(bodyId);
                 assertSame(nearSnapshot, snapshot);
                 assertEquals(spaceId, bodySpaceId);
-                assertEquals(PhysicsBodyKind.BODY, kind);
-                assertEquals(PhysicsBodyPersistenceMode.RUNTIME_ONLY, persistenceMode);
             });
 
         assertEquals(1, candidates);
@@ -168,8 +158,6 @@ class PhysicsBodySnapshotStoreTest {
             0L,
             0L,
             0L,
-            PhysicsBodyKind.BODY,
-            PhysicsBodyPersistenceMode.RUNTIME_ONLY,
             position,
             new Quaternionf(),
             new Vector3f(),

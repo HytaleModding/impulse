@@ -25,7 +25,6 @@ import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsAsync;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsBodies;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsRaycasts;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsWorlds;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
 import dev.hytalemodding.impulse.core.plugin.components.BodyCommandComponent;
 import dev.hytalemodding.impulse.core.plugin.components.DynamicsComponent;
 import dev.hytalemodding.impulse.core.plugin.components.TargetComponent;
@@ -259,10 +258,9 @@ final class PhysicsStoreExampleCommands {
 
         @Nullable
         private static UUID physicsStoreBodyUuid(@Nonnull Ref<PhysicsStore> bodyRef) {
-            PhysicsBodyRegistrationView registration = PhysicsBodies.registrationView(
+            return PhysicsBodies.bodyUuid(
                 bodyRef.getStore(),
                 bodyRef);
-            return registration != null ? registration.bodyUuid() : null;
         }
     }
 
@@ -368,7 +366,7 @@ final class PhysicsStoreExampleCommands {
                 maxFragments,
                 strength,
                 verticalLift);
-            Holder<EntityStore> holder = ExamplePhysicsUtils.attachedPhysicsStoreBlockEntityHolder(time,
+            Holder<EntityStore> holder = ExamplePhysicsUtils.attachedPhysicsBlockEntityHolder(time,
                 bodyRef,
                 bodyUuid,
                 blockType,

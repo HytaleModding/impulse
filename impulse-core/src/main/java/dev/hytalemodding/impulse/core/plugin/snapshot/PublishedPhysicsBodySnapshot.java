@@ -5,8 +5,6 @@ import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.PhysicsAxis;
 import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.SpaceId;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import java.util.Objects;
 import java.util.UUID;
 import javax.annotation.Nonnull;
@@ -30,10 +28,6 @@ public final class PublishedPhysicsBodySnapshot implements PublishedPhysicsBodyS
     private final long worldEpoch;
     private final long spaceEpoch;
     private final long registrationGeneration;
-    @Nonnull
-    private final PhysicsBodyKind kind;
-    @Nonnull
-    private final PhysicsBodyPersistenceMode persistenceMode;
     private final float positionX;
     private final float positionY;
     private final float positionZ;
@@ -77,8 +71,6 @@ public final class PublishedPhysicsBodySnapshot implements PublishedPhysicsBodyS
         long worldEpoch,
         long spaceEpoch,
         long registrationGeneration,
-        @Nonnull PhysicsBodyKind kind,
-        @Nonnull PhysicsBodyPersistenceMode persistenceMode,
         @Nonnull Vector3f position,
         @Nonnull Quaternionf rotation,
         @Nonnull Vector3f linearVelocity,
@@ -99,8 +91,6 @@ public final class PublishedPhysicsBodySnapshot implements PublishedPhysicsBodyS
             worldEpoch,
             spaceEpoch,
             registrationGeneration,
-            kind,
-            persistenceMode,
             position,
             rotation,
             linearVelocity,
@@ -123,8 +113,6 @@ public final class PublishedPhysicsBodySnapshot implements PublishedPhysicsBodyS
         long worldEpoch,
         long spaceEpoch,
         long registrationGeneration,
-        @Nonnull PhysicsBodyKind kind,
-        @Nonnull PhysicsBodyPersistenceMode persistenceMode,
         @Nonnull Vector3f position,
         @Nonnull Quaternionf rotation,
         @Nonnull Vector3f linearVelocity,
@@ -149,8 +137,6 @@ public final class PublishedPhysicsBodySnapshot implements PublishedPhysicsBodyS
         this.worldEpoch = worldEpoch;
         this.spaceEpoch = spaceEpoch;
         this.registrationGeneration = registrationGeneration;
-        this.kind = Objects.requireNonNull(kind, "kind");
-        this.persistenceMode = Objects.requireNonNull(persistenceMode, "persistenceMode");
         Objects.requireNonNull(position, "position");
         this.positionX = position.x;
         this.positionY = position.y;
@@ -204,8 +190,6 @@ public final class PublishedPhysicsBodySnapshot implements PublishedPhysicsBodyS
         long worldEpoch,
         long spaceEpoch,
         long registrationGeneration,
-        @Nonnull PhysicsBodyKind kind,
-        @Nonnull PhysicsBodyPersistenceMode persistenceMode,
         @Nonnull PhysicsBodySnapshot snapshot) {
         return fromBits(uuidMostSignificantBits(bodyUuid),
             uuidLeastSignificantBits(bodyUuid),
@@ -214,8 +198,6 @@ public final class PublishedPhysicsBodySnapshot implements PublishedPhysicsBodyS
             worldEpoch,
             spaceEpoch,
             registrationGeneration,
-            kind,
-            persistenceMode,
             snapshot);
     }
 
@@ -226,8 +208,6 @@ public final class PublishedPhysicsBodySnapshot implements PublishedPhysicsBodyS
         long worldEpoch,
         long spaceEpoch,
         long registrationGeneration,
-        @Nonnull PhysicsBodyKind kind,
-        @Nonnull PhysicsBodyPersistenceMode persistenceMode,
         @Nonnull PhysicsBodySnapshot snapshot) {
         Objects.requireNonNull(snapshot, "snapshot");
         return new PublishedPhysicsBodySnapshot(bodyUuidMostSignificantBits,
@@ -237,8 +217,6 @@ public final class PublishedPhysicsBodySnapshot implements PublishedPhysicsBodyS
             worldEpoch,
             spaceEpoch,
             registrationGeneration,
-            kind,
-            persistenceMode,
             snapshot.positionX(),
             snapshot.positionY(),
             snapshot.positionZ(),
@@ -289,8 +267,6 @@ public final class PublishedPhysicsBodySnapshot implements PublishedPhysicsBodyS
         long worldEpoch,
         long spaceEpoch,
         long registrationGeneration,
-        @Nonnull PhysicsBodyKind kind,
-        @Nonnull PhysicsBodyPersistenceMode persistenceMode,
         float positionX,
         float positionY,
         float positionZ,
@@ -335,8 +311,6 @@ public final class PublishedPhysicsBodySnapshot implements PublishedPhysicsBodyS
         this.worldEpoch = worldEpoch;
         this.spaceEpoch = spaceEpoch;
         this.registrationGeneration = registrationGeneration;
-        this.kind = Objects.requireNonNull(kind, "kind");
-        this.persistenceMode = Objects.requireNonNull(persistenceMode, "persistenceMode");
         this.positionX = positionX;
         this.positionY = positionY;
         this.positionZ = positionZ;
@@ -487,18 +461,6 @@ public final class PublishedPhysicsBodySnapshot implements PublishedPhysicsBodyS
     @Override
     public long registrationGeneration() {
         return registrationGeneration;
-    }
-
-    @Nonnull
-    @Override
-    public PhysicsBodyKind kind() {
-        return kind;
-    }
-
-    @Nonnull
-    @Override
-    public PhysicsBodyPersistenceMode persistenceMode() {
-        return persistenceMode;
     }
 
     @Nonnull
@@ -787,8 +749,6 @@ public final class PublishedPhysicsBodySnapshot implements PublishedPhysicsBodyS
             && bodyUuidMostSignificantBits == that.bodyUuidMostSignificantBits
             && bodyUuidLeastSignificantBits == that.bodyUuidLeastSignificantBits
             && spaceId.equals(that.spaceId)
-            && kind == that.kind
-            && persistenceMode == that.persistenceMode
             && bodyType == that.bodyType
             && shapeType == that.shapeType
             && shapeAxis == that.shapeAxis;
@@ -803,8 +763,6 @@ public final class PublishedPhysicsBodySnapshot implements PublishedPhysicsBodyS
         result = 31 * result + Long.hashCode(worldEpoch);
         result = 31 * result + Long.hashCode(spaceEpoch);
         result = 31 * result + Long.hashCode(registrationGeneration);
-        result = 31 * result + kind.hashCode();
-        result = 31 * result + persistenceMode.hashCode();
         result = 31 * result + Float.hashCode(positionX);
         result = 31 * result + Float.hashCode(positionY);
         result = 31 * result + Float.hashCode(positionZ);
@@ -851,8 +809,6 @@ public final class PublishedPhysicsBodySnapshot implements PublishedPhysicsBodyS
             + ", worldEpoch=" + worldEpoch
             + ", spaceEpoch=" + spaceEpoch
             + ", registrationGeneration=" + registrationGeneration
-            + ", kind=" + kind
-            + ", persistenceMode=" + persistenceMode
             + ", position=(" + positionX + ", " + positionY + ", " + positionZ + ')'
             + ", rotation=(" + rotationX + ", " + rotationY + ", " + rotationZ + ", " + rotationW + ')'
             + ", linearVelocity=(" + linearVelocityX + ", " + linearVelocityY + ", " + linearVelocityZ + ')'

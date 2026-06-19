@@ -22,8 +22,6 @@ import dev.hytalemodding.impulse.core.internal.resources.PhysicsProfilingResourc
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsStepSchedulerResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.BodyAttachmentComponent;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsBackendExtensionId;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSolverSettings;
@@ -268,9 +266,7 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
                 PhysicsBodyType.STATIC,
                 0.0f,
                 groundSettings,
-                null,
-                PhysicsBodyKind.TEMPORARY,
-                PhysicsBodyPersistenceMode.RUNTIME_ONLY);
+                null);
             PhysicsShapeSpec box = PhysicsShapeSpec.box(0.48f, 0.48f, 0.48f);
             for (int i = 0; i < matrixCase.count(); i++) {
                 PhysicsStoreCrucibleSupport.addBody(physicsStore,
@@ -283,9 +279,7 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
                     PhysicsBodyType.DYNAMIC,
                     1.0f,
                     bodySettings,
-                    null,
-                    PhysicsBodyKind.BODY,
-                    PhysicsBodyPersistenceMode.RUNTIME_ONLY);
+                    null);
             }
             return CompletableFuture.completedFuture(StartedCase.started(spaceId));
         }

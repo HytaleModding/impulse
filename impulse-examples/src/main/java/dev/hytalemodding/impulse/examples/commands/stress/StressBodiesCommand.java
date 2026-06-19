@@ -14,8 +14,6 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.PhysicsCollisionFilters;
 import dev.hytalemodding.impulse.api.SpaceId;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkCollision;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkCollisionPrewarmStats;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkCollisionMode;
@@ -216,8 +214,6 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
                     box,
                     1.0f,
                     spawnSettings,
-                    PhysicsBodyKind.BODY,
-                    PhysicsBodyPersistenceMode.RUNTIME_ONLY,
                     bodies -> {
                         for (int i = 0; i < count; i++) {
                             bodies.addBody(layout.positionX(i),

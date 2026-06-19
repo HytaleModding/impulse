@@ -198,7 +198,6 @@ public final class PhysicsStoreTopologyMutations {
                 ChunkCollisionSourceComponent.getComponentType());
             if (source != null
                 && body != null
-                && body.getKind().isTerrain()
                 && matchesSpace(body.getSpaceRef(), body.getSpaceUuid(), spaceRef, spaceUuid)) {
                 removals.add(new RowRemoval(chunk.getReferenceTo(index),
                     uuid.getUuid(),

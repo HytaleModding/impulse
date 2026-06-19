@@ -8,8 +8,6 @@ import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.SpaceId;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -39,8 +37,6 @@ class PublishedPhysicsSnapshotFrameTest {
             20L,
             30L,
             40L,
-            PhysicsBodyKind.BODY,
-            PhysicsBodyPersistenceMode.RUNTIME_ONLY,
             position,
             rotation,
             linearVelocity,
@@ -98,8 +94,6 @@ class PublishedPhysicsSnapshotFrameTest {
             2L,
             3L,
             4L,
-            PhysicsBodyKind.BODY,
-            PhysicsBodyPersistenceMode.PERSISTENT,
             ownerLaneSnapshot);
         ownerLaneSnapshot.position().zero();
         ownerLaneSnapshot.rotation().identity();
@@ -111,8 +105,6 @@ class PublishedPhysicsSnapshotFrameTest {
         assertEquals(new Vector3f(0.0f, 2.0f, 0.0f), published.linearVelocity());
         assertEquals(new Vector3f(0.0f, 0.0f, 3.0f), published.angularVelocity());
         assertEquals(4L, published.registrationGeneration());
-        assertEquals(PhysicsBodyKind.BODY, published.kind());
-        assertEquals(PhysicsBodyPersistenceMode.PERSISTENT, published.persistenceMode());
         assertEquals(PhysicsBodyType.KINEMATIC, published.bodyType());
         assertEquals(ShapeType.BOX, published.shapeType());
         assertEquals(new Vector3f(0.25f, 0.5f, 0.75f), published.boxHalfExtents());
@@ -153,8 +145,6 @@ class PublishedPhysicsSnapshotFrameTest {
             2L,
             3L,
             4L,
-            PhysicsBodyKind.BODY,
-            PhysicsBodyPersistenceMode.PERSISTENT,
             firstSnapshot);
         PublishedPhysicsBodySnapshot.from(BODY_ID,
             SPACE_ID,
@@ -162,8 +152,6 @@ class PublishedPhysicsSnapshotFrameTest {
             2L,
             2L,
             2L,
-            PhysicsBodyKind.BODY,
-            PhysicsBodyPersistenceMode.PERSISTENT,
             secondSnapshot);
 
         assertEquals(new Vector3f(1.0f, 2.0f, 3.0f), first.position());
@@ -326,8 +314,6 @@ class PublishedPhysicsSnapshotFrameTest {
             worldEpoch,
             spaceEpoch,
             40L,
-            PhysicsBodyKind.BODY,
-            PhysicsBodyPersistenceMode.RUNTIME_ONLY,
             new Vector3f(1.0f, 2.0f, 3.0f),
             new Quaternionf(),
             new Vector3f(4.0f, 5.0f, 6.0f),

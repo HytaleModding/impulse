@@ -7,8 +7,6 @@ import com.hypixel.hytale.codec.codecs.EnumCodec;
 import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
 import com.hypixel.hytale.codec.validation.Validators;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import java.util.Arrays;
 import java.util.Objects;
 import java.util.UUID;
@@ -29,20 +27,6 @@ public final class PersistentBodyDto {
             .append(new KeyedCodec<>("SpaceUuid", Codec.UUID_BINARY),
                 (dto, value) -> dto.spaceUuid = value,
                 PersistentBodyDto::getSpaceUuid)
-            .addValidator(Validators.nonNull())
-            .add()
-            .append(new KeyedCodec<>("Kind", new EnumCodec<>(PhysicsBodyKind.class), false),
-                (dto, value) -> dto.kind = value != null ? value : PhysicsBodyKind.BODY,
-                PersistentBodyDto::getKind)
-            .addValidator(Validators.nonNull())
-            .add()
-            .append(new KeyedCodec<>("PersistenceMode",
-                    new EnumCodec<>(PhysicsBodyPersistenceMode.class),
-                    false),
-                (dto, value) -> dto.persistenceMode = value != null
-                    ? value
-                    : PhysicsBodyPersistenceMode.RUNTIME_ONLY,
-                PersistentBodyDto::getPersistenceMode)
             .addValidator(Validators.nonNull())
             .add()
             .append(new KeyedCodec<>("BodyType", new EnumCodec<>(PhysicsBodyType.class), false),
@@ -94,10 +78,6 @@ public final class PersistentBodyDto {
     @Nonnull
     private UUID spaceUuid = new UUID(0L, 0L);
     @Nonnull
-    private PhysicsBodyKind kind = PhysicsBodyKind.BODY;
-    @Nonnull
-    private PhysicsBodyPersistenceMode persistenceMode = PhysicsBodyPersistenceMode.RUNTIME_ONLY;
-    @Nonnull
     private PhysicsBodyType bodyType = PhysicsBodyType.DYNAMIC;
     private float mass = 1.0f;
     private float linearDamping;
@@ -113,8 +93,6 @@ public final class PersistentBodyDto {
 
     public PersistentBodyDto(@Nonnull UUID bodyUuid,
         @Nonnull UUID spaceUuid,
-        @Nonnull PhysicsBodyKind kind,
-        @Nonnull PhysicsBodyPersistenceMode persistenceMode,
         @Nonnull PhysicsBodyType bodyType,
         float mass,
         float linearDamping,
@@ -124,8 +102,6 @@ public final class PersistentBodyDto {
         @Nonnull PersistentBodyRuntimeStateDto runtimeState) {
         this.bodyUuid = Objects.requireNonNull(bodyUuid, "bodyUuid");
         this.spaceUuid = Objects.requireNonNull(spaceUuid, "spaceUuid");
-        this.kind = Objects.requireNonNull(kind, "kind");
-        this.persistenceMode = Objects.requireNonNull(persistenceMode, "persistenceMode");
         this.bodyType = Objects.requireNonNull(bodyType, "bodyType");
         this.mass = mass;
         this.linearDamping = linearDamping;
@@ -143,16 +119,6 @@ public final class PersistentBodyDto {
     @Nonnull
     public UUID getSpaceUuid() {
         return spaceUuid;
-    }
-
-    @Nonnull
-    public PhysicsBodyKind getKind() {
-        return kind;
-    }
-
-    @Nonnull
-    public PhysicsBodyPersistenceMode getPersistenceMode() {
-        return persistenceMode;
     }
 
     @Nonnull
@@ -190,8 +156,6 @@ public final class PersistentBodyDto {
     public PersistentBodyDto copy() {
         return new PersistentBodyDto(bodyUuid,
             spaceUuid,
-            kind,
-            persistenceMode,
             bodyType,
             mass,
             linearDamping,

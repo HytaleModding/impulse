@@ -11,8 +11,6 @@ import dev.hytalemodding.impulse.api.PhysicsAxis;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackendRuntimeProvider;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.bson.BsonDocument;
@@ -139,8 +137,6 @@ class PersistentPhysicsStoreResourceTest {
     private static PersistentBodyDto bodyDto() {
         return new PersistentBodyDto(BODY_UUID,
             SPACE_UUID,
-            PhysicsBodyKind.BODY,
-            PhysicsBodyPersistenceMode.PERSISTENT,
             PhysicsBodyType.DYNAMIC,
             1.0f,
             0.0f,

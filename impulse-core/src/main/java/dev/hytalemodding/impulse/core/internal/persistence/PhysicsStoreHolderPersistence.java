@@ -10,7 +10,6 @@ import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import com.hypixel.hytale.server.core.util.BsonUtil;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.components.ChunkCollisionSourceComponent;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSnapshotResource;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.components.BodyCommandComponent;
 import dev.hytalemodding.impulse.core.plugin.components.BodyComponent;
 import dev.hytalemodding.impulse.core.plugin.components.ColliderComponent;
@@ -198,8 +197,7 @@ public final class PhysicsStoreHolderPersistence {
         private static boolean shouldPersistBody(@Nonnull ArchetypeChunk<PhysicsStore> chunk,
             int index,
             @Nonnull BodyComponent body) {
-            return body.getPersistenceMode() == PhysicsBodyPersistenceMode.PERSISTENT
-                && chunk.getComponent(index, ColliderComponent.getComponentType()) != null
+            return chunk.getComponent(index, ColliderComponent.getComponentType()) != null
                 && chunk.getComponent(index, ShapeComponent.getComponentType()) != null
                 && chunk.getComponent(index, MaterialComponent.getComponentType()) != null
                 && chunk.getComponent(index, CollisionFilterComponent.getComponentType()) != null;

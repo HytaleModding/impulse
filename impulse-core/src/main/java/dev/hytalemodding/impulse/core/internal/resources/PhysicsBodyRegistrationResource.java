@@ -4,9 +4,7 @@ import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Resource;
 import com.hypixel.hytale.component.ResourceType;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
+import dev.hytalemodding.impulse.api.SpaceId;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
 import java.util.ArrayList;
@@ -19,7 +17,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /**
- * Latest copied body registration views published by the authoritative PhysicsStore.
+ * Latest copied body registrations published by the authoritative PhysicsStore.
  */
 public final class PhysicsBodyRegistrationResource implements Resource<PhysicsStore> {
 
@@ -30,54 +28,59 @@ public final class PhysicsBodyRegistrationResource implements Resource<PhysicsSt
     }
 
     @Nullable
-    public PhysicsBodyRegistrationView getBodyRegistrationView(@Nonnull UUID bodyUuid) {
-        return registrations.viewsByUuid().get(Objects.requireNonNull(bodyUuid, "bodyUuid"));
+    public SpaceId getBodySpaceId(@Nonnull UUID bodyUuid) {
+        return registrations.spaceIdsByUuid().get(Objects.requireNonNull(bodyUuid, "bodyUuid"));
     }
 
     @Nullable
-    public PhysicsBodyRegistrationView getBodyRegistrationView(@Nonnull Ref<PhysicsStore> bodyRef) {
-        RegistrationByRef registration = registrations.viewsByRowIndex()
+    public SpaceId getBodySpaceId(@Nonnull Ref<PhysicsStore> bodyRef) {
+        RegistrationByRef registration = registrations.registrationsByRowIndex()
             .get(Objects.requireNonNull(bodyRef, "bodyRef").getIndex());
         return registration != null && sameRef(registration.bodyRef(), bodyRef)
-            ? registration.view()
+            ? registration.spaceId()
             : null;
     }
 
+    @Nullable
+    public UUID getBodyUuid(@Nonnull Ref<PhysicsStore> bodyRef) {
+        RegistrationByRef registration = registrations.registrationsByRowIndex()
+            .get(Objects.requireNonNull(bodyRef, "bodyRef").getIndex());
+        return registration != null && sameRef(registration.bodyRef(), bodyRef)
+            ? registration.bodyUuid()
+            : null;
+    }
+
+    public boolean hasBody(@Nonnull UUID bodyUuid) {
+        return registrations.spaceIdsByUuid()
+            .containsKey(Objects.requireNonNull(bodyUuid, "bodyUuid"));
+    }
+
+    public boolean hasBody(@Nonnull Ref<PhysicsStore> bodyRef) {
+        return getBodyUuid(bodyRef) != null;
+    }
+
     @Nonnull
-    public Collection<PhysicsBodyRegistrationView> getBodyRegistrationViews() {
-        return registrations.views();
+    public Collection<UUID> getBodyUuids() {
+        return registrations.bodyUuids();
     }
 
     public int getBodyRegistrationCount() {
-        return registrations.views().size();
+        return registrations.bodyUuids().size();
     }
 
     public boolean isCurrent(long registrationTopologyGeneration) {
         return registrations.registrationTopologyGeneration() == registrationTopologyGeneration;
     }
 
-    public int getBodyRegistrationCount(@Nonnull PhysicsBodyPersistenceMode persistenceMode) {
-        Objects.requireNonNull(persistenceMode, "persistenceMode");
+    public int getBodyRegistrationCount(@Nonnull SpaceId spaceId) {
+        Objects.requireNonNull(spaceId, "spaceId");
         int count = 0;
-        for (PhysicsBodyRegistrationView view : registrations.views()) {
-            if (view.persistenceMode() == persistenceMode) {
+        for (SpaceId registeredSpaceId : registrations.spaceIdsByUuid().values()) {
+            if (registeredSpaceId.equals(spaceId)) {
                 count++;
             }
         }
         return count;
-    }
-
-    @Nonnull
-    public Collection<PhysicsBodyRegistrationView> getBodyRegistrationViews(
-        @Nonnull PhysicsBodyKind kind) {
-        Objects.requireNonNull(kind, "kind");
-        List<PhysicsBodyRegistrationView> views = new ArrayList<>();
-        for (PhysicsBodyRegistrationView view : registrations.views()) {
-            if (view.kind() == kind) {
-                views.add(view);
-            }
-        }
-        return views;
     }
 
     public void publish(long registrationTopologyGeneration,
@@ -87,42 +90,43 @@ public final class PhysicsBodyRegistrationResource implements Resource<PhysicsSt
         for (BodyRegistrationPublication publication : publications) {
             BodyRegistrationPublication checkedPublication =
                 Objects.requireNonNull(publication, "publication");
-            publicationsByUuid.put(checkedPublication.view().bodyUuid(), checkedPublication);
+            publicationsByUuid.put(checkedPublication.bodyUuid(), checkedPublication);
         }
 
-        Object2ObjectLinkedOpenHashMap<UUID, PhysicsBodyRegistrationView> viewsByUuid =
+        Object2ObjectLinkedOpenHashMap<UUID, SpaceId> spaceIdsByUuid =
             new Object2ObjectLinkedOpenHashMap<>(publicationsByUuid.size());
-        Int2ObjectOpenHashMap<RegistrationByRef> viewsByRowIndex =
+        Int2ObjectOpenHashMap<RegistrationByRef> registrationsByRowIndex =
             new Int2ObjectOpenHashMap<>(publicationsByUuid.size());
         for (BodyRegistrationPublication publication : publicationsByUuid.values()) {
-            PhysicsBodyRegistrationView registration = publication.view();
-            viewsByUuid.put(registration.bodyUuid(), registration);
-            viewsByRowIndex.put(publication.bodyRef().getIndex(),
-                new RegistrationByRef(publication.bodyRef(), registration));
+            spaceIdsByUuid.put(publication.bodyUuid(), publication.spaceId());
+            registrationsByRowIndex.put(publication.bodyRef().getIndex(),
+                new RegistrationByRef(publication.bodyRef(),
+                    publication.bodyUuid(),
+                    publication.spaceId()));
         }
         registrations = new PublishedRegistrations(registrationTopologyGeneration,
-            List.copyOf(viewsByUuid.values()),
-            viewsByUuid,
-            viewsByRowIndex);
+            new ArrayList<>(spaceIdsByUuid.keySet()),
+            spaceIdsByUuid,
+            registrationsByRowIndex);
     }
 
     public void removeBody(@Nonnull UUID bodyUuid) {
         Objects.requireNonNull(bodyUuid, "bodyUuid");
         PublishedRegistrations current = registrations;
-        if (!current.viewsByUuid().containsKey(bodyUuid)) {
+        if (!current.spaceIdsByUuid().containsKey(bodyUuid)) {
             return;
         }
-        Object2ObjectLinkedOpenHashMap<UUID, PhysicsBodyRegistrationView> viewsByUuid =
-            new Object2ObjectLinkedOpenHashMap<>(current.viewsByUuid());
-        viewsByUuid.remove(bodyUuid);
-        Int2ObjectOpenHashMap<RegistrationByRef> viewsByRowIndex =
-            new Int2ObjectOpenHashMap<>(current.viewsByRowIndex());
-        viewsByRowIndex.int2ObjectEntrySet()
-            .removeIf(entry -> entry.getValue().view().bodyUuid().equals(bodyUuid));
+        Object2ObjectLinkedOpenHashMap<UUID, SpaceId> spaceIdsByUuid =
+            new Object2ObjectLinkedOpenHashMap<>(current.spaceIdsByUuid());
+        spaceIdsByUuid.remove(bodyUuid);
+        Int2ObjectOpenHashMap<RegistrationByRef> registrationsByRowIndex =
+            new Int2ObjectOpenHashMap<>(current.registrationsByRowIndex());
+        registrationsByRowIndex.int2ObjectEntrySet()
+            .removeIf(entry -> entry.getValue().bodyUuid().equals(bodyUuid));
         registrations = new PublishedRegistrations(current.registrationTopologyGeneration(),
-            List.copyOf(viewsByUuid.values()),
-            viewsByUuid,
-            viewsByRowIndex);
+            new ArrayList<>(spaceIdsByUuid.keySet()),
+            spaceIdsByUuid,
+            registrationsByRowIndex);
     }
 
     public void clear() {
@@ -144,28 +148,32 @@ public final class PhysicsBodyRegistrationResource implements Resource<PhysicsSt
 
     public record BodyRegistrationPublication(
         @Nonnull Ref<PhysicsStore> bodyRef,
-        @Nonnull PhysicsBodyRegistrationView view) {
+        @Nonnull UUID bodyUuid,
+        @Nonnull SpaceId spaceId) {
 
         public BodyRegistrationPublication {
             Objects.requireNonNull(bodyRef, "bodyRef");
-            Objects.requireNonNull(view, "view");
+            Objects.requireNonNull(bodyUuid, "bodyUuid");
+            Objects.requireNonNull(spaceId, "spaceId");
         }
     }
 
     private record RegistrationByRef(@Nonnull Ref<PhysicsStore> bodyRef,
-                                     @Nonnull PhysicsBodyRegistrationView view) {
+                                     @Nonnull UUID bodyUuid,
+                                     @Nonnull SpaceId spaceId) {
 
         private RegistrationByRef {
             Objects.requireNonNull(bodyRef, "bodyRef");
-            Objects.requireNonNull(view, "view");
+            Objects.requireNonNull(bodyUuid, "bodyUuid");
+            Objects.requireNonNull(spaceId, "spaceId");
         }
     }
 
     private record PublishedRegistrations(
         long registrationTopologyGeneration,
-        @Nonnull List<PhysicsBodyRegistrationView> views,
-        @Nonnull Map<UUID, PhysicsBodyRegistrationView> viewsByUuid,
-        @Nonnull Int2ObjectOpenHashMap<RegistrationByRef> viewsByRowIndex) {
+        @Nonnull List<UUID> bodyUuids,
+        @Nonnull Map<UUID, SpaceId> spaceIdsByUuid,
+        @Nonnull Int2ObjectOpenHashMap<RegistrationByRef> registrationsByRowIndex) {
 
         private static final PublishedRegistrations EMPTY =
             new PublishedRegistrations(-1L,

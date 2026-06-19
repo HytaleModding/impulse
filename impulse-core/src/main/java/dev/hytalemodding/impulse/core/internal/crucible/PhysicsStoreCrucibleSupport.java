@@ -9,8 +9,6 @@ import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.internal.physicsstore.PhysicsStoreRuntimeCleaner;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.BodyEntityDescriptor;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsBodyEntities;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsEntities;
@@ -48,9 +46,7 @@ final class PhysicsStoreCrucibleSupport {
         @Nonnull PhysicsBodyType bodyType,
         float mass,
         @Nonnull RigidBodySpawnSettings settings,
-        @Nullable Vector3f linearVelocity,
-        @Nonnull PhysicsBodyKind kind,
-        @Nonnull PhysicsBodyPersistenceMode persistenceMode) {
+        @Nullable Vector3f linearVelocity) {
         PhysicsThreading.requireWorldThread(store, "add Crucible PhysicsStore body entity");
         Ref<PhysicsStore> spaceRef = requireSpaceRef(store, spaceId);
         BodyEntityDescriptor descriptor = PhysicsBodyEntities.body(
@@ -61,9 +57,7 @@ final class PhysicsStoreCrucibleSupport {
             bodyType,
             mass,
             settings,
-            linearVelocity,
-            kind,
-            persistenceMode);
+            linearVelocity);
         return store.addEntity(PhysicsEntities.bodyHolder(store,
             descriptor.bodyUuid(),
             descriptor.body(),

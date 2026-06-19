@@ -3,20 +3,17 @@ package dev.hytalemodding.impulse.core.plugin.components;
 import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
-import com.hypixel.hytale.codec.codecs.EnumCodec;
 import com.hypixel.hytale.component.Component;
 import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import java.util.Objects;
 import java.util.UUID;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /**
- * Authored body identity, kind, and persistence policy.
+ * Authored body space ownership.
  */
 public final class BodyComponent implements Component<PhysicsStore> {
 
@@ -28,36 +25,18 @@ public final class BodyComponent implements Component<PhysicsStore> {
             (component, value) -> component.spaceUuid = value,
             BodyComponent::getSpaceUuid)
         .add()
-        .append(new KeyedCodec<>("Kind", new EnumCodec<>(PhysicsBodyKind.class), false),
-            (component, value) -> component.kind = value != null ? value : PhysicsBodyKind.BODY,
-            BodyComponent::getKind)
-        .add()
-        .append(new KeyedCodec<>("PersistenceMode", new EnumCodec<>(PhysicsBodyPersistenceMode.class), false),
-            (component, value) -> component.persistenceMode = value != null
-                ? value
-                : PhysicsBodyPersistenceMode.RUNTIME_ONLY,
-            BodyComponent::getPersistenceMode)
-        .add()
         .build();
 
     @Nonnull
     private UUID spaceUuid = new UUID(0L, 0L);
     @Nullable
     private transient Ref<PhysicsStore> spaceRef;
-    @Nonnull
-    private PhysicsBodyKind kind = PhysicsBodyKind.BODY;
-    @Nonnull
-    private PhysicsBodyPersistenceMode persistenceMode = PhysicsBodyPersistenceMode.RUNTIME_ONLY;
 
     public BodyComponent() {
     }
 
-    public BodyComponent(@Nonnull UUID spaceUuid,
-        @Nonnull PhysicsBodyKind kind,
-        @Nonnull PhysicsBodyPersistenceMode persistenceMode) {
+    public BodyComponent(@Nonnull UUID spaceUuid) {
         this.spaceUuid = Objects.requireNonNull(spaceUuid, "spaceUuid");
-        this.kind = Objects.requireNonNull(kind, "kind");
-        this.persistenceMode = Objects.requireNonNull(persistenceMode, "persistenceMode");
     }
 
     @Nonnull
@@ -80,24 +59,6 @@ public final class BodyComponent implements Component<PhysicsStore> {
     }
 
     @Nonnull
-    public PhysicsBodyKind getKind() {
-        return kind;
-    }
-
-    public void setKind(@Nonnull PhysicsBodyKind kind) {
-        this.kind = Objects.requireNonNull(kind, "kind");
-    }
-
-    @Nonnull
-    public PhysicsBodyPersistenceMode getPersistenceMode() {
-        return persistenceMode;
-    }
-
-    public void setPersistenceMode(@Nonnull PhysicsBodyPersistenceMode persistenceMode) {
-        this.persistenceMode = Objects.requireNonNull(persistenceMode, "persistenceMode");
-    }
-
-    @Nonnull
     public static ComponentType<PhysicsStore, BodyComponent> getComponentType() {
         return PhysicsComponentTypes.bodyComponentType();
     }
@@ -105,7 +66,7 @@ public final class BodyComponent implements Component<PhysicsStore> {
     @Nonnull
     @Override
     public BodyComponent clone() {
-        BodyComponent copy = new BodyComponent(spaceUuid, kind, persistenceMode);
+        BodyComponent copy = new BodyComponent(spaceUuid);
         copy.spaceRef = spaceRef;
         return copy;
     }

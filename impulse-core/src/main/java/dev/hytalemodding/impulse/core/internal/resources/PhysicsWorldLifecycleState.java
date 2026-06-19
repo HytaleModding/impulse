@@ -6,8 +6,6 @@ import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRegistr
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRegistry;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodySnapshotVisitor;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldSnapshotState.ApplyResult;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsEventFrame;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsFrameEvent;
 import dev.hytalemodding.impulse.core.plugin.snapshot.PhysicsBodySnapshotEntry;
@@ -49,10 +47,8 @@ public final class PhysicsWorldLifecycleState {
 
     public void putBodySnapshot(@Nonnull UUID bodyUuid,
         @Nonnull PhysicsBodySnapshot snapshot,
-        @Nonnull SpaceId spaceId,
-        @Nonnull PhysicsBodyKind kind,
-        @Nonnull PhysicsBodyPersistenceMode persistenceMode) {
-        snapshotState.putBodySnapshot(bodyUuid, snapshot, spaceId, kind, persistenceMode);
+        @Nonnull SpaceId spaceId) {
+        snapshotState.putBodySnapshot(bodyUuid, snapshot, spaceId);
     }
 
     @Nonnull
@@ -167,15 +163,11 @@ public final class PhysicsWorldLifecycleState {
         snapshotState.clearBodySnapshots();
     }
 
-    public void publishDetachedRegistrationViews(@Nonnull PhysicsBodyRegistry bodyRegistry) {
-        bodyRegistry.publishLiveRegistrationViews();
-    }
-
     public void markWorldChanged(@Nonnull PhysicsBodyRegistry bodyRegistry,
         boolean storeTickAttached) {
         snapshotState.markWorldChanged();
         if (!storeTickAttached) {
-            bodyRegistry.publishLiveRegistrationViews();
+            bodyRegistry.publishLiveRegistrations();
         }
         eventState.publishEmpty(snapshotState.worldEpoch(), snapshotState.getLatestPublishedFrame());
     }
