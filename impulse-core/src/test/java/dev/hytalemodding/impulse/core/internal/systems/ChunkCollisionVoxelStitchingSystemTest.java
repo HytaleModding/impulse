@@ -24,6 +24,7 @@ import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackendRuntimeProvid
 import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackendRuntimeProvider.FakePhysicsBackendRuntime;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.ChunkCollisionPayload;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.ChunkCollisionPayload.Neighbor;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkStoreTypes;
 import dev.hytalemodding.impulse.core.internal.registration.PhysicsComponentTypeRegistry;
 import dev.hytalemodding.impulse.core.internal.resources.BackendBodyHandle;
 import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
@@ -68,6 +69,7 @@ class ChunkCollisionVoxelStitchingSystemTest {
             new ComponentRegistryProxy<>(new ArrayList<>(), registry);
         PhysicsComponentTypeRegistry.registerComponentTypes(proxy);
         PhysicsResourceTypes.registerResourceTypes(proxy);
+        PhysicsChunkStoreTypes.registerPhysicsStoreResourceTypes(proxy);
         Store<PhysicsStore> store = registry.addStore(
             new PhysicsStore(TestInstanceFactory.world("chunk-collision-stitch-row-test")),
             EmptyResourceStorage.get());

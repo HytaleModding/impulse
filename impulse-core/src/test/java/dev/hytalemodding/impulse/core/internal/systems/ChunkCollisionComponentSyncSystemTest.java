@@ -19,6 +19,7 @@ import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.api.runtime.BackendRuntimeCodes;
 import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackendRuntimeProvider;
 import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackendRuntimeProvider.FakePhysicsBackendRuntime;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkStoreTypes;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.components.ChunkCollisionSourceComponent;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.components.ChunkCollisionSourceComponent.PartKind;
 import dev.hytalemodding.impulse.core.internal.registration.PhysicsComponentTypeRegistry;
@@ -58,6 +59,7 @@ class ChunkCollisionComponentSyncSystemTest {
             new ComponentRegistryProxy<>(new ArrayList<>(), registry);
         PhysicsComponentTypeRegistry.registerComponentTypes(proxy);
         PhysicsResourceTypes.registerResourceTypes(proxy);
+        PhysicsChunkStoreTypes.registerPhysicsStoreResourceTypes(proxy);
         proxy.registerSystem(new PersistenceHydrationSystem());
         proxy.registerSystem(new IdentityIndexSystem());
         proxy.registerSystem(new PhysicsChunkSettingsIndexSystem());
