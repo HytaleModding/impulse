@@ -5,7 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.hypixel.hytale.component.ComponentRegistry;
-import com.hypixel.hytale.component.ComponentType;
+import com.hypixel.hytale.component.ComponentRegistryProxy;
 import com.hypixel.hytale.component.Holder;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.server.core.modules.entity.EntityModule;
@@ -14,12 +14,13 @@ import com.hypixel.hytale.server.core.modules.entity.component.ModelComponent;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
+import dev.hytalemodding.impulse.core.internal.modules.physicsentity.PhysicsEntityTypeRegistry;
 import dev.hytalemodding.impulse.core.plugin.modules.control.ImpulseControllableComponent;
-import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.PhysicsEntityTypes;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.BodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
 import dev.hytalemodding.impulse.examples.testsupport.ExampleControlTestSupport;
 import java.lang.reflect.Field;
+import java.util.ArrayList;
 import java.util.UUID;
 import javax.annotation.Nonnull;
 import org.joml.Quaternionf;
@@ -33,30 +34,23 @@ class ExamplePhysicsUtilsTest {
 
     private ComponentRegistry<EntityStore> registry;
     private Object previousEntityModule;
-    private Object previousBodyAttachmentComponentType;
 
     @BeforeEach
     void registerComponentTypes() throws Exception {
         previousEntityModule = staticField(EntityModule.class, "instance").get(null);
-        Field bodyAttachmentTypeField =
-            staticField(PhysicsEntityTypes.class, "bodyAttachmentComponentType");
-        previousBodyAttachmentComponentType = bodyAttachmentTypeField.get(null);
         registry = new ComponentRegistry<>();
         registerEntityModuleTypes();
-        ComponentType<EntityStore, BodyAttachmentComponent> bodyAttachmentType =
-            registry.registerComponent(BodyAttachmentComponent.class,
-                "BodyAttachment",
-                BodyAttachmentComponent.CODEC);
-        bodyAttachmentTypeField.set(null, bodyAttachmentType);
+        ComponentRegistryProxy<EntityStore> proxy =
+            new ComponentRegistryProxy<>(new ArrayList<>(), registry);
+        PhysicsEntityTypeRegistry.registerComponentTypes(proxy);
         ExampleControlTestSupport.enableControl(registry);
     }
 
     @AfterEach
     void clearComponentTypes() throws Exception {
         ExampleControlTestSupport.clearControl();
+        PhysicsEntityTypeRegistry.clearEntityStoreTypes();
         staticField(EntityModule.class, "instance").set(null, previousEntityModule);
-        staticField(PhysicsEntityTypes.class, "bodyAttachmentComponentType")
-            .set(null, previousBodyAttachmentComponentType);
         registry.shutdown();
     }
 
