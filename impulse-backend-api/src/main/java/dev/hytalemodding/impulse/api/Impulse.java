@@ -2,7 +2,6 @@ package dev.hytalemodding.impulse.api;
 
 import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntime;
 import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntimeProvider;
-import dev.hytalemodding.impulse.api.runtime.legacy.LegacyPhysicsBackendRuntimeProvider;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -23,8 +22,6 @@ public final class Impulse {
 
     private static final Object REGISTRY_LOCK = new Object();
 
-    private static final Map<BackendId, PhysicsBackend> BACKENDS = new HashMap<>();
-
     private static final Map<BackendId, PhysicsBackendRuntimeProvider> RUNTIME_PROVIDERS =
         new HashMap<>();
 
@@ -33,22 +30,6 @@ public final class Impulse {
     private static final Set<BackendId> INITIALIZED_BACKENDS = new HashSet<>();
 
     private Impulse() {
-    }
-
-    /**
-     * Register or replace a backend implementation.
-     * <p>
-     * This method is thread-safe.
-     */
-    @Deprecated(forRemoval = true)
-    public static void registerBackend(@Nonnull PhysicsBackend backend) {
-        synchronized (REGISTRY_LOCK) {
-            BACKENDS.put(backend.getId(), backend);
-            RUNTIME_PROVIDERS.putIfAbsent(backend.getId(),
-                new LegacyPhysicsBackendRuntimeProvider(backend));
-            BACKEND_INIT_LOCKS.computeIfAbsent(backend.getId(), ignored -> new Object());
-            INITIALIZED_BACKENDS.remove(backend.getId());
-        }
     }
 
     /**
@@ -63,29 +44,9 @@ public final class Impulse {
     }
 
     @Nonnull
-    @Deprecated(forRemoval = true)
-    public static Collection<PhysicsBackend> getBackends() {
-        synchronized (REGISTRY_LOCK) {
-            return Collections.unmodifiableCollection(new ArrayList<>(BACKENDS.values()));
-        }
-    }
-
-    @Nonnull
     public static Collection<PhysicsBackendRuntimeProvider> getRuntimeProviders() {
         synchronized (REGISTRY_LOCK) {
             return Collections.unmodifiableCollection(new ArrayList<>(RUNTIME_PROVIDERS.values()));
-        }
-    }
-
-    @Nonnull
-    @Deprecated(forRemoval = true)
-    public static PhysicsBackend getBackend(@Nonnull BackendId backendId) {
-        synchronized (REGISTRY_LOCK) {
-            PhysicsBackend backend = BACKENDS.get(backendId);
-            if (backend == null) {
-                throw new IllegalStateException("No backend registered with id: " + backendId);
-            }
-            return backend;
         }
     }
 
@@ -105,71 +66,6 @@ public final class Impulse {
         PhysicsBackendRuntimeProvider provider = getRuntimeProvider(backendId);
         ensureRuntimeProviderInitialized(backendId, provider);
         return provider.createRuntime();
-    }
-
-    /**
-     * Create a space for the given backend id.
-     *
-     * <p>This method is safe to call concurrently after the backend is registered. The returned
-     * space is live backend state and must still be owned by one serialized backend lane.</p>
-     */
-    @Nonnull
-    @Deprecated(forRemoval = true)
-    public static PhysicsSpace createSpace(@Nonnull BackendId backendId) {
-        return createSpace(backendId, SpaceId.next());
-    }
-
-    /**
-     * Create a space for the given backend id and logical space id.
-     *
-     * <p>This method is safe to call concurrently after the backend is registered. The returned
-     * space is live backend state and must still be owned by one serialized backend lane.</p>
-     */
-    @Nonnull
-    @Deprecated(forRemoval = true)
-    public static PhysicsSpace createSpace(@Nonnull BackendId backendId,
-        @Nonnull SpaceId spaceId) {
-        PhysicsBackend backend = getBackend(backendId);
-        ensureBackendInitialized(backendId, backend);
-        PhysicsSpace space = backend.createSpace(spaceId);
-        if (!spaceId.equals(space.id())) {
-            throw new IllegalStateException("Backend " + backendId
-                + " created space id " + space.id() + " but expected " + spaceId);
-        }
-        return space;
-    }
-
-    private static void ensureBackendInitialized(@Nonnull BackendId backendId,
-        @Nonnull PhysicsBackend backend) {
-        Object initLock;
-        synchronized (REGISTRY_LOCK) {
-            if (INITIALIZED_BACKENDS.contains(backendId)) {
-                LOGGER.log(Level.FINEST,
-                    "Physics backend " + backendId + " already initialized");
-                return;
-            }
-            initLock = BACKEND_INIT_LOCKS.computeIfAbsent(backendId, ignored -> new Object());
-        }
-
-        synchronized (initLock) {
-            synchronized (REGISTRY_LOCK) {
-                if (INITIALIZED_BACKENDS.contains(backendId)) {
-                    LOGGER.log(Level.FINEST,
-                        "Physics backend " + backendId + " already initialized");
-                    return;
-                }
-            }
-
-            LOGGER.log(Level.FINE,
-                "Initializing physics backend " + backendId + " on thread "
-                    + Thread.currentThread().getName());
-            backend.init();
-
-            synchronized (REGISTRY_LOCK) {
-                INITIALIZED_BACKENDS.add(backendId);
-            }
-            LOGGER.log(Level.INFO, "Initialized physics backend " + backendId);
-        }
     }
 
     private static void ensureRuntimeProviderInitialized(@Nonnull BackendId backendId,
