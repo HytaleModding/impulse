@@ -13,6 +13,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
@@ -81,11 +82,20 @@ public final class PhysicsStoreHolderStorage {
         }
 
         BsonArray holders = document.getArray(HOLDERS_FIELD, new BsonArray());
-        int loaded = 0;
+        List<Holder<PhysicsStore>> decodedHolders = new ArrayList<>(holders.size());
         for (BsonValue value : holders) {
-            Holder<PhysicsStore> holder = PhysicsStoreHolderPersistence.decodeHolder(
+            decodedHolders.add(PhysicsStoreHolderPersistence.decodeHolder(
                 store.getRegistry(),
-                value.asBinary().getData());
+                value.asBinary().getData()));
+        }
+        PhysicsStoreHolderPreflight.Result preflight = PhysicsStoreHolderPreflight.validate(
+            decodedHolders);
+        if (!preflight.valid()) {
+            throw new IllegalStateException(String.join("; ", preflight.errors()));
+        }
+
+        int loaded = 0;
+        for (Holder<PhysicsStore> holder : decodedHolders) {
             store.addEntity(holder, AddReason.LOAD);
             loaded++;
         }
