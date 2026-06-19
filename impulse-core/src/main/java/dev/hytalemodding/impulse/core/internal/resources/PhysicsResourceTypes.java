@@ -87,18 +87,6 @@ public final class PhysicsResourceTypes {
         debugResourceType = registry.registerResource(
             dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsDebugResource.class,
             dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsDebugResource::new);
-        PhysicsChunkCollisionMutationQueueResource.setResourceType(registry.registerResource(
-            PhysicsChunkCollisionMutationQueueResource.class,
-            PhysicsChunkCollisionMutationQueueResource::new));
-        PhysicsChunkCollisionPayloadResource.setResourceType(registry.registerResource(
-            PhysicsChunkCollisionPayloadResource.class,
-            PhysicsChunkCollisionPayloadResource::new));
-        PhysicsChunkSettingsIndexResource.setResourceType(registry.registerResource(
-            PhysicsChunkSettingsIndexResource.class,
-            PhysicsChunkSettingsIndexResource::new));
-        PhysicsChunkComponentSyncResource.setResourceType(registry.registerResource(
-            PhysicsChunkComponentSyncResource.class,
-            PhysicsChunkComponentSyncResource::new));
     }
 
     @Nonnull

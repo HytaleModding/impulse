@@ -8,6 +8,7 @@ import com.hypixel.hytale.server.core.plugin.PluginBase;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.early.PhysicsStoreHooks;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkStoreTypes;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsStoreResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsBodyRegistrationResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsEventResource;
@@ -20,14 +21,9 @@ import dev.hytalemodding.impulse.core.internal.resources.PhysicsSnapshotResource
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsStepSchedulerResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsStepSchedulerResource.TickDecision;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsStoreReadQueueResource;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkCollisionMutationQueueResource;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkCollisionPayloadResource;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkComponentSyncResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldSettingsResource;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkSettingsIndexResource;
 import dev.hytalemodding.impulse.core.internal.systems.BodyBindingSystem;
 import dev.hytalemodding.impulse.core.internal.systems.BodyCommandApplicationSystem;
-import dev.hytalemodding.impulse.core.internal.systems.ChunkCollisionComponentSyncSystem;
 import dev.hytalemodding.impulse.core.internal.systems.ColliderBindingSystem;
 import dev.hytalemodding.impulse.core.internal.systems.CompletedStepPublicationSystem;
 import dev.hytalemodding.impulse.core.internal.systems.IdentityIndexSystem;
@@ -40,9 +36,6 @@ import dev.hytalemodding.impulse.core.internal.systems.SpaceSettingsApplicationS
 import dev.hytalemodding.impulse.core.internal.systems.StepSubmissionSystem;
 import dev.hytalemodding.impulse.core.internal.systems.StaleBodyRemovalSystem;
 import dev.hytalemodding.impulse.core.internal.systems.TargetBindingSystem;
-import dev.hytalemodding.impulse.core.internal.systems.ChunkCollisionMutationDrainSystem;
-import dev.hytalemodding.impulse.core.internal.systems.ChunkCollisionVoxelStitchingSystem;
-import dev.hytalemodding.impulse.core.internal.systems.PhysicsChunkSettingsIndexSystem;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
 import java.lang.reflect.InvocationTargetException;
@@ -72,19 +65,17 @@ public final class PhysicsStoreRegistration {
         PhysicsStoreHooks.registerTickGate(STEP_TICK_GATE);
 
         PhysicsResourceTypes.registerResourceTypes(registry);
+        PhysicsChunkStoreTypes.registerPhysicsStoreResourceTypes(registry);
 
         registry.registerSystem(new PersistenceHydrationSystem());
         registry.registerSystem(new IdentityIndexSystem());
-        registry.registerSystem(new PhysicsChunkSettingsIndexSystem());
+        PhysicsChunkStoreTypes.registerPhysicsStoreSystems(registry);
         registry.registerSystem(new SpaceBindingSystem());
         registry.registerSystem(new SpaceSettingsApplicationSystem());
-        registry.registerSystem(new ChunkCollisionMutationDrainSystem());
         registry.registerSystem(new BodyBindingSystem());
-        registry.registerSystem(new ChunkCollisionComponentSyncSystem());
         registry.registerSystem(new ColliderBindingSystem());
         registry.registerSystem(new JointBindingSystem());
         registry.registerSystem(new StaleBodyRemovalSystem());
-        registry.registerSystem(new ChunkCollisionVoxelStitchingSystem());
         registry.registerSystem(new BodyCommandApplicationSystem());
         registry.registerSystem(new TargetBindingSystem());
         registry.registerSystem(new CompletedStepPublicationSystem());
@@ -110,21 +101,7 @@ public final class PhysicsStoreRegistration {
                 PhysicsRuntimeResource.getResourceType(),
                 PhysicsRuntimeResource::destroyBackendBindings));
         failure = runShutdownCleanup(failure,
-            () -> cleanupResource(store,
-                PhysicsChunkCollisionMutationQueueResource.getResourceType(),
-                PhysicsChunkCollisionMutationQueueResource::clear));
-        failure = runShutdownCleanup(failure,
-            () -> cleanupResource(store,
-                PhysicsChunkCollisionPayloadResource.getResourceType(),
-                PhysicsChunkCollisionPayloadResource::clear));
-        failure = runShutdownCleanup(failure,
-            () -> cleanupResource(store,
-                PhysicsChunkSettingsIndexResource.getResourceType(),
-                PhysicsChunkSettingsIndexResource::clear));
-        failure = runShutdownCleanup(failure,
-            () -> cleanupResource(store,
-                PhysicsChunkComponentSyncResource.getResourceType(),
-                PhysicsChunkComponentSyncResource::clear));
+            () -> PhysicsChunkStoreTypes.clearPhysicsStoreRuntimeResources(store));
         failure = runShutdownCleanup(failure,
             () -> cleanupResource(store,
                 PhysicsIdentityIndexResource.getResourceType(),
