@@ -76,8 +76,7 @@ public final class PhysicsResourceTypes {
             PhysicsStoreReadQueueResource::new);
         persistentStoreResourceType = registry.registerResource(
             PersistentPhysicsStoreResource.class,
-            "PersistentPhysicsStore",
-            PersistentPhysicsStoreResource.CODEC);
+            PersistentPhysicsStoreResource::new);
         restoreStatusResourceType = registry.registerResource(
             PhysicsRestoreStatusResource.class,
             PhysicsRestoreStatusResource::new);

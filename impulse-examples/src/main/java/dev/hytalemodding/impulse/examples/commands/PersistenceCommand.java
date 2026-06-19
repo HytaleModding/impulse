@@ -48,8 +48,8 @@ public class PersistenceCommand extends AbstractCommandCollection {
             @Nonnull SaveResult result) {
             if (!result.synced()) {
                 ctx.sendMessage(Message.raw("Manual Impulse persistence save is disabled in "
-                    + "authoritative PhysicsStore mode; PhysicsStore captures canonical state "
-                    + "automatically. reason=" + result.skippedReason()
+                    + "authoritative PhysicsStore mode; PhysicsStore holders are saved "
+                    + "by the world save hook. reason=" + result.skippedReason()
                     + ", stored schema=" + result.schemaVersion()
                     + ", spaces=" + result.spaces()
                     + ", persistentBodies=" + result.bodies()
@@ -96,7 +96,7 @@ public class PersistenceCommand extends AbstractCommandCollection {
             if (!result.queued()) {
                 ctx.sendMessage(Message.raw("Manual Impulse persistence restore is disabled in "
                     + "authoritative PhysicsStore mode; PhysicsStore restores automatically from "
-                    + "PersistentPhysicsStore during world startup. reason="
+                    + "holder storage during world startup. reason="
                     + result.skippedReason()
                     + ", stored schema=" + status.schemaVersion()
                     + ", spaces=" + status.storedSpaces()
@@ -140,7 +140,7 @@ public class PersistenceCommand extends AbstractCommandCollection {
                 + ", runtimeBodies="
                 + status.runtimePersistentBodies()
                 + ", joints=" + status.runtimeJoints()
-                + "; PhysicsStore schema=" + status.schemaVersion()
+                + "; stored PhysicsStore schema=" + status.schemaVersion()
                 + ", spaces=" + status.storedSpaces()
                 + ", bodies=" + status.storedBodies()
                 + ", joints=" + status.storedJoints()

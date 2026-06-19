@@ -5,6 +5,9 @@ import com.hypixel.hytale.component.Holder;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import com.hypixel.hytale.server.core.util.BsonUtil;
+import dev.hytalemodding.impulse.core.plugin.components.BodyComponent;
+import dev.hytalemodding.impulse.core.plugin.components.JointComponent;
+import dev.hytalemodding.impulse.core.plugin.components.SpaceComponent;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -90,6 +93,48 @@ public final class PhysicsStoreHolderStorage {
     }
 
     @Nonnull
+    public static Summary summary(@Nonnull Store<PhysicsStore> store) {
+        Path file = fileOrNull(store.getExternalData());
+        if (file == null || !Files.exists(file)) {
+            return Summary.missing();
+        }
+        BsonDocument document;
+        try {
+            document = BsonUtil.readFromBytes(Files.readAllBytes(file));
+        } catch (IOException exception) {
+            throw new IllegalStateException("Could not read PhysicsStore holder storage: " + file,
+                exception);
+        }
+        if (document == null) {
+            return Summary.missing();
+        }
+        int schemaVersion = document.getInt32(SCHEMA_VERSION_FIELD, new BsonInt32(0)).getValue();
+        if (schemaVersion != SCHEMA_VERSION) {
+            throw new IllegalStateException("Unsupported PhysicsStore holder storage schema "
+                + schemaVersion + "; expected " + SCHEMA_VERSION);
+        }
+        BsonArray holders = document.getArray(HOLDERS_FIELD, new BsonArray());
+        int spaces = 0;
+        int bodies = 0;
+        int joints = 0;
+        for (BsonValue value : holders) {
+            Holder<PhysicsStore> holder = PhysicsStoreHolderPersistence.decodeHolder(
+                store.getRegistry(),
+                value.asBinary().getData());
+            if (holder.getComponent(SpaceComponent.getComponentType()) != null) {
+                spaces++;
+            }
+            if (holder.getComponent(BodyComponent.getComponentType()) != null) {
+                bodies++;
+            }
+            if (holder.getComponent(JointComponent.getComponentType()) != null) {
+                joints++;
+            }
+        }
+        return new Summary(true, spaces, bodies, joints);
+    }
+
+    @Nonnull
     static Path file(@Nonnull PhysicsStore physicsStore) {
         return physicsStore.getWorld().getSavePath().resolve(DIRECTORY).resolve(FILE_NAME);
     }
@@ -142,6 +187,14 @@ public final class PhysicsStoreHolderStorage {
         @Nonnull
         private static LoadResult missing() {
             return new LoadResult(false, 0);
+        }
+    }
+
+    public record Summary(boolean present, int spaces, int bodies, int joints) {
+
+        @Nonnull
+        private static Summary missing() {
+            return new Summary(false, 0, 0, 0);
         }
     }
 }

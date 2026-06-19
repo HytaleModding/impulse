@@ -52,7 +52,7 @@ public final class StepSubmissionSystem extends TickingSystem<PhysicsStore> {
     private static final float MAX_ANGULAR_RADIANS_PER_SUBSTEP = (float) Math.toRadians(30.0);
 
     private static final Set<Dependency<PhysicsStore>> DEPENDENCIES = Set.of(
-        new SystemDependency<>(Order.AFTER, PersistenceCaptureSystem.class)
+        new SystemDependency<>(Order.AFTER, PhysicsStoreQueuedReadSystem.class)
     );
 
     @Override

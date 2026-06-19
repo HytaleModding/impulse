@@ -9,7 +9,6 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.early.PhysicsStoreHooks;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkStoreTypes;
-import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsStoreResource;
 import dev.hytalemodding.impulse.core.internal.persistence.PhysicsStoreHolderStorage;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsBodyRegistrationResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsEventResource;
@@ -29,7 +28,6 @@ import dev.hytalemodding.impulse.core.internal.systems.ColliderBindingSystem;
 import dev.hytalemodding.impulse.core.internal.systems.CompletedStepPublicationSystem;
 import dev.hytalemodding.impulse.core.internal.systems.IdentityIndexSystem;
 import dev.hytalemodding.impulse.core.internal.systems.JointBindingSystem;
-import dev.hytalemodding.impulse.core.internal.systems.PersistenceCaptureSystem;
 import dev.hytalemodding.impulse.core.internal.systems.PersistenceHydrationSystem;
 import dev.hytalemodding.impulse.core.internal.systems.PhysicsStoreQueuedReadSystem;
 import dev.hytalemodding.impulse.core.internal.systems.SpaceBindingSystem;
@@ -76,10 +74,12 @@ public final class PhysicsStoreRegistration {
 
         registry.registerSystem(new PersistenceHydrationSystem());
         registry.registerSystem(new IdentityIndexSystem());
-        PhysicsChunkStoreTypes.registerPhysicsStoreSystems(registry);
+        PhysicsChunkStoreTypes.registerPhysicsStoreSpaceBindingSystems(registry);
         registry.registerSystem(new SpaceBindingSystem());
         registry.registerSystem(new SpaceSettingsApplicationSystem());
+        PhysicsChunkStoreTypes.registerPhysicsStorePreBodyBindingSystems(registry);
         registry.registerSystem(new BodyBindingSystem());
+        PhysicsChunkStoreTypes.registerPhysicsStorePostBodyBindingSystems(registry);
         registry.registerSystem(new ColliderBindingSystem());
         registry.registerSystem(new JointBindingSystem());
         registry.registerSystem(new StaleBodyRemovalSystem());
@@ -87,7 +87,6 @@ public final class PhysicsStoreRegistration {
         registry.registerSystem(new TargetBindingSystem());
         registry.registerSystem(new CompletedStepPublicationSystem());
         registry.registerSystem(new PhysicsStoreQueuedReadSystem());
-        registry.registerSystem(new PersistenceCaptureSystem());
         registry.registerSystem(new StepSubmissionSystem());
     }
 
@@ -99,8 +98,6 @@ public final class PhysicsStoreRegistration {
         RuntimeException failure = null;
         failure = runShutdownCleanup(failure,
             () -> PhysicsStoreHolderStorage.save(physicsStore).join());
-        failure = runShutdownCleanup(failure,
-            () -> ensurePersistentResourcePresent(store));
         failure = runShutdownCleanup(failure,
             () -> cleanupResource(store,
                 PhysicsStepSchedulerResource.getResourceType(),
@@ -142,10 +139,6 @@ public final class PhysicsStoreRegistration {
         if (failure != null) {
             throw failure;
         }
-    }
-
-    private static void ensurePersistentResourcePresent(@Nonnull Store<PhysicsStore> store) {
-        store.getResource(PersistentPhysicsStoreResource.getResourceType());
     }
 
     private static <T extends Resource<PhysicsStore>> void cleanupResource(

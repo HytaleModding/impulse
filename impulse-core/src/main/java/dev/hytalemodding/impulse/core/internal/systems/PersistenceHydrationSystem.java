@@ -16,6 +16,7 @@ import dev.hytalemodding.impulse.core.internal.persistence.PersistentJointDto;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentMaterialDto;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsStorePreflight;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsStoreResource;
+import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsStoreStorage;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentShapeDto;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentSpaceDto;
 import dev.hytalemodding.impulse.core.internal.persistence.PhysicsStoreHolderStorage;
@@ -68,8 +69,14 @@ public final class PersistenceHydrationSystem extends TickingSystem<PhysicsStore
             restore.markFailed(exception.getMessage());
             return;
         }
-        PersistentPhysicsStoreResource persistent = store.getResource(
-            PersistentPhysicsStoreResource.getResourceType());
+        PersistentPhysicsStoreStorage.LoadResult persistentLoad;
+        try {
+            persistentLoad = PersistentPhysicsStoreStorage.load(store);
+        } catch (RuntimeException exception) {
+            restore.markFailed(exception.getMessage());
+            return;
+        }
+        PersistentPhysicsStoreResource persistent = persistentLoad.resource();
         PersistentPhysicsStorePreflight.Result result = persistent.preflight();
         if (!result.valid()) {
             restore.markFailed(String.join("; ", result.errors()));
