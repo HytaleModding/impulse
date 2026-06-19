@@ -10,7 +10,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsComponentTypes;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkTerrainMode;
 import dev.hytalemodding.impulse.core.plugin.settings.EntityChunkBoundaryMode;
-import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.settings.PhysicsChunkTerrainSettings;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.settings.PhysicsChunkCollisionSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import java.util.Objects;
 import javax.annotation.Nonnull;
@@ -39,25 +39,25 @@ public class ChunkCollisionSettingsComponent implements Component<PhysicsStore> 
                 false),
             (component, value) -> component.entityChunkBoundaryMode = value != null
                 ? value
-                : PhysicsChunkTerrainSettings.DEFAULT_ENTITY_CHUNK_BOUNDARY_MODE,
+                : PhysicsChunkCollisionSettings.DEFAULT_ENTITY_CHUNK_BOUNDARY_MODE,
             ChunkCollisionSettingsComponent::getEntityChunkBoundaryMode)
         .add()
         .append(new KeyedCodec<>("Radius", Codec.INTEGER, false),
             (component, value) -> component.radius = value != null
                 ? value
-                : PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_RADIUS,
+                : PhysicsChunkCollisionSettings.DEFAULT_RADIUS,
             ChunkCollisionSettingsComponent::getRadius)
         .add()
         .append(new KeyedCodec<>("BodyRadius", Codec.INTEGER, false),
             (component, value) -> component.bodyRadius = value != null
                 ? value
-                : PhysicsChunkTerrainSettings.DEFAULT_BODY_TERRAIN_RADIUS,
+                : PhysicsChunkCollisionSettings.DEFAULT_BODY_RADIUS,
             ChunkCollisionSettingsComponent::getBodyRadius)
         .add()
         .append(new KeyedCodec<>("TtlTicks", Codec.INTEGER, false),
             (component, value) -> component.ttlTicks = value != null
                 ? value
-                : PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_TTL_TICKS,
+                : PhysicsChunkCollisionSettings.DEFAULT_TTL_TICKS,
             ChunkCollisionSettingsComponent::getTtlTicks)
         .add()
         .build();
@@ -66,23 +66,23 @@ public class ChunkCollisionSettingsComponent implements Component<PhysicsStore> 
     private PhysicsChunkTerrainMode mode = PhysicsChunkTerrainMode.NONE;
     @Nonnull
     private EntityChunkBoundaryMode entityChunkBoundaryMode =
-        PhysicsChunkTerrainSettings.DEFAULT_ENTITY_CHUNK_BOUNDARY_MODE;
+        PhysicsChunkCollisionSettings.DEFAULT_ENTITY_CHUNK_BOUNDARY_MODE;
     private boolean nativeVoxelCollisionEnabled =
-        PhysicsChunkTerrainSettings.DEFAULT_NATIVE_VOXEL_COLLISION_ENABLED;
-    private int radius = PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_RADIUS;
-    private int bodyRadius = PhysicsChunkTerrainSettings.DEFAULT_BODY_TERRAIN_RADIUS;
-    private int ttlTicks = PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_TTL_TICKS;
+        PhysicsChunkCollisionSettings.DEFAULT_NATIVE_VOXEL_COLLISION_ENABLED;
+    private int radius = PhysicsChunkCollisionSettings.DEFAULT_RADIUS;
+    private int bodyRadius = PhysicsChunkCollisionSettings.DEFAULT_BODY_RADIUS;
+    private int ttlTicks = PhysicsChunkCollisionSettings.DEFAULT_TTL_TICKS;
 
     public ChunkCollisionSettingsComponent() {
     }
 
-    public ChunkCollisionSettingsComponent(@Nonnull PhysicsChunkTerrainSettings settings) {
-        this(settings.getTerrainMode(),
+    public ChunkCollisionSettingsComponent(@Nonnull PhysicsChunkCollisionSettings settings) {
+        this(settings.getMode(),
             settings.getEntityChunkBoundaryMode(),
             settings.isNativeVoxelCollisionEnabled(),
-            settings.getTerrainRadius(),
-            settings.getBodyTerrainRadius(),
-            settings.getTerrainTtlTicks());
+            settings.getRadius(),
+            settings.getBodyRadius(),
+            settings.getTtlTicks());
     }
 
     public ChunkCollisionSettingsComponent(@Nonnull PhysicsChunkTerrainMode mode,
@@ -91,7 +91,7 @@ public class ChunkCollisionSettingsComponent implements Component<PhysicsStore> 
         int bodyRadius,
         int ttlTicks) {
         this(mode,
-            PhysicsChunkTerrainSettings.DEFAULT_ENTITY_CHUNK_BOUNDARY_MODE,
+            PhysicsChunkCollisionSettings.DEFAULT_ENTITY_CHUNK_BOUNDARY_MODE,
             nativeVoxelCollisionEnabled,
             radius,
             bodyRadius,
@@ -166,27 +166,27 @@ public class ChunkCollisionSettingsComponent implements Component<PhysicsStore> 
     }
 
     public void copyTo(@Nonnull PhysicsSpaceSettings settings) {
-        copyTo(settings.getPhysicsChunkTerrainSettings());
+        copyTo(settings.getPhysicsChunkCollisionSettings());
     }
 
-    public void copyTo(@Nonnull PhysicsChunkTerrainSettings settings) {
-        settings.setTerrainMode(mode);
+    public void copyTo(@Nonnull PhysicsChunkCollisionSettings settings) {
+        settings.setMode(mode);
         settings.setEntityChunkBoundaryMode(entityChunkBoundaryMode);
         settings.setNativeVoxelCollisionEnabled(nativeVoxelCollisionEnabled);
-        settings.setTerrainRadius(radius);
-        settings.setBodyTerrainRadius(bodyRadius);
-        settings.setTerrainTtlTicks(ttlTicks);
+        settings.setRadius(radius);
+        settings.setBodyRadius(bodyRadius);
+        settings.setTtlTicks(ttlTicks);
     }
 
     public boolean isDefault() {
         return mode == PhysicsChunkTerrainMode.NONE
             && entityChunkBoundaryMode
-                == PhysicsChunkTerrainSettings.DEFAULT_ENTITY_CHUNK_BOUNDARY_MODE
+                == PhysicsChunkCollisionSettings.DEFAULT_ENTITY_CHUNK_BOUNDARY_MODE
             && nativeVoxelCollisionEnabled
-                == PhysicsChunkTerrainSettings.DEFAULT_NATIVE_VOXEL_COLLISION_ENABLED
-            && radius == PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_RADIUS
-            && bodyRadius == PhysicsChunkTerrainSettings.DEFAULT_BODY_TERRAIN_RADIUS
-            && ttlTicks == PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_TTL_TICKS;
+                == PhysicsChunkCollisionSettings.DEFAULT_NATIVE_VOXEL_COLLISION_ENABLED
+            && radius == PhysicsChunkCollisionSettings.DEFAULT_RADIUS
+            && bodyRadius == PhysicsChunkCollisionSettings.DEFAULT_BODY_RADIUS
+            && ttlTicks == PhysicsChunkCollisionSettings.DEFAULT_TTL_TICKS;
     }
 
     @Nonnull

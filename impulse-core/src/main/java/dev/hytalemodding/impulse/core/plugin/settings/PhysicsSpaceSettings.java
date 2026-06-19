@@ -1,7 +1,7 @@
 package dev.hytalemodding.impulse.core.plugin.settings;
 
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkTerrainMode;
-import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.settings.PhysicsChunkTerrainSettings;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.settings.PhysicsChunkCollisionSettings;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.settings.PhysicsCollisionLodSettings;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.settings.PhysicsVisualMaterializationSettings;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.settings.PhysicsVisualSyncSettings;
@@ -9,7 +9,7 @@ import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsSpaces;
 import javax.annotation.Nonnull;
 
 /**
- * Per-space configuration aggregate for terrain collision, solver tuning,
+ * Per-space configuration aggregate for chunk collision, solver tuning,
  * collision LOD, visual sync, and detached visual materialization.
  *
  * <p>Settings are stored on PhysicsStore space entities. New plugin code should create spaces and
@@ -20,14 +20,14 @@ import javax.annotation.Nonnull;
  * code should read and mutate the domain group directly instead of adding flat
  * shortcut state here.</p>
  *
- * <p>Default settings have PhysicsChunk terrain disabled ({@link PhysicsChunkTerrainMode#NONE}),
- * which keeps Impulse fully opt-in: no terrain bodies are created unless the integrator
+ * <p>Default settings have PhysicsChunk collision disabled ({@link PhysicsChunkTerrainMode#NONE}),
+ * which keeps Impulse fully opt-in: no chunk-collision bodies are created unless the integrator
  * explicitly opts in.</p>
  */
 public class PhysicsSpaceSettings {
 
     @Nonnull
-    private final PhysicsChunkTerrainSettings physicsChunkTerrainSettings;
+    private final PhysicsChunkCollisionSettings physicsChunkCollisionSettings;
     @Nonnull
     private final PhysicsVisualSyncSettings visualSyncSettings;
     @Nonnull
@@ -40,7 +40,7 @@ public class PhysicsSpaceSettings {
     private final PhysicsExtensionSettings extensionSettings;
 
     public PhysicsSpaceSettings() {
-        physicsChunkTerrainSettings = new PhysicsChunkTerrainSettings();
+        physicsChunkCollisionSettings = new PhysicsChunkCollisionSettings();
         visualSyncSettings = new PhysicsVisualSyncSettings();
         solverSettings = new PhysicsSolverSettings();
         visualMaterializationSettings = new PhysicsVisualMaterializationSettings();
@@ -49,8 +49,8 @@ public class PhysicsSpaceSettings {
     }
 
     public PhysicsSpaceSettings(@Nonnull PhysicsSpaceSettings settings) {
-        physicsChunkTerrainSettings =
-            new PhysicsChunkTerrainSettings(settings.physicsChunkTerrainSettings);
+        physicsChunkCollisionSettings =
+            new PhysicsChunkCollisionSettings(settings.physicsChunkCollisionSettings);
         visualSyncSettings =
             new PhysicsVisualSyncSettings(settings.visualSyncSettings);
         solverSettings =
@@ -63,11 +63,11 @@ public class PhysicsSpaceSettings {
     }
 
     /**
-     * Terrain collider streaming and chunk-boundary behavior.
+     * Chunk-collision streaming and chunk-boundary behavior.
      */
     @Nonnull
-    public PhysicsChunkTerrainSettings getPhysicsChunkTerrainSettings() {
-        return physicsChunkTerrainSettings;
+    public PhysicsChunkCollisionSettings getPhysicsChunkCollisionSettings() {
+        return physicsChunkCollisionSettings;
     }
 
     /**
@@ -116,13 +116,13 @@ public class PhysicsSpaceSettings {
     }
 
     /**
-     * Convenience factory for a space with streaming PhysicsChunk terrain enabled.
+     * Convenience factory for a space with streaming PhysicsChunk collision enabled.
      */
     @Nonnull
     public static PhysicsSpaceSettings streamingPhysicsChunk() {
         PhysicsSpaceSettings settings = new PhysicsSpaceSettings();
-        settings.getPhysicsChunkTerrainSettings()
-            .setTerrainMode(PhysicsChunkTerrainMode.STREAMING);
+        settings.getPhysicsChunkCollisionSettings()
+            .setMode(PhysicsChunkTerrainMode.STREAMING);
         return settings;
     }
 }

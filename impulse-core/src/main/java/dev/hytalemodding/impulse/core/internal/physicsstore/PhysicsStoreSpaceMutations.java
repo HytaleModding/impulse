@@ -23,7 +23,7 @@ import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.Vi
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.VisualSyncSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.ChunkCollisionSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.CollisionLodSettingsComponent;
-import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.settings.PhysicsChunkTerrainSettings;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.settings.PhysicsChunkCollisionSettings;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.settings.PhysicsCollisionLodSettings;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.settings.PhysicsVisualMaterializationSettings;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.settings.PhysicsVisualSyncSettings;
@@ -153,7 +153,7 @@ public final class PhysicsStoreSpaceMutations {
 
     public static void putChunkCollisionSettings(@Nonnull Store<PhysicsStore> store,
         @Nonnull SpaceId spaceId,
-        @Nonnull PhysicsChunkTerrainSettings settings) {
+        @Nonnull PhysicsChunkCollisionSettings settings) {
         UUID spaceUuid = requireSpaceUuid(store, spaceId);
         Ref<PhysicsStore> ref = requireSpaceRef(store, spaceUuid);
         putChunkCollisionSettings(store, ref, settings);
@@ -161,7 +161,7 @@ public final class PhysicsStoreSpaceMutations {
 
     public static void putChunkCollisionSettings(@Nonnull Store<PhysicsStore> store,
         @Nonnull Ref<PhysicsStore> ref,
-        @Nonnull PhysicsChunkTerrainSettings settings) {
+        @Nonnull PhysicsChunkCollisionSettings settings) {
         requireSpaceUuid(store, ref);
         PhysicsThreading.requireWorldThread(store,
             "update PhysicsStore chunk collision settings");
@@ -301,7 +301,7 @@ public final class PhysicsStoreSpaceMutations {
     private static void addSpaceSettingsComponents(@Nonnull Holder<PhysicsStore> holder,
         @Nonnull PhysicsSpaceSettings settings) {
         ChunkCollisionSettingsComponent chunkCollision =
-            new ChunkCollisionSettingsComponent(settings.getPhysicsChunkTerrainSettings());
+            new ChunkCollisionSettingsComponent(settings.getPhysicsChunkCollisionSettings());
         addIfNonDefault(holder,
             ChunkCollisionSettingsComponent.getComponentType(),
             chunkCollision,
@@ -352,7 +352,7 @@ public final class PhysicsStoreSpaceMutations {
         @Nonnull Ref<PhysicsStore> ref,
         @Nonnull PhysicsSpaceSettings settings) {
         ChunkCollisionSettingsComponent chunkCollision =
-            new ChunkCollisionSettingsComponent(settings.getPhysicsChunkTerrainSettings());
+            new ChunkCollisionSettingsComponent(settings.getPhysicsChunkCollisionSettings());
         putOrRemoveDefault(store,
             ref,
             ChunkCollisionSettingsComponent.getComponentType(),

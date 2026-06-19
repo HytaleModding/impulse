@@ -45,8 +45,8 @@ import org.joml.Vector3f;
  *
  * <p>This removes Impulse-owned visual entities, detaches external physics attachments,
  * clears runtime bodies, joints, and current PhysicsChunk terrain cache bodies. Explicit
- * physics spaces are kept, including their PhysicsChunk terrain settings. Spaces with streaming
- * PhysicsChunk terrain enabled may build fresh backend terrain bodies again on the next
+ * physics spaces are kept, including their PhysicsChunk collision settings. Spaces with streaming
+ * PhysicsChunk collision enabled may build fresh backend terrain bodies again on the next
  * streaming tick.</p>
  *
  * <p>When a radius is provided, cleanup is intentionally narrower: it selects

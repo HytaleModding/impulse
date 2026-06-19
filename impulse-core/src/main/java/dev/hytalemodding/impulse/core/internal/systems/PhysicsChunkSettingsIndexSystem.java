@@ -22,7 +22,7 @@ import java.util.function.BiConsumer;
 import javax.annotation.Nonnull;
 
 /**
- * Publishes copied PhysicsChunk terrain settings for PhysicsStore space entities.
+ * Publishes copied PhysicsChunk collision settings for PhysicsStore space entities.
  */
 public final class PhysicsChunkSettingsIndexSystem extends TickingSystem<PhysicsStore>
     implements QuerySystem<PhysicsStore> {

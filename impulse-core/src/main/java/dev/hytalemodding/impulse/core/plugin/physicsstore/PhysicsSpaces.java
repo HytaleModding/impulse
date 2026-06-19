@@ -19,7 +19,7 @@ import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.Vi
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.VisualSyncSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.ChunkCollisionSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.CollisionLodSettingsComponent;
-import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.settings.PhysicsChunkTerrainSettings;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.settings.PhysicsChunkCollisionSettings;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.settings.PhysicsCollisionLodSettings;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.settings.PhysicsVisualMaterializationSettings;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.settings.PhysicsVisualSyncSettings;
@@ -178,24 +178,24 @@ public final class PhysicsSpaces {
     }
 
     @Nullable
-    public static PhysicsChunkTerrainSettings chunkTerrainSettings(
+    public static PhysicsChunkCollisionSettings chunkCollisionSettings(
         @Nonnull Store<PhysicsStore> store,
         @Nonnull SpaceId spaceId) {
         Ref<PhysicsStore> ref = resolveRef(store, spaceId);
-        return ref != null ? chunkTerrainSettings(store, ref) : null;
+        return ref != null ? chunkCollisionSettings(store, ref) : null;
     }
 
     @Nullable
-    public static PhysicsChunkTerrainSettings chunkTerrainSettings(
+    public static PhysicsChunkCollisionSettings chunkCollisionSettings(
         @Nonnull Store<PhysicsStore> store,
         @Nonnull Ref<PhysicsStore> spaceRef) {
         Store<PhysicsStore> checkedStore = requireWorldThread(store,
-            "read PhysicsStore chunk terrain settings");
+            "read PhysicsStore chunk collision settings");
         Ref<PhysicsStore> checkedRef = Objects.requireNonNull(spaceRef, "spaceRef");
         if (!isSpaceRef(checkedStore, checkedRef)) {
             return null;
         }
-        PhysicsChunkTerrainSettings settings = new PhysicsChunkTerrainSettings();
+        PhysicsChunkCollisionSettings settings = new PhysicsChunkCollisionSettings();
         ChunkCollisionSettingsComponent component = checkedStore.getComponent(checkedRef,
             ChunkCollisionSettingsComponent.getComponentType());
         if (component != null) {
@@ -358,21 +358,21 @@ public final class PhysicsSpaces {
             Objects.requireNonNull(settings, "settings"));
     }
 
-    public static void putChunkTerrainSettings(@Nonnull Store<PhysicsStore> store,
+    public static void putChunkCollisionSettings(@Nonnull Store<PhysicsStore> store,
         @Nonnull SpaceId spaceId,
-        @Nonnull PhysicsChunkTerrainSettings settings) {
+        @Nonnull PhysicsChunkCollisionSettings settings) {
         Store<PhysicsStore> checkedStore = requireWorldThread(store,
-            "update PhysicsStore chunk terrain settings");
+            "update PhysicsStore chunk collision settings");
         PhysicsStoreSpaceMutations.putChunkCollisionSettings(checkedStore,
             Objects.requireNonNull(spaceId, "spaceId"),
             Objects.requireNonNull(settings, "settings"));
     }
 
-    public static void putChunkTerrainSettings(@Nonnull Store<PhysicsStore> store,
+    public static void putChunkCollisionSettings(@Nonnull Store<PhysicsStore> store,
         @Nonnull Ref<PhysicsStore> spaceRef,
-        @Nonnull PhysicsChunkTerrainSettings settings) {
+        @Nonnull PhysicsChunkCollisionSettings settings) {
         Store<PhysicsStore> checkedStore = requireWorldThread(store,
-            "update PhysicsStore chunk terrain settings");
+            "update PhysicsStore chunk collision settings");
         PhysicsStoreSpaceMutations.putChunkCollisionSettings(checkedStore,
             Objects.requireNonNull(spaceRef, "spaceRef"),
             Objects.requireNonNull(settings, "settings"));

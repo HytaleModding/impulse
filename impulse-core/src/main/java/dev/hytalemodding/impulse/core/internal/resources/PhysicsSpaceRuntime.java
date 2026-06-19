@@ -31,7 +31,7 @@ public final class PhysicsSpaceRuntime {
     private final Int2ObjectMap<PhysicsSpaceBinding> spaces = new Int2ObjectOpenHashMap<>();
 
     /**
-     * Per-space settings (PhysicsChunk terrain mode, radius, TTL, etc.). Keyed by space id value.
+     * Per-space settings (PhysicsChunk collision mode, radius, TTL, etc.). Keyed by space id value.
      */
     private final Int2ObjectMap<PhysicsSpaceSettings> spaceSettings =
         new Int2ObjectOpenHashMap<>();
@@ -51,7 +51,7 @@ public final class PhysicsSpaceRuntime {
             "World %s creating physics space using backend %s collision=%s",
             worldName,
             backendId,
-            settings.getPhysicsChunkTerrainSettings().getTerrainMode());
+            settings.getPhysicsChunkCollisionSettings().getMode());
 
         PhysicsBackendRuntime runtime = Impulse.createRuntime(backendId);
         BackendSpaceHandle backendSpaceHandle = new BackendSpaceHandle(runtime.createSpace(spaceId));
@@ -72,7 +72,7 @@ public final class PhysicsSpaceRuntime {
             worldName,
             spaceId,
             backendId,
-            settings.getPhysicsChunkTerrainSettings().getTerrainMode());
+            settings.getPhysicsChunkCollisionSettings().getMode());
         return binding;
     }
 

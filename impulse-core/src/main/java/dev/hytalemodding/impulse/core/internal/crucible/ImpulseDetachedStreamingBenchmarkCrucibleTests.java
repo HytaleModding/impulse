@@ -245,8 +245,8 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
             int retained = retainChunks(chunks);
             configureMissingSectionDiagnostics(chunks);
             PhysicsSpaceSettings settings = PhysicsSpaceSettings.defaults();
-            settings.getPhysicsChunkTerrainSettings().setTerrainMode(PhysicsChunkTerrainMode.STREAMING);
-            settings.getPhysicsChunkTerrainSettings().setBodyTerrainRadius(BODY_STREAMING_RADIUS);
+            settings.getPhysicsChunkCollisionSettings().setMode(PhysicsChunkTerrainMode.STREAMING);
+            settings.getPhysicsChunkCollisionSettings().setBodyRadius(BODY_STREAMING_RADIUS);
             settings.getSolverSettings().setSolverIterations(4);
             settings.getSolverSettings().setStabilizationIterations(1);
             settings.getExtensionSettings().setInt(RAPIER_SOLVER_EXTENSION_ID,
@@ -373,7 +373,7 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
             PhysicsChunkCollisionMutationQueueResource queue = physicsStore.getResource(
                 PhysicsChunkCollisionMutationQueueResource.getResourceType());
             PhysicsChunkBuildOptions buildOptions = PhysicsChunkBuildOptions.fromSettings(
-                physics.getSpaceSettings(spaceId).getPhysicsChunkTerrainSettings());
+                physics.getSpaceSettings(spaceId).getPhysicsChunkCollisionSettings());
             PhysicsChunkTerrainPrewarmStats stats = terrainStreaming.ensureAround(world,
                 spaceUuid,
                 queue,

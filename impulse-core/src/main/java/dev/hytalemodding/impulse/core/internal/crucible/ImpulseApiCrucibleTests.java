@@ -206,7 +206,7 @@ final class ImpulseApiCrucibleTests {
             PhysicsSpaceSettings spaceSettings = PhysicsSpaces.settings(store, spaceId);
             boolean registered = PhysicsSpaces.hasSpace(store, spaceId)
                 && spaceSettings != null
-                && spaceSettings.getPhysicsChunkTerrainSettings().getTerrainMode()
+                && spaceSettings.getPhysicsChunkCollisionSettings().getMode()
                     == PhysicsChunkTerrainMode.STREAMING;
             PhysicsStoreSpaceMutations.removeEmptySpace(store, spaceId);
             return registered && !PhysicsSpaces.hasSpace(store, spaceId);
@@ -334,10 +334,10 @@ final class ImpulseApiCrucibleTests {
                 if (copy == null) {
                     return false;
                 }
-                return copy.getPhysicsChunkTerrainSettings().getTerrainMode() == PhysicsChunkTerrainMode.STREAMING
-                && copy.getPhysicsChunkTerrainSettings().getTerrainRadius() == 9
-                && copy.getPhysicsChunkTerrainSettings().getBodyTerrainRadius() == 5
-                && copy.getPhysicsChunkTerrainSettings().getTerrainTtlTicks() == 77
+                return copy.getPhysicsChunkCollisionSettings().getMode() == PhysicsChunkTerrainMode.STREAMING
+                && copy.getPhysicsChunkCollisionSettings().getRadius() == 9
+                && copy.getPhysicsChunkCollisionSettings().getBodyRadius() == 5
+                && copy.getPhysicsChunkCollisionSettings().getTtlTicks() == 77
                 && copy.getVisualSyncSettings().getVisualFullSyncRadius() == 48
                 && copy.getVisualSyncSettings().getVisualMaxSyncRadius() == 96
                 && !copy.getVisualSyncSettings().isVisualFarSyncCutoffEnabled()
@@ -373,10 +373,10 @@ final class ImpulseApiCrucibleTests {
     @Nonnull
     private static PhysicsSpaceSettings populatedSettings() {
         PhysicsSpaceSettings settings = PhysicsSpaceSettings.defaults();
-        settings.getPhysicsChunkTerrainSettings().setTerrainMode(PhysicsChunkTerrainMode.STREAMING);
-        settings.getPhysicsChunkTerrainSettings().setTerrainRadius(9);
-        settings.getPhysicsChunkTerrainSettings().setBodyTerrainRadius(5);
-        settings.getPhysicsChunkTerrainSettings().setTerrainTtlTicks(77);
+        settings.getPhysicsChunkCollisionSettings().setMode(PhysicsChunkTerrainMode.STREAMING);
+        settings.getPhysicsChunkCollisionSettings().setRadius(9);
+        settings.getPhysicsChunkCollisionSettings().setBodyRadius(5);
+        settings.getPhysicsChunkCollisionSettings().setTtlTicks(77);
         settings.getVisualSyncSettings().setVisualMaxSyncRadius(96);
         settings.getVisualSyncSettings().setVisualFullSyncRadius(48);
         settings.getVisualSyncSettings().setVisualFarSyncCutoffEnabled(false);

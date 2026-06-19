@@ -17,7 +17,7 @@ import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.Vi
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.VisualSyncSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.ChunkCollisionSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.settings.EntityChunkBoundaryMode;
-import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.settings.PhysicsChunkTerrainSettings;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.settings.PhysicsChunkCollisionSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import java.util.Objects;
 import java.util.UUID;
@@ -52,14 +52,14 @@ public final class PersistentSpaceDto {
                 (dto, value) -> dto.terrainMode = value != null
                     ? value
                     : PhysicsChunkTerrainMode.NONE,
-                PersistentSpaceDto::getTerrainMode)
+                PersistentSpaceDto::getMode)
             .add()
             .append(new KeyedCodec<>("EntityChunkBoundaryMode",
                     new EnumCodec<>(EntityChunkBoundaryMode.class),
                     false),
                 (dto, value) -> dto.entityChunkBoundaryMode = value != null
                     ? value
-                    : PhysicsChunkTerrainSettings.DEFAULT_ENTITY_CHUNK_BOUNDARY_MODE,
+                    : PhysicsChunkCollisionSettings.DEFAULT_ENTITY_CHUNK_BOUNDARY_MODE,
                 PersistentSpaceDto::getEntityChunkBoundaryMode)
             .add()
             .append(new KeyedCodec<>("NativeVoxelCollision", Codec.BOOLEAN, false),
@@ -69,20 +69,20 @@ public final class PersistentSpaceDto {
             .append(new KeyedCodec<>("ChunkCollisionRadius", Codec.INTEGER, false),
                 (dto, value) -> dto.terrainRadius = value != null
                     ? value
-                    : PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_RADIUS,
-                PersistentSpaceDto::getTerrainRadius)
+                    : PhysicsChunkCollisionSettings.DEFAULT_RADIUS,
+                PersistentSpaceDto::getRadius)
             .add()
             .append(new KeyedCodec<>("BodyChunkCollisionRadius", Codec.INTEGER, false),
                 (dto, value) -> dto.bodyTerrainRadius = value != null
                     ? value
-                    : PhysicsChunkTerrainSettings.DEFAULT_BODY_TERRAIN_RADIUS,
-                PersistentSpaceDto::getBodyTerrainRadius)
+                    : PhysicsChunkCollisionSettings.DEFAULT_BODY_RADIUS,
+                PersistentSpaceDto::getBodyRadius)
             .add()
             .append(new KeyedCodec<>("ChunkCollisionTtlTicks", Codec.INTEGER, false),
                 (dto, value) -> dto.terrainTtlTicks = value != null
                     ? value
-                    : PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_TTL_TICKS,
-                PersistentSpaceDto::getTerrainTtlTicks)
+                    : PhysicsChunkCollisionSettings.DEFAULT_TTL_TICKS,
+                PersistentSpaceDto::getTtlTicks)
             .add()
             .append(new KeyedCodec<>("ChunkCollisionFriction", Codec.FLOAT, false),
                 (dto, value) -> dto.chunkCollisionFriction = value != null
@@ -152,15 +152,15 @@ public final class PersistentSpaceDto {
     private PhysicsChunkTerrainMode terrainMode = PhysicsChunkTerrainMode.NONE;
     @Nonnull
     private EntityChunkBoundaryMode entityChunkBoundaryMode =
-        PhysicsChunkTerrainSettings.DEFAULT_ENTITY_CHUNK_BOUNDARY_MODE;
+        PhysicsChunkCollisionSettings.DEFAULT_ENTITY_CHUNK_BOUNDARY_MODE;
     private boolean nativeVoxelCollisionEnabled =
-        PhysicsChunkTerrainSettings.DEFAULT_NATIVE_VOXEL_COLLISION_ENABLED;
+        PhysicsChunkCollisionSettings.DEFAULT_NATIVE_VOXEL_COLLISION_ENABLED;
     private int terrainRadius =
-        PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_RADIUS;
+        PhysicsChunkCollisionSettings.DEFAULT_RADIUS;
     private int bodyTerrainRadius =
-        PhysicsChunkTerrainSettings.DEFAULT_BODY_TERRAIN_RADIUS;
+        PhysicsChunkCollisionSettings.DEFAULT_BODY_RADIUS;
     private int terrainTtlTicks =
-        PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_TTL_TICKS;
+        PhysicsChunkCollisionSettings.DEFAULT_TTL_TICKS;
     private float chunkCollisionFriction = PhysicsChunkCollisionDefaults.FRICTION;
     private float chunkCollisionRestitution =
         PhysicsChunkCollisionDefaults.RESTITUTION;
@@ -189,11 +189,11 @@ public final class PersistentSpaceDto {
             backendId,
             gravity,
             PhysicsChunkTerrainMode.NONE,
-            PhysicsChunkTerrainSettings.DEFAULT_ENTITY_CHUNK_BOUNDARY_MODE,
-            PhysicsChunkTerrainSettings.DEFAULT_NATIVE_VOXEL_COLLISION_ENABLED,
-            PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_RADIUS,
-            PhysicsChunkTerrainSettings.DEFAULT_BODY_TERRAIN_RADIUS,
-            PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_TTL_TICKS,
+            PhysicsChunkCollisionSettings.DEFAULT_ENTITY_CHUNK_BOUNDARY_MODE,
+            PhysicsChunkCollisionSettings.DEFAULT_NATIVE_VOXEL_COLLISION_ENABLED,
+            PhysicsChunkCollisionSettings.DEFAULT_RADIUS,
+            PhysicsChunkCollisionSettings.DEFAULT_BODY_RADIUS,
+            PhysicsChunkCollisionSettings.DEFAULT_TTL_TICKS,
             PhysicsChunkCollisionDefaults.FRICTION,
             PhysicsChunkCollisionDefaults.RESTITUTION,
             PhysicsChunkCollisionDefaults.COLLISION_GROUP,
@@ -219,7 +219,7 @@ public final class PersistentSpaceDto {
             backendId,
             gravity,
             terrainMode,
-            PhysicsChunkTerrainSettings.DEFAULT_ENTITY_CHUNK_BOUNDARY_MODE,
+            PhysicsChunkCollisionSettings.DEFAULT_ENTITY_CHUNK_BOUNDARY_MODE,
             nativeVoxelCollisionEnabled,
             terrainRadius,
             bodyTerrainRadius,
@@ -330,7 +330,7 @@ public final class PersistentSpaceDto {
     }
 
     @Nonnull
-    public PhysicsChunkTerrainMode getTerrainMode() {
+    public PhysicsChunkTerrainMode getMode() {
         return terrainMode;
     }
 
@@ -343,15 +343,15 @@ public final class PersistentSpaceDto {
         return nativeVoxelCollisionEnabled;
     }
 
-    public int getTerrainRadius() {
+    public int getRadius() {
         return terrainRadius;
     }
 
-    public int getBodyTerrainRadius() {
+    public int getBodyRadius() {
         return bodyTerrainRadius;
     }
 
-    public int getTerrainTtlTicks() {
+    public int getTtlTicks() {
         return terrainTtlTicks;
     }
 
@@ -373,7 +373,7 @@ public final class PersistentSpaceDto {
 
     @Nonnull
     public ChunkCollisionSettingsComponent getChunkCollisionSettings() {
-        return new ChunkCollisionSettingsComponent(getTerrainMode(),
+        return new ChunkCollisionSettingsComponent(getMode(),
             entityChunkBoundaryMode,
             nativeVoxelCollisionEnabled,
             terrainRadius,

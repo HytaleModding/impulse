@@ -82,14 +82,15 @@ public final class PhysicsChunkTerrainProducerSystem extends TickingSystem<Entit
                 "produce PhysicsStore PhysicsChunk chunk collision mutations");
             PhysicsChunkCollisionMutationQueueResource queue = physics.getResource(
                 PhysicsChunkCollisionMutationQueueResource.getResourceType());
-            PhysicsChunkSettingsIndexResource terrainSettingsIndex = physics.getResource(
+            PhysicsChunkSettingsIndexResource chunkCollisionSettingsIndex = physics.getResource(
                 PhysicsChunkSettingsIndexResource.getResourceType());
             PhysicsSnapshotResource snapshotResource = physics.getResource(
                 PhysicsSnapshotResource.getResourceType());
             PhysicsChunkTerrainStreamingResource streaming = store.getResource(
                 PhysicsChunkTerrainStreamingResource.getResourceType());
 
-            List<PhysicsChunkSpaceSettings> spaces = terrainSettingsIndex.streamingSpaces();
+            List<PhysicsChunkSpaceSettings> spaces =
+                chunkCollisionSettingsIndex.streamingSpaces();
             if (spaces.isEmpty()) {
                 streaming.retainSpaces(Set.of(), queue);
                 return;

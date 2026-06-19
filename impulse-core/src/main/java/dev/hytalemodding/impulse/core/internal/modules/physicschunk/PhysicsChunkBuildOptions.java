@@ -1,6 +1,6 @@
 package dev.hytalemodding.impulse.core.internal.modules.physicschunk;
 
-import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.settings.PhysicsChunkTerrainSettings;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.settings.PhysicsChunkCollisionSettings;
 import java.util.Objects;
 import javax.annotation.Nonnull;
 
@@ -10,14 +10,14 @@ import javax.annotation.Nonnull;
 public record PhysicsChunkBuildOptions(@Nonnull ChunkCollisionMode chunkCollisionMode) {
 
     public static final PhysicsChunkBuildOptions DEFAULT =
-        fromNativeVoxelCollisionEnabled(PhysicsChunkTerrainSettings.DEFAULT_NATIVE_VOXEL_COLLISION_ENABLED);
+        fromNativeVoxelCollisionEnabled(PhysicsChunkCollisionSettings.DEFAULT_NATIVE_VOXEL_COLLISION_ENABLED);
 
     public PhysicsChunkBuildOptions {
         Objects.requireNonNull(chunkCollisionMode, "chunkCollisionMode");
     }
 
     @Nonnull
-    public static PhysicsChunkBuildOptions fromSettings(@Nonnull PhysicsChunkTerrainSettings settings) {
+    public static PhysicsChunkBuildOptions fromSettings(@Nonnull PhysicsChunkCollisionSettings settings) {
         return fromNativeVoxelCollisionEnabled(settings.isNativeVoxelCollisionEnabled());
     }
 

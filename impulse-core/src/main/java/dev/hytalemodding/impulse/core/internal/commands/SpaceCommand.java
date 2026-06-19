@@ -77,7 +77,7 @@ public class SpaceCommand extends AbstractCommandCollection {
             PhysicsSpaceSettings settings = physicsChunkMode == PhysicsChunkTerrainMode.STREAMING
                 ? PhysicsSpaceSettings.streamingPhysicsChunk()
                 : PhysicsSpaceSettings.defaults();
-            settings.getPhysicsChunkTerrainSettings().setTerrainMode(physicsChunkMode);
+            settings.getPhysicsChunkCollisionSettings().setMode(physicsChunkMode);
 
             Store<PhysicsStore> physicsStore = PhysicsThreading.store(world);
             try {
@@ -120,7 +120,7 @@ public class SpaceCommand extends AbstractCommandCollection {
                     PhysicsSpaceSettings settings = PhysicsSpaces.settings(physicsStore,
                         summary.spaceId());
                     PhysicsChunkTerrainMode physicsChunkMode = settings != null
-                        ? settings.getPhysicsChunkTerrainSettings().getTerrainMode()
+                        ? settings.getPhysicsChunkCollisionSettings().getMode()
                         : PhysicsChunkTerrainMode.NONE;
                     return new SpaceListEntry(summary.spaceId(),
                         summary.backendId().value(),

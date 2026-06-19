@@ -228,7 +228,7 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
             physics.clearSyntheticVisualInterests();
 
             PhysicsSpaceSettings settings = PhysicsSpaceSettings.defaults();
-            settings.getPhysicsChunkTerrainSettings().setTerrainMode(PhysicsChunkTerrainMode.NONE);
+            settings.getPhysicsChunkCollisionSettings().setMode(PhysicsChunkTerrainMode.NONE);
             settings.getSolverSettings().setSolverIterations(PhysicsSolverSettings.DEFAULT_SOLVER_ITERATIONS);
             settings.getSolverSettings().setStabilizationIterations(
                 PhysicsSolverSettings.DEFAULT_STABILIZATION_ITERATIONS);
