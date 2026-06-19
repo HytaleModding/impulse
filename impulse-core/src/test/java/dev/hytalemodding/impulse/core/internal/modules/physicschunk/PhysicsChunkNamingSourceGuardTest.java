@@ -64,6 +64,10 @@ class PhysicsChunkNamingSourceGuardTest {
                 assertRemovedApiAbsent(source,
                     file,
                     "dev.hytalemodding.impulse.core.plugin.settings.",
+                    "PhysicsChunkCollisionSettings");
+                assertRemovedApiAbsent(source,
+                    file,
+                    "dev.hytalemodding.impulse.core.plugin.settings.",
                     "PhysicsCollisionLodSettings");
                 assertRemovedApiAbsent(source,
                     file,

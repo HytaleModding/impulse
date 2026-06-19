@@ -8,7 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkTerrainMode;
-import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.settings.PhysicsChunkTerrainSettings;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.settings.PhysicsChunkCollisionSettings;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.settings.PhysicsCollisionLodSettings;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.settings.PhysicsVisualMaterializationSettings;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.settings.PhysicsVisualSyncSettings;
@@ -82,21 +82,21 @@ class PhysicsSpaceSettingsTest {
     }
 
     @Test
-    void rejectsNonPositivePhysicsChunkTerrainValues() {
+    void rejectsNonPositivePhysicsChunkCollisionValues() {
         PhysicsSpaceSettings settings = new PhysicsSpaceSettings();
 
-        assertEquals("PhysicsChunk terrain radius must be between 1 and "
-                + PhysicsChunkTerrainSettings.MAX_TERRAIN_RADIUS,
+        assertEquals("PhysicsChunk collision radius must be between 1 and "
+                + PhysicsChunkCollisionSettings.MAX_RADIUS,
             assertThrows(IllegalArgumentException.class,
-                () -> settings.getPhysicsChunkTerrainSettings().setTerrainRadius(0)).getMessage());
-        assertEquals("PhysicsChunk terrain body radius must be between 1 and "
-                + PhysicsChunkTerrainSettings.MAX_BODY_TERRAIN_RADIUS,
+                () -> settings.getPhysicsChunkCollisionSettings().setRadius(0)).getMessage());
+        assertEquals("PhysicsChunk collision body radius must be between 1 and "
+                + PhysicsChunkCollisionSettings.MAX_BODY_RADIUS,
             assertThrows(IllegalArgumentException.class,
-                () -> settings.getPhysicsChunkTerrainSettings().setBodyTerrainRadius(0)).getMessage());
-        assertEquals("PhysicsChunk terrain TTL must be between 1 and "
-                + PhysicsChunkTerrainSettings.MAX_TERRAIN_TTL_TICKS,
+                () -> settings.getPhysicsChunkCollisionSettings().setBodyRadius(0)).getMessage());
+        assertEquals("PhysicsChunk collision TTL must be between 1 and "
+                + PhysicsChunkCollisionSettings.MAX_TTL_TICKS,
             assertThrows(IllegalArgumentException.class,
-                () -> settings.getPhysicsChunkTerrainSettings().setTerrainTtlTicks(0)).getMessage());
+                () -> settings.getPhysicsChunkCollisionSettings().setTtlTicks(0)).getMessage());
         assertEquals("Visual full sync radius must be between 1 and "
                 + PhysicsVisualSyncSettings.MAX_VISUAL_FULL_SYNC_RADIUS,
             assertThrows(IllegalArgumentException.class,
@@ -164,23 +164,23 @@ class PhysicsSpaceSettingsTest {
         PhysicsSpaceSettings second = PhysicsSpaceSettings.defaults();
 
         assertNotSame(first, second);
-        assertEquals(PhysicsChunkTerrainMode.NONE, first.getPhysicsChunkTerrainSettings().getTerrainMode());
-        assertSame(PhysicsChunkTerrainSettings.DEFAULT_ENTITY_CHUNK_BOUNDARY_MODE,
-            first.getPhysicsChunkTerrainSettings().getEntityChunkBoundaryMode());
-        assertFalse(first.getPhysicsChunkTerrainSettings().isNativeVoxelCollisionEnabled());
+        assertEquals(PhysicsChunkTerrainMode.NONE, first.getPhysicsChunkCollisionSettings().getMode());
+        assertSame(PhysicsChunkCollisionSettings.DEFAULT_ENTITY_CHUNK_BOUNDARY_MODE,
+            first.getPhysicsChunkCollisionSettings().getEntityChunkBoundaryMode());
+        assertFalse(first.getPhysicsChunkCollisionSettings().isNativeVoxelCollisionEnabled());
     }
 
     @Test
     void groupedAccessorsExposeIndependentDomainState() {
         PhysicsSpaceSettings settings = new PhysicsSpaceSettings();
 
-        settings.getPhysicsChunkTerrainSettings().setTerrainRadius(14);
+        settings.getPhysicsChunkCollisionSettings().setRadius(14);
         settings.getVisualSyncSettings().setVisualSyncRadii(36, 144);
         settings.getSolverSettings().setSolverIterations(6);
         settings.getVisualMaterializationSettings().setDetachedVisualMaxMaterialized(96);
         settings.getCollisionLodSettings().setCollisionLodRadii(24, 72);
 
-        assertEquals(14, settings.getPhysicsChunkTerrainSettings().getTerrainRadius());
+        assertEquals(14, settings.getPhysicsChunkCollisionSettings().getRadius());
         assertEquals(36, settings.getVisualSyncSettings().getVisualFullSyncRadius());
         assertEquals(144, settings.getVisualSyncSettings().getVisualMaxSyncRadius());
         assertEquals(6, settings.getSolverSettings().getSolverIterations());
@@ -188,13 +188,13 @@ class PhysicsSpaceSettingsTest {
         assertEquals(24, settings.getCollisionLodSettings().getCollisionLodNearRadius());
         assertEquals(72, settings.getCollisionLodSettings().getCollisionLodMidRadius());
 
-        settings.getPhysicsChunkTerrainSettings().setBodyTerrainRadius(5);
+        settings.getPhysicsChunkCollisionSettings().setBodyRadius(5);
         settings.getVisualSyncSettings().setVisualMidSyncIntervalTicks(3);
         settings.getSolverSettings().setDynamicSleepLinearThreshold(0.45f);
         settings.getVisualMaterializationSettings().setDetachedVisualMaxSpawnsPerTick(16);
         settings.getCollisionLodSettings().setCollisionLodHysteresis(4);
 
-        assertEquals(5, settings.getPhysicsChunkTerrainSettings().getBodyTerrainRadius());
+        assertEquals(5, settings.getPhysicsChunkCollisionSettings().getBodyRadius());
         assertEquals(3, settings.getVisualSyncSettings().getVisualMidSyncIntervalTicks());
         assertEquals(0.45f, settings.getSolverSettings().getDynamicSleepLinearThreshold(), 0.0001f);
         assertEquals(16,
@@ -234,33 +234,33 @@ class PhysicsSpaceSettingsTest {
     }
 
     @Test
-    void terrainSettingsCopyConstructorCopiesValues() {
-        PhysicsChunkTerrainSettings canonical = new PhysicsChunkTerrainSettings();
+    void chunkCollisionSettingsCopyConstructorCopiesValues() {
+        PhysicsChunkCollisionSettings canonical = new PhysicsChunkCollisionSettings();
 
-        canonical.setTerrainMode(PhysicsChunkTerrainMode.STREAMING);
+        canonical.setMode(PhysicsChunkTerrainMode.STREAMING);
         canonical.setEntityChunkBoundaryMode(EntityChunkBoundaryMode.LOAD_TICKING_CHUNK);
         canonical.setNativeVoxelCollisionEnabled(true);
-        canonical.setTerrainRadius(18);
-        canonical.setBodyTerrainRadius(7);
-        canonical.setTerrainTtlTicks(240);
+        canonical.setRadius(18);
+        canonical.setBodyRadius(7);
+        canonical.setTtlTicks(240);
 
-        PhysicsChunkTerrainSettings canonicalCopy =
-            new PhysicsChunkTerrainSettings(canonical);
-        PhysicsChunkTerrainSettings secondCopy =
-            new PhysicsChunkTerrainSettings(canonicalCopy);
-        canonical.setTerrainRadius(24);
-        canonicalCopy.setTerrainRadius(30);
+        PhysicsChunkCollisionSettings canonicalCopy =
+            new PhysicsChunkCollisionSettings(canonical);
+        PhysicsChunkCollisionSettings secondCopy =
+            new PhysicsChunkCollisionSettings(canonicalCopy);
+        canonical.setRadius(24);
+        canonicalCopy.setRadius(30);
 
-        assertEquals(PhysicsChunkTerrainMode.STREAMING, canonicalCopy.getTerrainMode());
+        assertEquals(PhysicsChunkTerrainMode.STREAMING, canonicalCopy.getMode());
         assertEquals(EntityChunkBoundaryMode.LOAD_TICKING_CHUNK,
             canonicalCopy.getEntityChunkBoundaryMode());
         assertTrue(canonicalCopy.isNativeVoxelCollisionEnabled());
-        assertEquals(30, canonicalCopy.getTerrainRadius());
-        assertEquals(7, canonicalCopy.getBodyTerrainRadius());
-        assertEquals(240, canonicalCopy.getTerrainTtlTicks());
-        assertEquals(18, secondCopy.getTerrainRadius());
-        assertEquals(7, secondCopy.getBodyTerrainRadius());
-        assertEquals(240, secondCopy.getTerrainTtlTicks());
+        assertEquals(30, canonicalCopy.getRadius());
+        assertEquals(7, canonicalCopy.getBodyRadius());
+        assertEquals(240, canonicalCopy.getTtlTicks());
+        assertEquals(18, secondCopy.getRadius());
+        assertEquals(7, secondCopy.getBodyRadius());
+        assertEquals(240, secondCopy.getTtlTicks());
     }
 
     @Test
@@ -296,19 +296,19 @@ class PhysicsSpaceSettingsTest {
     void streamingPhysicsChunkFactoryEnablesStreamingMode() {
         PhysicsSpaceSettings settings = PhysicsSpaceSettings.streamingPhysicsChunk();
 
-        assertEquals(PhysicsChunkTerrainMode.STREAMING, settings.getPhysicsChunkTerrainSettings().getTerrainMode());
-        assertEquals(PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_RADIUS,
-            settings.getPhysicsChunkTerrainSettings().getTerrainRadius());
+        assertEquals(PhysicsChunkTerrainMode.STREAMING, settings.getPhysicsChunkCollisionSettings().getMode());
+        assertEquals(PhysicsChunkCollisionSettings.DEFAULT_RADIUS,
+            settings.getPhysicsChunkCollisionSettings().getRadius());
     }
 
     @Test
     void copyConstructorCopiesValuesWithoutSharingOriginalInstance() {
         PhysicsSpaceSettings original = new PhysicsSpaceSettings();
-        original.getPhysicsChunkTerrainSettings().setTerrainMode(PhysicsChunkTerrainMode.STREAMING);
-        original.getPhysicsChunkTerrainSettings().setTerrainRadius(12);
-        original.getPhysicsChunkTerrainSettings().setBodyTerrainRadius(6);
-        original.getPhysicsChunkTerrainSettings().setTerrainTtlTicks(180);
-        original.getPhysicsChunkTerrainSettings().setNativeVoxelCollisionEnabled(true);
+        original.getPhysicsChunkCollisionSettings().setMode(PhysicsChunkTerrainMode.STREAMING);
+        original.getPhysicsChunkCollisionSettings().setRadius(12);
+        original.getPhysicsChunkCollisionSettings().setBodyRadius(6);
+        original.getPhysicsChunkCollisionSettings().setTtlTicks(180);
+        original.getPhysicsChunkCollisionSettings().setNativeVoxelCollisionEnabled(true);
         original.getVisualSyncSettings().setVisualMaxSyncRadius(160);
         original.getVisualSyncSettings().setVisualFullSyncRadius(80);
         original.getVisualMaterializationSettings().setDetachedVisualInterestRefreshIntervalTicks(2);
@@ -325,22 +325,22 @@ class PhysicsSpaceSettingsTest {
         original.getCollisionLodSettings().setCollisionLodFarSleepEnabled(false);
 
         PhysicsSpaceSettings copy = new PhysicsSpaceSettings(original);
-        original.getPhysicsChunkTerrainSettings().setTerrainRadius(20);
+        original.getPhysicsChunkCollisionSettings().setRadius(20);
         original.getVisualSyncSettings().setVisualSyncRadii(96, 192);
         original.getVisualMaterializationSettings().setDetachedVisualMaxMaterialized(128);
         original.getCollisionLodSettings().setCollisionLodRadii(48, 112);
 
-        assertNotSame(original.getPhysicsChunkTerrainSettings(), copy.getPhysicsChunkTerrainSettings());
+        assertNotSame(original.getPhysicsChunkCollisionSettings(), copy.getPhysicsChunkCollisionSettings());
         assertNotSame(original.getVisualSyncSettings(), copy.getVisualSyncSettings());
         assertNotSame(original.getSolverSettings(), copy.getSolverSettings());
         assertNotSame(original.getVisualMaterializationSettings(),
             copy.getVisualMaterializationSettings());
         assertNotSame(original.getCollisionLodSettings(), copy.getCollisionLodSettings());
-        assertEquals(PhysicsChunkTerrainMode.STREAMING, copy.getPhysicsChunkTerrainSettings().getTerrainMode());
-        assertEquals(12, copy.getPhysicsChunkTerrainSettings().getTerrainRadius());
-        assertEquals(6, copy.getPhysicsChunkTerrainSettings().getBodyTerrainRadius());
-        assertEquals(180, copy.getPhysicsChunkTerrainSettings().getTerrainTtlTicks());
-        assertTrue(copy.getPhysicsChunkTerrainSettings().isNativeVoxelCollisionEnabled());
+        assertEquals(PhysicsChunkTerrainMode.STREAMING, copy.getPhysicsChunkCollisionSettings().getMode());
+        assertEquals(12, copy.getPhysicsChunkCollisionSettings().getRadius());
+        assertEquals(6, copy.getPhysicsChunkCollisionSettings().getBodyRadius());
+        assertEquals(180, copy.getPhysicsChunkCollisionSettings().getTtlTicks());
+        assertTrue(copy.getPhysicsChunkCollisionSettings().isNativeVoxelCollisionEnabled());
         assertEquals(160, copy.getVisualSyncSettings().getVisualMaxSyncRadius());
         assertEquals(80, copy.getVisualSyncSettings().getVisualFullSyncRadius());
         assertEquals(2, copy.getVisualMaterializationSettings().getDetachedVisualInterestRefreshIntervalTicks());
