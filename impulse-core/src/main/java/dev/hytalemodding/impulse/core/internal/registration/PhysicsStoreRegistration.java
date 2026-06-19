@@ -146,6 +146,9 @@ public final class PhysicsStoreRegistration {
         @Nonnull ResourceType<PhysicsStore, T> type,
         @Nonnull Consumer<T> cleanup) {
         T resource = store.getResource(type);
+        if (resource == null) {
+            return;
+        }
         cleanup.accept(resource);
     }
 
