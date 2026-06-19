@@ -73,9 +73,12 @@ class PhysicsStoreResourceIndexTest {
         runtime.putSpaceBinding(spaceUuid, spaceRef, backendId, spaceHandle);
         assertNull(runtime.runtimeForSpaceHandle(oldSpaceHandle));
         assertSame(backendRuntime, runtime.runtimeForSpaceHandle(spaceHandle));
+        assertSame(backendRuntime, runtime.runtimeForSpaceRef(spaceRef));
 
         runtime.putSpaceBinding(collidingSpaceUuid, collidingSpaceRef, otherBackendId, spaceHandle);
         assertNull(runtime.runtimeForSpaceHandle(spaceHandle));
+        assertSame(backendRuntime, runtime.runtimeForSpaceRef(spaceRef));
+        assertSame(otherBackendRuntime, runtime.runtimeForSpaceRef(collidingSpaceRef));
         runtime.removeSpaceHandle(collidingSpaceUuid);
         assertSame(backendRuntime, runtime.runtimeForSpaceHandle(spaceHandle));
 
@@ -88,6 +91,7 @@ class PhysicsStoreResourceIndexTest {
         assertEquals(backendId, runtime.getSpaceBackendId(spaceRef));
         assertEquals(bodyHandle, runtime.getBodyHandle(bodyRef));
         assertEquals(spaceHandle, runtime.getBodySpaceHandle(bodyRef));
+        assertSame(backendRuntime, runtime.runtimeForBodyRef(bodyRef));
         assertEquals(bodyUuid, runtime.getBodySnapshotMetadata(bodyHandle.value()).bodyUuid());
 
         List<Long> handles = new ArrayList<>();
@@ -98,6 +102,7 @@ class PhysicsStoreResourceIndexTest {
 
         assertNull(runtime.getBodyHandle(bodyRef));
         assertNull(runtime.getBodySpaceHandle(bodyRef));
+        assertNull(runtime.runtimeForBodyRef(bodyRef));
         assertNull(runtime.getBodySnapshotMetadata(bodyHandle.value()));
         assertNull(runtime.getBodyHitMetadata(bodyHandle));
         handles.clear();
@@ -117,6 +122,8 @@ class PhysicsStoreResourceIndexTest {
         UUID bodyUuid = UUID.fromString("00000000-0000-0000-0000-000000000008");
         UUID jointUuid = UUID.fromString("00000000-0000-0000-0000-000000000009");
         BackendId backendId = new BackendId("test:runtime-ref-index");
+        PhysicsBackendRuntime backendRuntime =
+            new FakePhysicsBackendRuntimeProvider(backendId, false, false).createRuntime();
         BackendSpaceHandle spaceHandle = new BackendSpaceHandle(43);
         BackendBodyHandle bodyHandle = new BackendBodyHandle(44L);
         BackendJointHandle jointHandle = new BackendJointHandle(45L);
@@ -126,17 +133,28 @@ class PhysicsStoreResourceIndexTest {
         Ref<PhysicsStore> jointRef = new TestRef(5);
         Ref<PhysicsStore> reboundJointRef = new TestRef(6);
 
+        runtime.putRuntime(backendId, backendRuntime);
         runtime.putSpaceBinding(spaceUuid, spaceRef, backendId, spaceHandle);
         runtime.putBodyHandle(bodyUuid, bodyRef, spaceUuid, spaceHandle, bodyHandle);
-        runtime.putJointHandle(jointRef, jointUuid, spaceHandle, jointHandle);
+        runtime.putJointHandle(jointRef, jointUuid, backendId, spaceHandle, jointHandle);
 
         assertEquals(List.of(bodyRef), runtime.bodyRefsForSpaceHandle(spaceHandle));
         assertEquals(List.of(jointRef), runtime.jointRefsForSpaceHandle(spaceHandle));
+        assertSame(backendRuntime, runtime.runtimeForSpaceRef(spaceRef));
+        assertSame(backendRuntime, runtime.runtimeForBodyRef(bodyRef));
+        assertSame(backendRuntime, runtime.runtimeForJointRef(jointRef));
+        assertNull(runtime.runtimeForJointRef(new TestRef(99)));
 
-        runtime.putJointHandle(reboundJointRef, jointUuid, spaceHandle, reboundJointHandle);
+        runtime.putJointHandle(reboundJointRef,
+            jointUuid,
+            backendId,
+            spaceHandle,
+            reboundJointHandle);
 
         assertNull(runtime.getJointHandle(jointRef));
+        assertNull(runtime.runtimeForJointRef(jointRef));
         assertEquals(reboundJointHandle, runtime.getJointHandle(reboundJointRef));
+        assertSame(backendRuntime, runtime.runtimeForJointRef(reboundJointRef));
         assertEquals(List.of(reboundJointRef), runtime.jointRefsForSpaceHandle(spaceHandle));
 
         runtime.removeBodyHandle(bodyUuid, bodyRef);
