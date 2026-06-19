@@ -75,10 +75,6 @@ public final class PhysicsStoreChunkCollisionMutations {
             boxes(geometry.mergedFullCubeBoxes()),
             boxes(geometry.detailBoxes()),
             buildOptions.nativeVoxelCollisionEnabled(),
-            buildOptions.friction(),
-            buildOptions.restitution(),
-            buildOptions.collisionGroup(),
-            buildOptions.collisionMask(),
             neighbors);
     }
 

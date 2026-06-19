@@ -15,10 +15,6 @@ public record ChunkCollisionPayload(float voxelSizeX,
                                      @Nonnull List<BoxPayload> mergedFullCubeBoxes,
                                      @Nonnull List<BoxPayload> detailBoxes,
                                      boolean nativeVoxelCollisionEnabled,
-                                     float friction,
-                                     float restitution,
-                                     int collisionGroup,
-                                     int collisionMask,
                                      @Nonnull List<Neighbor> neighbors) {
 
     public ChunkCollisionPayload {

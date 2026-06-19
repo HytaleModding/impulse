@@ -12,6 +12,7 @@ import com.hypixel.hytale.math.util.ChunkUtil;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.PhysicsAxis;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
+import dev.hytalemodding.impulse.api.PhysicsCollisionFilters;
 import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntime;
 import dev.hytalemodding.impulse.core.internal.modules.control.PhysicsControlRuntimeStates;
@@ -39,6 +40,7 @@ import dev.hytalemodding.impulse.core.plugin.components.TargetComponent;
 import dev.hytalemodding.impulse.core.plugin.components.UuidComponent;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.components.ChunkCollisionSourceComponent;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.components.ChunkCollisionSourceComponent.PartKind;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.settings.PhysicsChunkTerrainSettings;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsEntities;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -151,17 +153,20 @@ public final class ChunkCollisionMutationDrainSystem extends TickingSystem<Physi
         boolean nativeVoxel = payload.nativeVoxelCollisionEnabled()
             && payload.hasFullCubeVoxels()
             && backendRuntime.supportsVoxelTerrain(spaceHandle.value());
+        MaterialComponent material = material(store, spaceRef);
+        CollisionFilterComponent filter = filter(store, spaceRef);
         removeGeneratedRows(store, runtime, identity, chunkCollisionPayloads, mutation);
         removePayload(chunkCollisionPayloads, mutation.payloadResourceKey());
         if (nativeVoxel) {
             chunkCollisionPayloads.put(mutation.payloadResourceKey(), voxelPayload(payload));
-            addNativeVoxelBody(store, identity, spaceRef, mutation, payload);
+            addNativeVoxelBody(store, identity, spaceRef, mutation, material, filter);
         } else {
             addBoxBodies(store,
                 identity,
                 spaceRef,
                 mutation,
-                payload,
+                material,
+                filter,
                 payload.mergedFullCubeBoxes(),
                 PartKind.BOX);
         }
@@ -169,7 +174,8 @@ public final class ChunkCollisionMutationDrainSystem extends TickingSystem<Physi
             identity,
             spaceRef,
             mutation,
-            payload,
+            material,
+            filter,
             payload.detailBoxes(),
             PartKind.DETAIL_BOX);
     }
@@ -183,10 +189,6 @@ public final class ChunkCollisionMutationDrainSystem extends TickingSystem<Physi
             List.of(),
             List.of(),
             true,
-            0.0f,
-            0.0f,
-            0,
-            0,
             payload.neighbors());
     }
 
@@ -194,7 +196,8 @@ public final class ChunkCollisionMutationDrainSystem extends TickingSystem<Physi
         @Nonnull PhysicsIdentityIndexResource identity,
         @Nonnull Ref<PhysicsStore> spaceRef,
         @Nonnull ChunkCollisionMutation mutation,
-        @Nonnull ChunkCollisionPayload payload) {
+        @Nonnull MaterialComponent material,
+        @Nonnull CollisionFilterComponent filter) {
         TargetComponent target = new TargetComponent();
         target.setPosition(new Vector3f(mutation.chunkX() << ChunkUtil.BITS,
             mutation.sectionY() << ChunkUtil.BITS,
@@ -209,12 +212,12 @@ public final class ChunkCollisionMutationDrainSystem extends TickingSystem<Physi
                 0.0f,
                 0.0f,
                 0.0f,
-                0.0f,
-                PhysicsAxis.Y,
-                0.0f,
-                mutation.payloadResourceKey()),
-            material(payload),
-            filter(payload),
+                    0.0f,
+                    PhysicsAxis.Y,
+                    0.0f,
+                    mutation.payloadResourceKey()),
+            material,
+            filter,
             mutation.payloadResourceKey(),
             PartKind.NATIVE_VOXELS,
             0);
@@ -224,7 +227,8 @@ public final class ChunkCollisionMutationDrainSystem extends TickingSystem<Physi
         @Nonnull PhysicsIdentityIndexResource identity,
         @Nonnull Ref<PhysicsStore> spaceRef,
         @Nonnull ChunkCollisionMutation mutation,
-        @Nonnull ChunkCollisionPayload payload,
+        @Nonnull MaterialComponent material,
+        @Nonnull CollisionFilterComponent filter,
         @Nonnull List<BoxPayload> boxes,
         @Nonnull PartKind partKind) {
         for (int index = 0; index < boxes.size(); index++) {
@@ -250,8 +254,8 @@ public final class ChunkCollisionMutationDrainSystem extends TickingSystem<Physi
                     PhysicsAxis.Y,
                     0.0f,
                     ""),
-                material(payload),
-                filter(payload),
+                material,
+                filter,
                 "",
                 partKind,
                 index);
@@ -301,13 +305,25 @@ public final class ChunkCollisionMutationDrainSystem extends TickingSystem<Physi
     }
 
     @Nonnull
-    private static MaterialComponent material(@Nonnull ChunkCollisionPayload payload) {
-        return new MaterialComponent(payload.friction(), payload.restitution());
+    private static MaterialComponent material(@Nonnull Store<PhysicsStore> store,
+        @Nonnull Ref<PhysicsStore> spaceRef) {
+        MaterialComponent material =
+            store.getComponent(spaceRef, MaterialComponent.getComponentType());
+        return material != null
+            ? material.clone()
+            : new MaterialComponent(PhysicsChunkTerrainSettings.DEFAULT_CHUNK_COLLISION_FRICTION,
+                PhysicsChunkTerrainSettings.DEFAULT_CHUNK_COLLISION_RESTITUTION);
     }
 
     @Nonnull
-    private static CollisionFilterComponent filter(@Nonnull ChunkCollisionPayload payload) {
-        return new CollisionFilterComponent(payload.collisionGroup(), payload.collisionMask());
+    private static CollisionFilterComponent filter(@Nonnull Store<PhysicsStore> store,
+        @Nonnull Ref<PhysicsStore> spaceRef) {
+        CollisionFilterComponent filter =
+            store.getComponent(spaceRef, CollisionFilterComponent.getComponentType());
+        return filter != null
+            ? filter.clone()
+            : new CollisionFilterComponent(PhysicsCollisionFilters.TERRAIN,
+                PhysicsCollisionFilters.ALL);
     }
 
     private static void removeGeneratedRows(@Nonnull Store<PhysicsStore> store,
