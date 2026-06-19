@@ -104,6 +104,7 @@ public final class ExplosiveFuseTickSystem extends EntityTickingSystem<EntitySto
             spaceId,
             center,
             explosive);
+        destroySourceBody(world, attachment);
         commandBuffer.removeEntity(ref, RemoveReason.REMOVE);
     }
 
@@ -158,6 +159,16 @@ public final class ExplosiveFuseTickSystem extends EntityTickingSystem<EntitySto
             snapshot = PhysicsBodies.snapshot(physics, bodyUuid);
         }
         return snapshot != null ? BodyMotionSnapshot.from(snapshot) : null;
+    }
+
+    private static void destroySourceBody(@Nonnull World world,
+        @Nonnull BodyAttachmentComponent attachment) {
+        Ref<PhysicsStore> bodyRef = attachment.getBodyRef();
+        if (bodyRef != null && bodyRef.isValid()) {
+            PhysicsBodies.destroyAsync(world, bodyRef);
+            return;
+        }
+        PhysicsBodies.destroyAsync(world, attachment.getBodyUuid());
     }
 
     private record BodyMotionSnapshot(float positionX,
