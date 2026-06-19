@@ -19,6 +19,8 @@ import dev.hytalemodding.impulse.core.internal.modules.control.components.Physic
 import dev.hytalemodding.impulse.core.internal.modules.control.systems.PhysicsControlSessionCleanup;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResetResult;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
+import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
+import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
 import dev.hytalemodding.impulse.core.plugin.components.UuidComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.control.ImpulseControllableComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.PhysicsEntityAttachments;
@@ -381,6 +383,11 @@ public class CleanCommand extends AbstractWorldCommand {
         Set<UUID> bodyUuids = new ObjectOpenHashSet<>();
         double radiusSquared = (double) radius * radius;
         for (PhysicsBodySnapshot snapshot : PhysicsBodies.snapshotFrame(store).bodies()) {
+            PhysicsBodyRegistrationView registration = PhysicsBodies.registrationView(store,
+                snapshot.bodyUuid());
+            if (registration == null || registration.kind() != PhysicsBodyKind.BODY) {
+                continue;
+            }
             Vector3f position = snapshot.position();
             double dx = position.x - center.x;
             double dy = position.y - center.y;
