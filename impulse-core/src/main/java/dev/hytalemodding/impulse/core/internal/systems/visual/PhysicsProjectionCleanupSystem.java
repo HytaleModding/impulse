@@ -13,6 +13,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.PhysicsEntityTypes;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.BodyAttachmentComponent;
+import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.BodyAttachmentComponent.AttachmentLifecycle;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.GeneratedVisualProxyComponent;
 import java.util.Collections;
 import java.util.Map;
@@ -63,7 +64,7 @@ public class PhysicsProjectionCleanupSystem extends TickingSystem<EntityStore> {
             (index, archetypeChunk, commandBuffer) -> {
                 BodyAttachmentComponent attachment = archetypeChunk.getComponent(index,
                     attachmentType);
-                if (attachment == null || !hasDestroyedBodyRef(attachment)) {
+                if (attachment == null || !hasMissingBody(attachment, resource)) {
                     return;
                 }
                 GeneratedProxyLifecycle.clearMissingAttachment(archetypeChunk.getReferenceTo(index),
@@ -76,6 +77,16 @@ public class PhysicsProjectionCleanupSystem extends TickingSystem<EntityStore> {
     private static boolean hasDestroyedBodyRef(@Nonnull BodyAttachmentComponent attachment) {
         Ref<PhysicsStore> bodyRef = attachment.getBodyRef();
         return bodyRef != null && !bodyRef.isValid();
+    }
+
+    private static boolean hasMissingBody(@Nonnull BodyAttachmentComponent attachment,
+        @Nonnull PhysicsWorldRuntimeResource resource) {
+        if (hasDestroyedBodyRef(attachment)) {
+            return true;
+        }
+        return attachment.getBodyRef() == null
+            && attachment.getLifecycle() == AttachmentLifecycle.GENERATED_PROXY
+            && resource.getBodyRegistrationView(attachment.getBodyUuid()) == null;
     }
 
     private static void removeOrphanGeneratedVisualProxyMarkers(@Nonnull Store<EntityStore> store) {

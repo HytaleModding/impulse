@@ -24,6 +24,7 @@ import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.Ge
 import java.util.ArrayList;
 import java.util.UUID;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
@@ -91,6 +92,57 @@ class PhysicsProjectionCleanupSystemTest {
     }
 
     @Test
+    void generatedProxyWithMissingBodyRefIsRemovedAndUnindexed() {
+        ComponentRegistry<EntityStore> registry = new ComponentRegistry<>();
+        Store<EntityStore> store = store(registry, "projection-cleanup-generated-missing-ref");
+        try {
+            UUID bodyUuid = UUID.randomUUID();
+            Ref<EntityStore> proxyRef = addAttachment(store,
+                bodyUuid,
+                null,
+                AttachmentLifecycle.GENERATED_PROXY,
+                true);
+            PhysicsProjectionIndexResource projection = projection(store);
+            projection.registerAttachment(bodyUuid, proxyRef);
+            projection.setGeneratedVisualProxy(bodyUuid, proxyRef);
+
+            new PhysicsProjectionCleanupSystem().tick(0.0f, 0, store);
+
+            assertFalse(proxyRef.isValid());
+            assertFalse(projection.hasAttachments(bodyUuid));
+            assertNull(projection.getGeneratedVisualProxy(bodyUuid));
+        } finally {
+            registry.removeStore(store);
+            registry.shutdown();
+        }
+    }
+
+    @Test
+    void externalAttachmentWithMissingBodyRefIsPreservedForUuidResolution() {
+        ComponentRegistry<EntityStore> registry = new ComponentRegistry<>();
+        Store<EntityStore> store = store(registry, "projection-cleanup-external-missing-ref");
+        try {
+            UUID bodyUuid = UUID.randomUUID();
+            Ref<EntityStore> entityRef = addAttachment(store,
+                bodyUuid,
+                null,
+                AttachmentLifecycle.EXTERNAL_ENTITY,
+                false);
+            PhysicsProjectionIndexResource projection = projection(store);
+            projection.registerAttachment(bodyUuid, entityRef);
+
+            new PhysicsProjectionCleanupSystem().tick(0.0f, 0, store);
+
+            assertTrue(entityRef.isValid());
+            assertNotNull(store.getComponent(entityRef, BodyAttachmentComponent.getComponentType()));
+            assertTrue(projection.hasAttachments(bodyUuid));
+        } finally {
+            registry.removeStore(store);
+            registry.shutdown();
+        }
+    }
+
+    @Test
     void validBodyRefIsPreservedWhenSnapshotPublicationLags() {
         ComponentRegistry<EntityStore> registry = new ComponentRegistry<>();
         Store<EntityStore> store = store(registry, "projection-cleanup-valid-ref");
@@ -135,7 +187,7 @@ class PhysicsProjectionCleanupSystemTest {
     @Nonnull
     private static Ref<EntityStore> addAttachment(@Nonnull Store<EntityStore> store,
         @Nonnull UUID bodyUuid,
-        @Nonnull Ref<PhysicsStore> bodyRef,
+        @Nullable Ref<PhysicsStore> bodyRef,
         @Nonnull AttachmentLifecycle lifecycle,
         boolean generatedProxy) {
         Holder<EntityStore> holder = store.getRegistry().newHolder();
