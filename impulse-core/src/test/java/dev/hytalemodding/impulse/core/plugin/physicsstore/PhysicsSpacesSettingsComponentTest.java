@@ -21,11 +21,13 @@ import dev.hytalemodding.impulse.core.internal.testsupport.TestInstanceFactory;
 import dev.hytalemodding.impulse.core.plugin.components.ExtensionSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.components.SolverSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.components.SpaceComponent;
-import dev.hytalemodding.impulse.core.plugin.components.VisualMaterializationSettingsComponent;
-import dev.hytalemodding.impulse.core.plugin.components.VisualSyncSettingsComponent;
+import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.VisualMaterializationSettingsComponent;
+import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.VisualSyncSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.ChunkCollisionSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.CollisionLodSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.settings.PhysicsCollisionLodSettings;
+import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.settings.PhysicsVisualMaterializationSettings;
+import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.settings.PhysicsVisualSyncSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSolverSettings;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -114,9 +116,54 @@ class PhysicsSpacesSettingsComponentTest {
             assertNotNull(store.getComponent(spaceRef,
                 SolverSettingsComponent.getComponentType()));
 
+            PhysicsVisualSyncSettings visualSyncSettings =
+                PhysicsSpaces.visualSyncSettings(store, spaceRef);
+            assertNotNull(visualSyncSettings);
+            assertNull(store.getComponent(spaceRef,
+                VisualSyncSettingsComponent.getComponentType()));
+            visualSyncSettings.setVisualMidSyncIntervalTicks(2);
+            PhysicsSpaces.putVisualSyncSettings(store, spaceRef, visualSyncSettings);
+            assertNotNull(store.getComponent(spaceRef,
+                VisualSyncSettingsComponent.getComponentType()));
+            assertNotNull(store.getComponent(spaceRef,
+                CollisionLodSettingsComponent.getComponentType()));
+
+            PhysicsVisualMaterializationSettings visualMaterializationSettings =
+                PhysicsSpaces.visualMaterializationSettings(store, spaceRef);
+            assertNotNull(visualMaterializationSettings);
+            assertNull(store.getComponent(spaceRef,
+                VisualMaterializationSettingsComponent.getComponentType()));
+            visualMaterializationSettings.setDetachedVisualMaterializationEnabled(true);
+            PhysicsSpaces.putVisualMaterializationSettings(store,
+                spaceRef,
+                visualMaterializationSettings);
+            assertNotNull(store.getComponent(spaceRef,
+                VisualMaterializationSettingsComponent.getComponentType()));
+            assertNotNull(store.getComponent(spaceRef,
+                VisualSyncSettingsComponent.getComponentType()));
+
             solverSettings.setSolverIterations(PhysicsSolverSettings.DEFAULT_SOLVER_ITERATIONS);
             PhysicsSpaces.putSolverSettings(store, spaceRef, solverSettings);
             assertNull(store.getComponent(spaceRef, SolverSettingsComponent.getComponentType()));
+            assertNotNull(store.getComponent(spaceRef,
+                CollisionLodSettingsComponent.getComponentType()));
+
+            visualSyncSettings.setVisualMidSyncIntervalTicks(
+                PhysicsVisualSyncSettings.DEFAULT_VISUAL_MID_SYNC_INTERVAL_TICKS);
+            PhysicsSpaces.putVisualSyncSettings(store, spaceRef, visualSyncSettings);
+            assertNull(store.getComponent(spaceRef,
+                VisualSyncSettingsComponent.getComponentType()));
+            assertNotNull(store.getComponent(spaceRef,
+                VisualMaterializationSettingsComponent.getComponentType()));
+
+            visualMaterializationSettings.setDetachedVisualMaterializationEnabled(
+                PhysicsVisualMaterializationSettings
+                    .DEFAULT_DETACHED_VISUAL_MATERIALIZATION_ENABLED);
+            PhysicsSpaces.putVisualMaterializationSettings(store,
+                spaceRef,
+                visualMaterializationSettings);
+            assertNull(store.getComponent(spaceRef,
+                VisualMaterializationSettingsComponent.getComponentType()));
             assertNotNull(store.getComponent(spaceRef,
                 CollisionLodSettingsComponent.getComponentType()));
         } finally {
