@@ -70,6 +70,9 @@ class PersistenceCaptureSystemTest {
             UUID persistentBodyUuid = uuid(2);
             UUID generatedBodyUuid = uuid(3);
             Ref<PhysicsStore> spaceRef = addSpace(store, spaceUuid);
+            store.putComponent(spaceRef,
+                CollisionFilterComponent.getComponentType(),
+                new CollisionFilterComponent(0x40, 0x03));
             addBody(store,
                 persistentBodyUuid,
                 body(spaceUuid, PhysicsBodyKind.BODY, PhysicsBodyPersistenceMode.PERSISTENT, spaceRef),
@@ -102,6 +105,8 @@ class PersistenceCaptureSystemTest {
             assertEquals(1, persistent.getColliders().length);
             assertEquals(1, persistent.getShapes().length);
             assertEquals(1, persistent.getMaterials().length);
+            assertEquals(0x40, persistent.getSpaces()[0].getChunkCollisionGroup());
+            assertEquals(0x03, persistent.getSpaces()[0].getChunkCollisionMask());
             assertTrue(containsBody(persistent, persistentBodyUuid));
             assertFalse(containsBody(persistent, generatedBodyUuid));
             assertFalse(containsCollider(persistent, generatedBodyUuid));

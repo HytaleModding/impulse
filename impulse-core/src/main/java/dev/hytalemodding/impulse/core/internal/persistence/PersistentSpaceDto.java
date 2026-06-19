@@ -434,6 +434,8 @@ public final class PersistentSpaceDto {
         getChunkCollisionSettings().copyTo(settings);
         settings.getPhysicsChunkTerrainSettings()
             .setChunkCollisionMaterial(chunkCollisionFriction, chunkCollisionRestitution);
+        settings.getPhysicsChunkTerrainSettings()
+            .setChunkCollisionFilter(getChunkCollisionGroup(), getChunkCollisionMask());
         solverSettings.copyTo(settings);
         visualSyncSettings.copyTo(settings);
         visualMaterializationSettings.copyTo(settings);

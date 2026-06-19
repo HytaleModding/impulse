@@ -33,8 +33,8 @@ public record PhysicsChunkBuildOptions(@Nonnull ChunkCollisionMode chunkCollisio
             ChunkCollisionMode.fromNativeVoxelCollisionEnabled(settings.isNativeVoxelCollisionEnabled()),
             settings.getChunkCollisionFriction(),
             settings.getChunkCollisionRestitution(),
-            PhysicsCollisionFilters.TERRAIN,
-            PhysicsCollisionFilters.ALL);
+            settings.getChunkCollisionGroup(),
+            settings.getChunkCollisionMask());
     }
 
     @Nonnull
@@ -42,8 +42,8 @@ public record PhysicsChunkBuildOptions(@Nonnull ChunkCollisionMode chunkCollisio
         return new PhysicsChunkBuildOptions(ChunkCollisionMode.fromNativeVoxelCollisionEnabled(enabled),
             PhysicsChunkTerrainSettings.DEFAULT_CHUNK_COLLISION_FRICTION,
             PhysicsChunkTerrainSettings.DEFAULT_CHUNK_COLLISION_RESTITUTION,
-            PhysicsCollisionFilters.TERRAIN,
-            PhysicsCollisionFilters.ALL);
+            PhysicsChunkTerrainSettings.DEFAULT_CHUNK_COLLISION_GROUP,
+            PhysicsChunkTerrainSettings.DEFAULT_CHUNK_COLLISION_MASK);
     }
 
     public boolean nativeVoxelCollisionEnabled() {

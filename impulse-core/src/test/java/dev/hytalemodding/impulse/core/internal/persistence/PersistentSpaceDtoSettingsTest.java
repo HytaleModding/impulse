@@ -102,6 +102,11 @@ class PersistentSpaceDtoSettingsTest {
         assertEquals(0x03, decoded.getChunkCollisionMask());
         assertEquals(0x40, state.copy().getChunkCollisionGroup());
         assertEquals(0x03, state.copy().getChunkCollisionMask());
+        PhysicsSpaceSettings decodedSettings = decoded.toSettings();
+        assertEquals(0x40,
+            decodedSettings.getPhysicsChunkTerrainSettings().getChunkCollisionGroup());
+        assertEquals(0x03,
+            decodedSettings.getPhysicsChunkTerrainSettings().getChunkCollisionMask());
     }
 
     private static void assertDetachedVisualCadence(PhysicsSpaceSettings settings,

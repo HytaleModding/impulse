@@ -12,7 +12,7 @@ import dev.hytalemodding.impulse.core.internal.physicsstore.PhysicsStoreTopology
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsIdentityIndexResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceCompatibilityIndexResource;
-import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.CollisionLodSettingsComponent;
+import dev.hytalemodding.impulse.core.plugin.components.CollisionFilterComponent;
 import dev.hytalemodding.impulse.core.plugin.components.ExtensionSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.components.MaterialComponent;
 import dev.hytalemodding.impulse.core.plugin.components.SolverSettingsComponent;
@@ -20,6 +20,7 @@ import dev.hytalemodding.impulse.core.plugin.components.SpaceComponent;
 import dev.hytalemodding.impulse.core.plugin.components.VisualMaterializationSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.components.VisualSyncSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.ChunkCollisionSettingsComponent;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.CollisionLodSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import java.util.Collection;
 import java.util.List;
@@ -148,6 +149,12 @@ public final class PhysicsSpaces {
         if (material != null) {
             settings.getPhysicsChunkTerrainSettings()
                 .setChunkCollisionMaterial(material.getFriction(), material.getRestitution());
+        }
+        CollisionFilterComponent filter = checkedStore.getComponent(checkedRef,
+            CollisionFilterComponent.getComponentType());
+        if (filter != null) {
+            settings.getPhysicsChunkTerrainSettings()
+                .setChunkCollisionFilter(filter.getCollisionGroup(), filter.getCollisionMask());
         }
         SolverSettingsComponent solverSettings = checkedStore.getComponent(checkedRef,
             SolverSettingsComponent.getComponentType());

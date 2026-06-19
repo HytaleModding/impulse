@@ -11,13 +11,11 @@ import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.BackendId;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntime;
+import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsIdentityIndexResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceCompatibilityIndexResource;
-import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsEntities;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
-import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.CollisionLodSettingsComponent;
+import dev.hytalemodding.impulse.core.plugin.components.CollisionFilterComponent;
 import dev.hytalemodding.impulse.core.plugin.components.ExtensionSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.components.MaterialComponent;
 import dev.hytalemodding.impulse.core.plugin.components.SolverSettingsComponent;
@@ -26,7 +24,10 @@ import dev.hytalemodding.impulse.core.plugin.components.UuidComponent;
 import dev.hytalemodding.impulse.core.plugin.components.VisualMaterializationSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.components.VisualSyncSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.ChunkCollisionSettingsComponent;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.CollisionLodSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.settings.PhysicsChunkTerrainSettings;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsEntities;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import java.util.Objects;
 import java.util.UUID;
@@ -160,6 +161,11 @@ public final class PhysicsStoreSpaceMutations {
             MaterialComponent.getComponentType(),
             material,
             isDefaultChunkMaterial(material));
+        CollisionFilterComponent filter = chunkFilter(settings.getPhysicsChunkTerrainSettings());
+        addIfNonDefault(holder,
+            CollisionFilterComponent.getComponentType(),
+            filter,
+            isDefaultChunkFilter(filter));
         SolverSettingsComponent solver = new SolverSettingsComponent(settings.getSolverSettings());
         addIfNonDefault(holder,
             SolverSettingsComponent.getComponentType(),
@@ -218,6 +224,12 @@ public final class PhysicsStoreSpaceMutations {
             MaterialComponent.getComponentType(),
             material,
             isDefaultChunkMaterial(material));
+        CollisionFilterComponent filter = chunkFilter(settings.getPhysicsChunkTerrainSettings());
+        putOrRemoveDefault(store,
+            ref,
+            CollisionFilterComponent.getComponentType(),
+            filter,
+            isDefaultChunkFilter(filter));
         SolverSettingsComponent solver = new SolverSettingsComponent(settings.getSolverSettings());
         putOrRemoveDefault(store,
             ref,
@@ -267,6 +279,20 @@ public final class PhysicsStoreSpaceMutations {
             PhysicsChunkTerrainSettings.DEFAULT_CHUNK_COLLISION_FRICTION) == 0
             && Float.compare(material.getRestitution(),
                 PhysicsChunkTerrainSettings.DEFAULT_CHUNK_COLLISION_RESTITUTION) == 0;
+    }
+
+    @Nonnull
+    private static CollisionFilterComponent chunkFilter(
+        @Nonnull PhysicsChunkTerrainSettings settings) {
+        return new CollisionFilterComponent(settings.getChunkCollisionGroup(),
+            settings.getChunkCollisionMask());
+    }
+
+    private static boolean isDefaultChunkFilter(@Nonnull CollisionFilterComponent filter) {
+        return filter.getCollisionGroup()
+            == PhysicsChunkTerrainSettings.DEFAULT_CHUNK_COLLISION_GROUP
+            && filter.getCollisionMask()
+                == PhysicsChunkTerrainSettings.DEFAULT_CHUNK_COLLISION_MASK;
     }
 
     private static <T extends Component<PhysicsStore>> void putOrRemoveDefault(

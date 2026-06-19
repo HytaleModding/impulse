@@ -1,5 +1,6 @@
 package dev.hytalemodding.impulse.core.plugin.modules.physicschunk.settings;
 
+import dev.hytalemodding.impulse.api.PhysicsCollisionFilters;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkTerrainMode;
 import dev.hytalemodding.impulse.core.plugin.settings.EntityChunkBoundaryMode;
 import java.util.Objects;
@@ -62,6 +63,16 @@ public class PhysicsChunkTerrainSettings {
      */
     public static final float DEFAULT_CHUNK_COLLISION_RESTITUTION = 0.0f;
 
+    /**
+     * Default collision group applied to generated chunk collision bodies.
+     */
+    public static final int DEFAULT_CHUNK_COLLISION_GROUP = PhysicsCollisionFilters.TERRAIN;
+
+    /**
+     * Default collision mask applied to generated chunk collision bodies.
+     */
+    public static final int DEFAULT_CHUNK_COLLISION_MASK = PhysicsCollisionFilters.ALL;
+
     @Nonnull
     private PhysicsChunkTerrainMode terrainMode = PhysicsChunkTerrainMode.NONE;
     @Nonnull
@@ -72,6 +83,8 @@ public class PhysicsChunkTerrainSettings {
     private int terrainTtlTicks = DEFAULT_TERRAIN_TTL_TICKS;
     private float chunkCollisionFriction = DEFAULT_CHUNK_COLLISION_FRICTION;
     private float chunkCollisionRestitution = DEFAULT_CHUNK_COLLISION_RESTITUTION;
+    private int chunkCollisionGroup = DEFAULT_CHUNK_COLLISION_GROUP;
+    private int chunkCollisionMask = DEFAULT_CHUNK_COLLISION_MASK;
 
     public PhysicsChunkTerrainSettings() {
     }
@@ -85,6 +98,8 @@ public class PhysicsChunkTerrainSettings {
         terrainTtlTicks = settings.terrainTtlTicks;
         chunkCollisionFriction = settings.chunkCollisionFriction;
         chunkCollisionRestitution = settings.chunkCollisionRestitution;
+        chunkCollisionGroup = settings.chunkCollisionGroup;
+        chunkCollisionMask = settings.chunkCollisionMask;
     }
 
     @Nonnull
@@ -181,6 +196,19 @@ public class PhysicsChunkTerrainSettings {
             0.0f);
         this.chunkCollisionFriction = validatedFriction;
         this.chunkCollisionRestitution = validatedRestitution;
+    }
+
+    public int getChunkCollisionGroup() {
+        return chunkCollisionGroup;
+    }
+
+    public int getChunkCollisionMask() {
+        return chunkCollisionMask;
+    }
+
+    public void setChunkCollisionFilter(int collisionGroup, int collisionMask) {
+        this.chunkCollisionGroup = collisionGroup;
+        this.chunkCollisionMask = collisionMask;
     }
 
 }
