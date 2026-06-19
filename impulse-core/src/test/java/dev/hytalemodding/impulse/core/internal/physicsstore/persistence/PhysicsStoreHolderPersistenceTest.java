@@ -52,12 +52,18 @@ import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsEntities;
 import dev.hytalemodding.impulse.core.plugin.snapshots.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.core.plugin.snapshots.PhysicsSnapshotFrame;
 import java.lang.reflect.Field;
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.function.BiConsumer;
 import javax.annotation.Nonnull;
+import org.bson.BsonArray;
+import org.bson.BsonBinary;
+import org.bson.BsonDocument;
+import org.bson.BsonInt32;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 import org.junit.jupiter.api.Test;
@@ -224,6 +230,60 @@ class PhysicsStoreHolderPersistenceTest {
         }
     }
 
+    @Test
+    void holderHydrationRejectsDuplicateUuidWithoutAddingPartialRows() {
+        StoreFixture fixture = store("holder-duplicate-uuid",
+            tempDir.resolve("duplicate-uuid"));
+        try {
+            Holder<PhysicsStore> first = PhysicsEntities.spaceHolder(fixture.store(),
+                SPACE_UUID,
+                new SpaceComponent(new BackendId("test:holder-persistence"),
+                    new Vector3f(0.0f, -9.81f, 0.0f)));
+            Holder<PhysicsStore> second = fixture.store().getRegistry().newHolder();
+            second.addComponent(UuidComponent.getComponentType(), new UuidComponent(SPACE_UUID));
+            second.addComponent(BodyComponent.getComponentType(),
+                new BodyComponent(SPACE_UUID,
+                    PhysicsBodyKind.BODY,
+                    PhysicsBodyPersistenceMode.PERSISTENT));
+            writeHolderStorage(fixture.store(), List.of(first, second));
+
+            new PersistenceHydrationSystem().tick(0.0f, 0, fixture.store());
+
+            PhysicsRestoreStatusResource restore = fixture.store().getResource(
+                PhysicsRestoreStatusResource.getResourceType());
+            assertTrue(restore.isFailed());
+            assertFalse(restore.isHydrated());
+            assertTrue(rowUuids(fixture.store()).isEmpty());
+        } finally {
+            fixture.close();
+        }
+    }
+
+    @Test
+    void holderHydrationRejectsBodyWithoutSavedSpaceWithoutAddingPartialRows() {
+        StoreFixture fixture = store("holder-missing-space",
+            tempDir.resolve("missing-space"));
+        try {
+            Holder<PhysicsStore> body = fixture.store().getRegistry().newHolder();
+            body.addComponent(UuidComponent.getComponentType(), new UuidComponent(BODY_A_UUID));
+            body.addComponent(BodyComponent.getComponentType(),
+                new BodyComponent(SPACE_UUID,
+                    PhysicsBodyKind.BODY,
+                    PhysicsBodyPersistenceMode.PERSISTENT));
+            writeHolderStorage(fixture.store(), List.of(body));
+
+            new PersistenceHydrationSystem().tick(0.0f, 0, fixture.store());
+
+            PhysicsRestoreStatusResource restore = fixture.store().getResource(
+                PhysicsRestoreStatusResource.getResourceType());
+            assertTrue(restore.isFailed());
+            assertFalse(restore.isHydrated());
+            assertTrue(rowUuids(fixture.store()).isEmpty());
+        } finally {
+            fixture.close();
+        }
+    }
+
     @Nonnull
     private static StoreFixture store(@Nonnull String worldName, @Nonnull Path savePath) {
         ComponentRegistry<PhysicsStore> registry = new ComponentRegistry<>();
@@ -364,6 +424,28 @@ class PhysicsStoreHolderPersistenceTest {
         BsonUtil.writeDocument(PersistentPhysicsStoreStorage.file(store.getExternalData()),
             PersistentPhysicsStoreResource.CODEC.encode(legacy, new ExtraInfo()).asDocument(),
             false).join();
+    }
+
+    private static void writeHolderStorage(@Nonnull Store<PhysicsStore> store,
+        @Nonnull List<Holder<PhysicsStore>> holders) {
+        BsonArray holderBlobs = new BsonArray();
+        for (Holder<PhysicsStore> holder : holders) {
+            holderBlobs.add(new BsonBinary(PhysicsStoreHolderPersistence.encodeHolder(store,
+                holder)));
+        }
+        BsonDocument document = new BsonDocument()
+            .append("SchemaVersion", new BsonInt32(1))
+            .append("Holders", holderBlobs);
+        Path file = PhysicsStoreHolderStorage.file(store.getExternalData());
+        try {
+            Path parent = file.getParent();
+            if (parent != null) {
+                Files.createDirectories(parent);
+            }
+            Files.write(file, BsonUtil.writeToBytes(document));
+        } catch (IOException exception) {
+            throw new AssertionError("Failed to write test holder storage", exception);
+        }
     }
 
     private static Holder<PhysicsStore> holder(@Nonnull List<Holder<PhysicsStore>> holders,
