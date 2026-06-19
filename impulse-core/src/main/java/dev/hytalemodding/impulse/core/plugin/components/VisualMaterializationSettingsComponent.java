@@ -168,8 +168,10 @@ public final class VisualMaterializationSettingsComponent implements Component<P
     }
 
     public void copyTo(@Nonnull PhysicsSpaceSettings settings) {
-        PhysicsVisualMaterializationSettings target =
-            settings.getVisualMaterializationSettings();
+        copyTo(settings.getVisualMaterializationSettings());
+    }
+
+    public void copyTo(@Nonnull PhysicsVisualMaterializationSettings target) {
         target.setDetachedVisualMaterializationEnabled(detachedVisualMaterializationEnabled);
         target.setDetachedVisualRadii(detachedVisualMaterializationRadius,
             detachedVisualDematerializationRadius);

@@ -122,7 +122,10 @@ public final class CollisionLodSettingsComponent implements Component<PhysicsSto
     }
 
     public void copyTo(@Nonnull PhysicsSpaceSettings settings) {
-        PhysicsCollisionLodSettings target = settings.getCollisionLodSettings();
+        copyTo(settings.getCollisionLodSettings());
+    }
+
+    public void copyTo(@Nonnull PhysicsCollisionLodSettings target) {
         target.setCollisionLodEnabled(collisionLodEnabled);
         target.setCollisionLodRadii(collisionLodNearRadius, collisionLodMidRadius);
         target.setCollisionLodHysteresis(collisionLodHysteresis);

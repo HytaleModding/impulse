@@ -3,6 +3,8 @@ package dev.hytalemodding.impulse.core.plugin.physicsstore;
 import com.hypixel.hytale.component.Holder;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
+import com.hypixel.hytale.component.Component;
+import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsIdentityIndexResource;
 import dev.hytalemodding.impulse.core.plugin.components.BodyComponent;
@@ -132,8 +134,7 @@ public final class PhysicsEntities {
         @Nonnull CollisionLodSettingsComponent collisionLodSettings,
         @Nonnull ExtensionSettingsComponent extensionSettings) {
         addSpaceComponent(holder, space);
-        holder.addComponent(ChunkCollisionSettingsComponent.getComponentType(),
-            Objects.requireNonNull(chunkCollisionSettings, "chunkCollisionSettings").clone());
+        addChunkCollisionSettingsComponent(holder, chunkCollisionSettings);
         addSpaceSettingsComponents(holder,
             solverSettings,
             visualSyncSettings,
@@ -142,24 +143,53 @@ public final class PhysicsEntities {
             extensionSettings);
     }
 
+    public static void addChunkCollisionSettingsComponent(@Nonnull Holder<PhysicsStore> holder,
+        @Nonnull ChunkCollisionSettingsComponent chunkCollisionSettings) {
+        ChunkCollisionSettingsComponent component =
+            Objects.requireNonNull(chunkCollisionSettings, "chunkCollisionSettings");
+        addIfNonDefault(holder,
+            ChunkCollisionSettingsComponent.getComponentType(),
+            component,
+            component.isDefault());
+    }
+
     public static void addSpaceSettingsComponents(@Nonnull Holder<PhysicsStore> holder,
         @Nonnull SolverSettingsComponent solverSettings,
         @Nonnull VisualSyncSettingsComponent visualSyncSettings,
         @Nonnull VisualMaterializationSettingsComponent visualMaterializationSettings,
         @Nonnull CollisionLodSettingsComponent collisionLodSettings,
         @Nonnull ExtensionSettingsComponent extensionSettings) {
-        Objects.requireNonNull(holder, "holder")
-            .addComponent(SolverSettingsComponent.getComponentType(),
-                Objects.requireNonNull(solverSettings, "solverSettings").clone());
-        holder.addComponent(VisualSyncSettingsComponent.getComponentType(),
-            Objects.requireNonNull(visualSyncSettings, "visualSyncSettings").clone());
-        holder.addComponent(VisualMaterializationSettingsComponent.getComponentType(),
-            Objects.requireNonNull(visualMaterializationSettings,
-                "visualMaterializationSettings").clone());
-        holder.addComponent(CollisionLodSettingsComponent.getComponentType(),
-            Objects.requireNonNull(collisionLodSettings, "collisionLodSettings").clone());
-        holder.addComponent(ExtensionSettingsComponent.getComponentType(),
-            Objects.requireNonNull(extensionSettings, "extensionSettings").clone());
+        SolverSettingsComponent solver = Objects.requireNonNull(solverSettings,
+            "solverSettings");
+        addIfNonDefault(holder,
+            SolverSettingsComponent.getComponentType(),
+            solver,
+            solver.isDefault());
+        VisualSyncSettingsComponent visualSync = Objects.requireNonNull(visualSyncSettings,
+            "visualSyncSettings");
+        addIfNonDefault(holder,
+            VisualSyncSettingsComponent.getComponentType(),
+            visualSync,
+            visualSync.isDefault());
+        VisualMaterializationSettingsComponent visualMaterialization = Objects.requireNonNull(
+            visualMaterializationSettings,
+            "visualMaterializationSettings");
+        addIfNonDefault(holder,
+            VisualMaterializationSettingsComponent.getComponentType(),
+            visualMaterialization,
+            visualMaterialization.isDefault());
+        CollisionLodSettingsComponent collisionLod = Objects.requireNonNull(collisionLodSettings,
+            "collisionLodSettings");
+        addIfNonDefault(holder,
+            CollisionLodSettingsComponent.getComponentType(),
+            collisionLod,
+            collisionLod.isDefault());
+        ExtensionSettingsComponent extension = Objects.requireNonNull(extensionSettings,
+            "extensionSettings");
+        addIfNonDefault(holder,
+            ExtensionSettingsComponent.getComponentType(),
+            extension,
+            extension.isDefault());
     }
 
     public static void addBodyComponents(@Nonnull Holder<PhysicsStore> holder,
@@ -203,9 +233,7 @@ public final class PhysicsEntities {
         checkedStore.putComponent(ref,
             SpaceComponent.getComponentType(),
             Objects.requireNonNull(space, "space").clone());
-        checkedStore.putComponent(ref,
-            ChunkCollisionSettingsComponent.getComponentType(),
-            Objects.requireNonNull(chunkCollisionSettings, "chunkCollisionSettings").clone());
+        putChunkCollisionSettingsComponent(checkedStore, ref, chunkCollisionSettings);
         putSpaceSettingsComponents(checkedStore,
             ref,
             solverSettings,
@@ -213,6 +241,21 @@ public final class PhysicsEntities {
             visualMaterializationSettings,
             collisionLodSettings,
             extensionSettings);
+    }
+
+    public static void putChunkCollisionSettingsComponent(@Nonnull Store<PhysicsStore> store,
+        @Nonnull Ref<PhysicsStore> ref,
+        @Nonnull ChunkCollisionSettingsComponent chunkCollisionSettings) {
+        Store<PhysicsStore> checkedStore = Objects.requireNonNull(store, "store");
+        PhysicsThreading.requireWorldThread(checkedStore,
+            "put PhysicsStore chunk collision settings component");
+        ChunkCollisionSettingsComponent component =
+            Objects.requireNonNull(chunkCollisionSettings, "chunkCollisionSettings");
+        putOrRemoveDefault(checkedStore,
+            Objects.requireNonNull(ref, "ref"),
+            ChunkCollisionSettingsComponent.getComponentType(),
+            component,
+            component.isDefault());
     }
 
     public static void putSpaceSettingsComponents(@Nonnull Store<PhysicsStore> store,
@@ -226,22 +269,42 @@ public final class PhysicsEntities {
         PhysicsThreading.requireWorldThread(checkedStore,
             "put PhysicsStore space settings components");
         Objects.requireNonNull(ref, "ref");
-        checkedStore.putComponent(ref,
+        SolverSettingsComponent solver = Objects.requireNonNull(solverSettings,
+            "solverSettings");
+        putOrRemoveDefault(checkedStore,
+            ref,
             SolverSettingsComponent.getComponentType(),
-            Objects.requireNonNull(solverSettings, "solverSettings").clone());
-        checkedStore.putComponent(ref,
+            solver,
+            solver.isDefault());
+        VisualSyncSettingsComponent visualSync = Objects.requireNonNull(visualSyncSettings,
+            "visualSyncSettings");
+        putOrRemoveDefault(checkedStore,
+            ref,
             VisualSyncSettingsComponent.getComponentType(),
-            Objects.requireNonNull(visualSyncSettings, "visualSyncSettings").clone());
-        checkedStore.putComponent(ref,
+            visualSync,
+            visualSync.isDefault());
+        VisualMaterializationSettingsComponent visualMaterialization = Objects.requireNonNull(
+            visualMaterializationSettings,
+            "visualMaterializationSettings");
+        putOrRemoveDefault(checkedStore,
+            ref,
             VisualMaterializationSettingsComponent.getComponentType(),
-            Objects.requireNonNull(visualMaterializationSettings,
-                "visualMaterializationSettings").clone());
-        checkedStore.putComponent(ref,
+            visualMaterialization,
+            visualMaterialization.isDefault());
+        CollisionLodSettingsComponent collisionLod = Objects.requireNonNull(collisionLodSettings,
+            "collisionLodSettings");
+        putOrRemoveDefault(checkedStore,
+            ref,
             CollisionLodSettingsComponent.getComponentType(),
-            Objects.requireNonNull(collisionLodSettings, "collisionLodSettings").clone());
-        checkedStore.putComponent(ref,
+            collisionLod,
+            collisionLod.isDefault());
+        ExtensionSettingsComponent extension = Objects.requireNonNull(extensionSettings,
+            "extensionSettings");
+        putOrRemoveDefault(checkedStore,
+            ref,
             ExtensionSettingsComponent.getComponentType(),
-            Objects.requireNonNull(extensionSettings, "extensionSettings").clone());
+            extension,
+            extension.isDefault());
     }
 
     public static void putBodyComponents(@Nonnull Store<PhysicsStore> store,
@@ -290,6 +353,35 @@ public final class PhysicsEntities {
             .putComponent(Objects.requireNonNull(ref, "ref"),
                 JointComponent.getComponentType(),
                 Objects.requireNonNull(joint, "joint").clone());
+    }
+
+    private static <T extends Component<PhysicsStore>> void addIfNonDefault(
+        @Nonnull Holder<PhysicsStore> holder,
+        @Nonnull ComponentType<PhysicsStore, T> componentType,
+        @Nonnull T component,
+        boolean defaultValue) {
+        if (!defaultValue) {
+            Objects.requireNonNull(holder, "holder").addComponent(componentType, copy(component));
+        }
+    }
+
+    private static <T extends Component<PhysicsStore>> void putOrRemoveDefault(
+        @Nonnull Store<PhysicsStore> store,
+        @Nonnull Ref<PhysicsStore> ref,
+        @Nonnull ComponentType<PhysicsStore, T> componentType,
+        @Nonnull T component,
+        boolean defaultValue) {
+        if (defaultValue) {
+            store.removeComponentIfExists(ref, componentType);
+        } else {
+            store.putComponent(ref, componentType, copy(component));
+        }
+    }
+
+    @Nonnull
+    @SuppressWarnings("unchecked")
+    private static <T extends Component<PhysicsStore>> T copy(@Nonnull T component) {
+        return (T) component.clone();
     }
 
 }

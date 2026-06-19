@@ -15,7 +15,6 @@ import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsSpaces;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.settings.PhysicsCollisionLodSettings;
-import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
@@ -78,20 +77,19 @@ public class CollisionLodSettingsCommand extends AbstractAsyncPlayerCommand {
             return CompletableFuture.completedFuture(null);
         }
 
-        PhysicsSpaceSettings currentSettings = PhysicsSpaces.settings(physicsStore,
+        PhysicsCollisionLodSettings settings = PhysicsSpaces.collisionLodSettings(physicsStore,
             selection.spaceRef());
-        if (currentSettings == null) {
+        if (settings == null) {
             ctx.sender().sendMessage(Message.raw("Physics space id=" + selection.spaceId().value()
                 + " no longer exists."));
             return CompletableFuture.completedFuture(null);
         }
-        PhysicsSpaceSettings settings = new PhysicsSpaceSettings(currentSettings);
         if (!anyArgProvided(ctx)) {
             sendSummary(ctx, selection.spaceId(), settings);
             return CompletableFuture.completedFuture(null);
         }
 
-        Boolean enabled = settings.getCollisionLodSettings().isCollisionLodEnabled();
+        Boolean enabled = settings.isCollisionLodEnabled();
         if (enabledArg.provided(ctx)) {
             enabled = parseBoolean(enabledArg.get(ctx));
             if (enabled == null) {
@@ -100,7 +98,7 @@ public class CollisionLodSettingsCommand extends AbstractAsyncPlayerCommand {
             }
         }
 
-        Boolean farSleep = settings.getCollisionLodSettings().isCollisionLodFarSleepEnabled();
+        Boolean farSleep = settings.isCollisionLodFarSleepEnabled();
         if (farSleepArg.provided(ctx)) {
             farSleep = parseBoolean(farSleepArg.get(ctx));
             if (farSleep == null) {
@@ -111,16 +109,16 @@ public class CollisionLodSettingsCommand extends AbstractAsyncPlayerCommand {
 
         int nearRadius = nearRadiusArg.provided(ctx)
             ? nearRadiusArg.get(ctx)
-            : settings.getCollisionLodSettings().getCollisionLodNearRadius();
+            : settings.getCollisionLodNearRadius();
         int midRadius = midRadiusArg.provided(ctx)
             ? midRadiusArg.get(ctx)
-            : settings.getCollisionLodSettings().getCollisionLodMidRadius();
+            : settings.getCollisionLodMidRadius();
         int hysteresis = hysteresisArg.provided(ctx)
             ? hysteresisArg.get(ctx)
-            : settings.getCollisionLodSettings().getCollisionLodHysteresis();
+            : settings.getCollisionLodHysteresis();
         int interval = intervalArg.provided(ctx)
             ? intervalArg.get(ctx)
-            : settings.getCollisionLodSettings().getCollisionLodRefreshIntervalTicks();
+            : settings.getCollisionLodRefreshIntervalTicks();
         if (outOfRange(nearRadius, PhysicsCollisionLodSettings.MAX_COLLISION_LOD_RADIUS)
             || outOfRange(midRadius, PhysicsCollisionLodSettings.MAX_COLLISION_LOD_RADIUS)
             || nearRadius > midRadius
@@ -138,12 +136,12 @@ public class CollisionLodSettingsCommand extends AbstractAsyncPlayerCommand {
             return CompletableFuture.completedFuture(null);
         }
 
-        settings.getCollisionLodSettings().setCollisionLodEnabled(enabled);
-        settings.getCollisionLodSettings().setCollisionLodRadii(nearRadius, midRadius);
-        settings.getCollisionLodSettings().setCollisionLodHysteresis(hysteresis);
-        settings.getCollisionLodSettings().setCollisionLodRefreshIntervalTicks(interval);
-        settings.getCollisionLodSettings().setCollisionLodFarSleepEnabled(farSleep);
-        PhysicsSpaces.putSettings(physicsStore, selection.spaceRef(), settings);
+        settings.setCollisionLodEnabled(enabled);
+        settings.setCollisionLodRadii(nearRadius, midRadius);
+        settings.setCollisionLodHysteresis(hysteresis);
+        settings.setCollisionLodRefreshIntervalTicks(interval);
+        settings.setCollisionLodFarSleepEnabled(farSleep);
+        PhysicsSpaces.putCollisionLodSettings(physicsStore, selection.spaceRef(), settings);
         sendSummary(ctx, selection.spaceId(), settings);
         return CompletableFuture.completedFuture(null);
     }
@@ -163,15 +161,15 @@ public class CollisionLodSettingsCommand extends AbstractAsyncPlayerCommand {
 
     private static void sendSummary(@Nonnull CommandContext ctx,
         @Nonnull SpaceId spaceId,
-        @Nonnull PhysicsSpaceSettings settings) {
+        @Nonnull PhysicsCollisionLodSettings settings) {
         ctx.sender().sendMessage(Message.raw("Impulse collision LOD settings for space "
             + spaceId.value()
-            + ": enabled=" + settings.getCollisionLodSettings().isCollisionLodEnabled()
-            + " nearRadius=" + settings.getCollisionLodSettings().getCollisionLodNearRadius()
-            + " midRadius=" + settings.getCollisionLodSettings().getCollisionLodMidRadius()
-            + " hysteresis=" + settings.getCollisionLodSettings().getCollisionLodHysteresis()
-            + " interval=" + settings.getCollisionLodSettings().getCollisionLodRefreshIntervalTicks()
-            + " farSleep=" + settings.getCollisionLodSettings().isCollisionLodFarSleepEnabled()
+            + ": enabled=" + settings.isCollisionLodEnabled()
+            + " nearRadius=" + settings.getCollisionLodNearRadius()
+            + " midRadius=" + settings.getCollisionLodMidRadius()
+            + " hysteresis=" + settings.getCollisionLodHysteresis()
+            + " interval=" + settings.getCollisionLodRefreshIntervalTicks()
+            + " farSleep=" + settings.isCollisionLodFarSleepEnabled()
             + " tiers=near:terrain+body mid:terrain far:terrain+sleep"));
     }
 

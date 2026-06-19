@@ -211,7 +211,10 @@ public final class VisualSyncSettingsComponent implements Component<PhysicsStore
     }
 
     public void copyTo(@Nonnull PhysicsSpaceSettings settings) {
-        PhysicsVisualSyncSettings target = settings.getVisualSyncSettings();
+        copyTo(settings.getVisualSyncSettings());
+    }
+
+    public void copyTo(@Nonnull PhysicsVisualSyncSettings target) {
         target.setVisualSyncRadii(visualFullSyncRadius, visualMaxSyncRadius);
         target.setVisualFarSyncCutoffEnabled(visualFarSyncCutoffEnabled);
         target.setVisualMidSyncIntervalTicks(visualMidSyncIntervalTicks);

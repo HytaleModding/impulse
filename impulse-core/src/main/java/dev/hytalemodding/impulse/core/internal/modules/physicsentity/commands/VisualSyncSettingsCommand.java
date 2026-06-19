@@ -15,7 +15,6 @@ import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.internal.commands.SpaceSelection;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsSpaces;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
-import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.settings.PhysicsVisualSyncSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.VisualOcclusionMode;
 import java.util.Locale;
@@ -121,14 +120,13 @@ public class VisualSyncSettingsCommand extends AbstractAsyncPlayerCommand {
         }
         SpaceId spaceId = selectedSpace.spaceId();
 
-        PhysicsSpaceSettings currentSettings = PhysicsSpaces.settings(physicsStore,
+        PhysicsVisualSyncSettings settings = PhysicsSpaces.visualSyncSettings(physicsStore,
             selectedSpace.spaceRef());
-        if (currentSettings == null) {
+        if (settings == null) {
             ctx.sender().sendMessage(Message.raw("Physics space id=" + spaceId.value()
                 + " no longer exists."));
             return CompletableFuture.completedFuture(null);
         }
-        PhysicsSpaceSettings settings = new PhysicsSpaceSettings(currentSettings);
         if (!anyArgProvided(ctx)) {
             sendSummary(ctx, spaceId, settings);
             return CompletableFuture.completedFuture(null);
@@ -136,10 +134,10 @@ public class VisualSyncSettingsCommand extends AbstractAsyncPlayerCommand {
 
         int fullRadius = fullRadiusArg.provided(ctx)
             ? fullRadiusArg.get(ctx)
-            : settings.getVisualSyncSettings().getVisualFullSyncRadius();
+            : settings.getVisualFullSyncRadius();
         int maxRadius = maxRadiusArg.provided(ctx)
             ? maxRadiusArg.get(ctx)
-            : settings.getVisualSyncSettings().getVisualMaxSyncRadius();
+            : settings.getVisualMaxSyncRadius();
         if (outOfRange(fullRadius, PhysicsVisualSyncSettings.MAX_VISUAL_FULL_SYNC_RADIUS)
             || outOfRange(maxRadius, PhysicsVisualSyncSettings.MAX_VISUAL_MAX_SYNC_RADIUS)
             || fullRadius > maxRadius) {
@@ -205,7 +203,7 @@ public class VisualSyncSettingsCommand extends AbstractAsyncPlayerCommand {
                 ctx.sender().sendMessage(Message.raw("farMode must be cutoff or lod."));
                 return CompletableFuture.completedFuture(null);
             }
-            settings.getVisualSyncSettings().setVisualFarSyncCutoffEnabled(cutoff);
+            settings.setVisualFarSyncCutoffEnabled(cutoff);
         }
         if (occlusionArg.provided(ctx)) {
             VisualOcclusionMode occlusionMode = parseOcclusionMode(occlusionArg.get(ctx));
@@ -213,7 +211,7 @@ public class VisualSyncSettingsCommand extends AbstractAsyncPlayerCommand {
                 ctx.sender().sendMessage(Message.raw("occlusion must be off, priority, or cull."));
                 return CompletableFuture.completedFuture(null);
             }
-            settings.getVisualSyncSettings().setVisualOcclusionMode(occlusionMode);
+            settings.setVisualOcclusionMode(occlusionMode);
         }
         if (entityCullingArg.provided(ctx)) {
             Boolean entityCulling = parseBoolean(entityCullingArg.get(ctx));
@@ -221,7 +219,7 @@ public class VisualSyncSettingsCommand extends AbstractAsyncPlayerCommand {
                 ctx.sender().sendMessage(Message.raw("entityCulling must be true or false."));
                 return CompletableFuture.completedFuture(null);
             }
-            settings.getVisualSyncSettings().setEntityVisualSyncCullingEnabled(entityCulling);
+            settings.setEntityVisualSyncCullingEnabled(entityCulling);
         }
         if (visibilityCullingArg.provided(ctx)) {
             Boolean visibilityCulling = parseBoolean(visibilityCullingArg.get(ctx));
@@ -229,7 +227,7 @@ public class VisualSyncSettingsCommand extends AbstractAsyncPlayerCommand {
                 ctx.sender().sendMessage(Message.raw("visibilityCulling must be true or false."));
                 return CompletableFuture.completedFuture(null);
             }
-            settings.getVisualSyncSettings().setVisualVisibilityCullingEnabled(visibilityCulling);
+            settings.setVisualVisibilityCullingEnabled(visibilityCulling);
         }
         if (predictionArg.provided(ctx)) {
             Boolean prediction = parseBoolean(predictionArg.get(ctx));
@@ -237,7 +235,7 @@ public class VisualSyncSettingsCommand extends AbstractAsyncPlayerCommand {
                 ctx.sender().sendMessage(Message.raw("prediction must be true or false."));
                 return CompletableFuture.completedFuture(null);
             }
-            settings.getVisualSyncSettings().setVisualSnapshotPredictionEnabled(prediction);
+            settings.setVisualSnapshotPredictionEnabled(prediction);
         }
         if (smoothingArg.provided(ctx)) {
             Boolean smoothing = parseBoolean(smoothingArg.get(ctx));
@@ -245,29 +243,29 @@ public class VisualSyncSettingsCommand extends AbstractAsyncPlayerCommand {
                 ctx.sender().sendMessage(Message.raw("smoothing must be true or false."));
                 return CompletableFuture.completedFuture(null);
             }
-            settings.getVisualSyncSettings().setVisualSnapshotSmoothingEnabled(smoothing);
+            settings.setVisualSnapshotSmoothingEnabled(smoothing);
         }
 
-        settings.getVisualSyncSettings().setVisualSyncRadii(fullRadius, maxRadius);
+        settings.setVisualSyncRadii(fullRadius, maxRadius);
         if (midIntervalArg.provided(ctx)) {
-            settings.getVisualSyncSettings().setVisualMidSyncIntervalTicks(midIntervalArg.get(ctx));
+            settings.setVisualMidSyncIntervalTicks(midIntervalArg.get(ctx));
         }
         if (farIntervalArg.provided(ctx)) {
-            settings.getVisualSyncSettings().setVisualFarSyncIntervalTicks(farIntervalArg.get(ctx));
+            settings.setVisualFarSyncIntervalTicks(farIntervalArg.get(ctx));
         }
         if (occlusionRaycastsArg.provided(ctx)) {
-            settings.getVisualSyncSettings().setVisualOcclusionRaycastsPerTick(occlusionRaycastsArg.get(ctx));
+            settings.setVisualOcclusionRaycastsPerTick(occlusionRaycastsArg.get(ctx));
         }
         if (occlusionCacheArg.provided(ctx)) {
-            settings.getVisualSyncSettings().setVisualOcclusionCacheTicks(occlusionCacheArg.get(ctx));
+            settings.setVisualOcclusionCacheTicks(occlusionCacheArg.get(ctx));
         }
         if (predictionMaxSecondsArg.provided(ctx)) {
-            settings.getVisualSyncSettings().setVisualSnapshotPredictionMaxSeconds(predictionMaxSecondsArg.get(ctx));
+            settings.setVisualSnapshotPredictionMaxSeconds(predictionMaxSecondsArg.get(ctx));
         }
         if (smoothingRateArg.provided(ctx)) {
-            settings.getVisualSyncSettings().setVisualSnapshotSmoothingRate(smoothingRateArg.get(ctx));
+            settings.setVisualSnapshotSmoothingRate(smoothingRateArg.get(ctx));
         }
-        PhysicsSpaces.putSettings(physicsStore, selectedSpace.spaceRef(), settings);
+        PhysicsSpaces.putVisualSyncSettings(physicsStore, selectedSpace.spaceRef(), settings);
         sendSummary(ctx, spaceId, settings);
         return CompletableFuture.completedFuture(null);
     }
@@ -303,23 +301,23 @@ public class VisualSyncSettingsCommand extends AbstractAsyncPlayerCommand {
 
     private static void sendSummary(@Nonnull CommandContext ctx,
         @Nonnull SpaceId spaceId,
-        @Nonnull PhysicsSpaceSettings settings) {
+        @Nonnull PhysicsVisualSyncSettings settings) {
         ctx.sender().sendMessage(Message.raw("Impulse visual sync settings for space "
             + spaceId.value()
-            + ": fullRadius=" + settings.getVisualSyncSettings().getVisualFullSyncRadius()
-            + " maxRadius=" + settings.getVisualSyncSettings().getVisualMaxSyncRadius()
-            + " farMode=" + (settings.getVisualSyncSettings().isVisualFarSyncCutoffEnabled() ? "cutoff" : "lod")
-            + " midInterval=" + settings.getVisualSyncSettings().getVisualMidSyncIntervalTicks()
-            + " farInterval=" + settings.getVisualSyncSettings().getVisualFarSyncIntervalTicks()
-            + " occlusion=" + settings.getVisualSyncSettings().getVisualOcclusionMode().name().toLowerCase(Locale.ROOT)
-            + " occlusionRaycasts=" + settings.getVisualSyncSettings().getVisualOcclusionRaycastsPerTick()
-            + " occlusionCache=" + settings.getVisualSyncSettings().getVisualOcclusionCacheTicks()
-            + " prediction=" + settings.getVisualSyncSettings().isVisualSnapshotPredictionEnabled()
-            + " predictionMaxSeconds=" + settings.getVisualSyncSettings().getVisualSnapshotPredictionMaxSeconds()
-            + " smoothing=" + settings.getVisualSyncSettings().isVisualSnapshotSmoothingEnabled()
-            + " smoothingRate=" + settings.getVisualSyncSettings().getVisualSnapshotSmoothingRate()
-            + " entityCulling=" + settings.getVisualSyncSettings().isEntityVisualSyncCullingEnabled()
-            + " visibilityCulling=" + settings.getVisualSyncSettings().isVisualVisibilityCullingEnabled()));
+            + ": fullRadius=" + settings.getVisualFullSyncRadius()
+            + " maxRadius=" + settings.getVisualMaxSyncRadius()
+            + " farMode=" + (settings.isVisualFarSyncCutoffEnabled() ? "cutoff" : "lod")
+            + " midInterval=" + settings.getVisualMidSyncIntervalTicks()
+            + " farInterval=" + settings.getVisualFarSyncIntervalTicks()
+            + " occlusion=" + settings.getVisualOcclusionMode().name().toLowerCase(Locale.ROOT)
+            + " occlusionRaycasts=" + settings.getVisualOcclusionRaycastsPerTick()
+            + " occlusionCache=" + settings.getVisualOcclusionCacheTicks()
+            + " prediction=" + settings.isVisualSnapshotPredictionEnabled()
+            + " predictionMaxSeconds=" + settings.getVisualSnapshotPredictionMaxSeconds()
+            + " smoothing=" + settings.isVisualSnapshotSmoothingEnabled()
+            + " smoothingRate=" + settings.getVisualSnapshotSmoothingRate()
+            + " entityCulling=" + settings.isEntityVisualSyncCullingEnabled()
+            + " visibilityCulling=" + settings.isVisualVisibilityCullingEnabled()));
     }
 
     private static Boolean parseFarCutoff(@Nonnull String value) {

@@ -19,6 +19,12 @@ import dev.hytalemodding.impulse.core.plugin.components.VisualMaterializationSet
 import dev.hytalemodding.impulse.core.plugin.components.VisualSyncSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.ChunkCollisionSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.CollisionLodSettingsComponent;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.settings.PhysicsChunkTerrainSettings;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.settings.PhysicsCollisionLodSettings;
+import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.settings.PhysicsVisualMaterializationSettings;
+import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.settings.PhysicsVisualSyncSettings;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsExtensionSettings;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSolverSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import java.util.Collection;
 import java.util.List;
@@ -171,6 +177,167 @@ public final class PhysicsSpaces {
         return settings;
     }
 
+    @Nullable
+    public static PhysicsChunkTerrainSettings chunkTerrainSettings(
+        @Nonnull Store<PhysicsStore> store,
+        @Nonnull SpaceId spaceId) {
+        Ref<PhysicsStore> ref = resolveRef(store, spaceId);
+        return ref != null ? chunkTerrainSettings(store, ref) : null;
+    }
+
+    @Nullable
+    public static PhysicsChunkTerrainSettings chunkTerrainSettings(
+        @Nonnull Store<PhysicsStore> store,
+        @Nonnull Ref<PhysicsStore> spaceRef) {
+        Store<PhysicsStore> checkedStore = requireWorldThread(store,
+            "read PhysicsStore chunk terrain settings");
+        Ref<PhysicsStore> checkedRef = Objects.requireNonNull(spaceRef, "spaceRef");
+        if (!isSpaceRef(checkedStore, checkedRef)) {
+            return null;
+        }
+        PhysicsChunkTerrainSettings settings = new PhysicsChunkTerrainSettings();
+        ChunkCollisionSettingsComponent component = checkedStore.getComponent(checkedRef,
+            ChunkCollisionSettingsComponent.getComponentType());
+        if (component != null) {
+            component.copyTo(settings);
+        }
+        return settings;
+    }
+
+    @Nullable
+    public static PhysicsSolverSettings solverSettings(@Nonnull Store<PhysicsStore> store,
+        @Nonnull SpaceId spaceId) {
+        Ref<PhysicsStore> ref = resolveRef(store, spaceId);
+        return ref != null ? solverSettings(store, ref) : null;
+    }
+
+    @Nullable
+    public static PhysicsSolverSettings solverSettings(@Nonnull Store<PhysicsStore> store,
+        @Nonnull Ref<PhysicsStore> spaceRef) {
+        Store<PhysicsStore> checkedStore = requireWorldThread(store,
+            "read PhysicsStore solver settings");
+        Ref<PhysicsStore> checkedRef = Objects.requireNonNull(spaceRef, "spaceRef");
+        if (!isSpaceRef(checkedStore, checkedRef)) {
+            return null;
+        }
+        PhysicsSolverSettings settings = new PhysicsSolverSettings();
+        SolverSettingsComponent component = checkedStore.getComponent(checkedRef,
+            SolverSettingsComponent.getComponentType());
+        if (component != null) {
+            component.copyTo(settings);
+        }
+        return settings;
+    }
+
+    @Nullable
+    public static PhysicsVisualSyncSettings visualSyncSettings(
+        @Nonnull Store<PhysicsStore> store,
+        @Nonnull SpaceId spaceId) {
+        Ref<PhysicsStore> ref = resolveRef(store, spaceId);
+        return ref != null ? visualSyncSettings(store, ref) : null;
+    }
+
+    @Nullable
+    public static PhysicsVisualSyncSettings visualSyncSettings(
+        @Nonnull Store<PhysicsStore> store,
+        @Nonnull Ref<PhysicsStore> spaceRef) {
+        Store<PhysicsStore> checkedStore = requireWorldThread(store,
+            "read PhysicsStore visual sync settings");
+        Ref<PhysicsStore> checkedRef = Objects.requireNonNull(spaceRef, "spaceRef");
+        if (!isSpaceRef(checkedStore, checkedRef)) {
+            return null;
+        }
+        PhysicsVisualSyncSettings settings = new PhysicsVisualSyncSettings();
+        VisualSyncSettingsComponent component = checkedStore.getComponent(checkedRef,
+            VisualSyncSettingsComponent.getComponentType());
+        if (component != null) {
+            component.copyTo(settings);
+        }
+        return settings;
+    }
+
+    @Nullable
+    public static PhysicsVisualMaterializationSettings visualMaterializationSettings(
+        @Nonnull Store<PhysicsStore> store,
+        @Nonnull SpaceId spaceId) {
+        Ref<PhysicsStore> ref = resolveRef(store, spaceId);
+        return ref != null ? visualMaterializationSettings(store, ref) : null;
+    }
+
+    @Nullable
+    public static PhysicsVisualMaterializationSettings visualMaterializationSettings(
+        @Nonnull Store<PhysicsStore> store,
+        @Nonnull Ref<PhysicsStore> spaceRef) {
+        Store<PhysicsStore> checkedStore = requireWorldThread(store,
+            "read PhysicsStore visual materialization settings");
+        Ref<PhysicsStore> checkedRef = Objects.requireNonNull(spaceRef, "spaceRef");
+        if (!isSpaceRef(checkedStore, checkedRef)) {
+            return null;
+        }
+        PhysicsVisualMaterializationSettings settings =
+            new PhysicsVisualMaterializationSettings();
+        VisualMaterializationSettingsComponent component = checkedStore.getComponent(checkedRef,
+            VisualMaterializationSettingsComponent.getComponentType());
+        if (component != null) {
+            component.copyTo(settings);
+        }
+        return settings;
+    }
+
+    @Nullable
+    public static PhysicsCollisionLodSettings collisionLodSettings(
+        @Nonnull Store<PhysicsStore> store,
+        @Nonnull SpaceId spaceId) {
+        Ref<PhysicsStore> ref = resolveRef(store, spaceId);
+        return ref != null ? collisionLodSettings(store, ref) : null;
+    }
+
+    @Nullable
+    public static PhysicsCollisionLodSettings collisionLodSettings(
+        @Nonnull Store<PhysicsStore> store,
+        @Nonnull Ref<PhysicsStore> spaceRef) {
+        Store<PhysicsStore> checkedStore = requireWorldThread(store,
+            "read PhysicsStore collision LOD settings");
+        Ref<PhysicsStore> checkedRef = Objects.requireNonNull(spaceRef, "spaceRef");
+        if (!isSpaceRef(checkedStore, checkedRef)) {
+            return null;
+        }
+        PhysicsCollisionLodSettings settings = new PhysicsCollisionLodSettings();
+        CollisionLodSettingsComponent component = checkedStore.getComponent(checkedRef,
+            CollisionLodSettingsComponent.getComponentType());
+        if (component != null) {
+            component.copyTo(settings);
+        }
+        return settings;
+    }
+
+    @Nullable
+    public static PhysicsExtensionSettings extensionSettings(
+        @Nonnull Store<PhysicsStore> store,
+        @Nonnull SpaceId spaceId) {
+        Ref<PhysicsStore> ref = resolveRef(store, spaceId);
+        return ref != null ? extensionSettings(store, ref) : null;
+    }
+
+    @Nullable
+    public static PhysicsExtensionSettings extensionSettings(
+        @Nonnull Store<PhysicsStore> store,
+        @Nonnull Ref<PhysicsStore> spaceRef) {
+        Store<PhysicsStore> checkedStore = requireWorldThread(store,
+            "read PhysicsStore extension settings");
+        Ref<PhysicsStore> checkedRef = Objects.requireNonNull(spaceRef, "spaceRef");
+        if (!isSpaceRef(checkedStore, checkedRef)) {
+            return null;
+        }
+        PhysicsExtensionSettings settings = new PhysicsExtensionSettings();
+        ExtensionSettingsComponent component = checkedStore.getComponent(checkedRef,
+            ExtensionSettingsComponent.getComponentType());
+        if (component != null) {
+            component.copyTo(settings);
+        }
+        return settings;
+    }
+
     public static void putSettings(@Nonnull Store<PhysicsStore> store,
         @Nonnull SpaceId spaceId,
         @Nonnull PhysicsSpaceSettings settings) {
@@ -187,6 +354,126 @@ public final class PhysicsSpaces {
         Store<PhysicsStore> checkedStore = requireWorldThread(store,
             "update PhysicsStore space settings");
         PhysicsStoreSpaceMutations.putSpaceSettings(checkedStore,
+            Objects.requireNonNull(spaceRef, "spaceRef"),
+            Objects.requireNonNull(settings, "settings"));
+    }
+
+    public static void putChunkTerrainSettings(@Nonnull Store<PhysicsStore> store,
+        @Nonnull SpaceId spaceId,
+        @Nonnull PhysicsChunkTerrainSettings settings) {
+        Store<PhysicsStore> checkedStore = requireWorldThread(store,
+            "update PhysicsStore chunk terrain settings");
+        PhysicsStoreSpaceMutations.putChunkCollisionSettings(checkedStore,
+            Objects.requireNonNull(spaceId, "spaceId"),
+            Objects.requireNonNull(settings, "settings"));
+    }
+
+    public static void putChunkTerrainSettings(@Nonnull Store<PhysicsStore> store,
+        @Nonnull Ref<PhysicsStore> spaceRef,
+        @Nonnull PhysicsChunkTerrainSettings settings) {
+        Store<PhysicsStore> checkedStore = requireWorldThread(store,
+            "update PhysicsStore chunk terrain settings");
+        PhysicsStoreSpaceMutations.putChunkCollisionSettings(checkedStore,
+            Objects.requireNonNull(spaceRef, "spaceRef"),
+            Objects.requireNonNull(settings, "settings"));
+    }
+
+    public static void putSolverSettings(@Nonnull Store<PhysicsStore> store,
+        @Nonnull SpaceId spaceId,
+        @Nonnull PhysicsSolverSettings settings) {
+        Store<PhysicsStore> checkedStore = requireWorldThread(store,
+            "update PhysicsStore solver settings");
+        PhysicsStoreSpaceMutations.putSolverSettings(checkedStore,
+            Objects.requireNonNull(spaceId, "spaceId"),
+            Objects.requireNonNull(settings, "settings"));
+    }
+
+    public static void putSolverSettings(@Nonnull Store<PhysicsStore> store,
+        @Nonnull Ref<PhysicsStore> spaceRef,
+        @Nonnull PhysicsSolverSettings settings) {
+        Store<PhysicsStore> checkedStore = requireWorldThread(store,
+            "update PhysicsStore solver settings");
+        PhysicsStoreSpaceMutations.putSolverSettings(checkedStore,
+            Objects.requireNonNull(spaceRef, "spaceRef"),
+            Objects.requireNonNull(settings, "settings"));
+    }
+
+    public static void putVisualSyncSettings(@Nonnull Store<PhysicsStore> store,
+        @Nonnull SpaceId spaceId,
+        @Nonnull PhysicsVisualSyncSettings settings) {
+        Store<PhysicsStore> checkedStore = requireWorldThread(store,
+            "update PhysicsStore visual sync settings");
+        PhysicsStoreSpaceMutations.putVisualSyncSettings(checkedStore,
+            Objects.requireNonNull(spaceId, "spaceId"),
+            Objects.requireNonNull(settings, "settings"));
+    }
+
+    public static void putVisualSyncSettings(@Nonnull Store<PhysicsStore> store,
+        @Nonnull Ref<PhysicsStore> spaceRef,
+        @Nonnull PhysicsVisualSyncSettings settings) {
+        Store<PhysicsStore> checkedStore = requireWorldThread(store,
+            "update PhysicsStore visual sync settings");
+        PhysicsStoreSpaceMutations.putVisualSyncSettings(checkedStore,
+            Objects.requireNonNull(spaceRef, "spaceRef"),
+            Objects.requireNonNull(settings, "settings"));
+    }
+
+    public static void putVisualMaterializationSettings(@Nonnull Store<PhysicsStore> store,
+        @Nonnull SpaceId spaceId,
+        @Nonnull PhysicsVisualMaterializationSettings settings) {
+        Store<PhysicsStore> checkedStore = requireWorldThread(store,
+            "update PhysicsStore visual materialization settings");
+        PhysicsStoreSpaceMutations.putVisualMaterializationSettings(checkedStore,
+            Objects.requireNonNull(spaceId, "spaceId"),
+            Objects.requireNonNull(settings, "settings"));
+    }
+
+    public static void putVisualMaterializationSettings(@Nonnull Store<PhysicsStore> store,
+        @Nonnull Ref<PhysicsStore> spaceRef,
+        @Nonnull PhysicsVisualMaterializationSettings settings) {
+        Store<PhysicsStore> checkedStore = requireWorldThread(store,
+            "update PhysicsStore visual materialization settings");
+        PhysicsStoreSpaceMutations.putVisualMaterializationSettings(checkedStore,
+            Objects.requireNonNull(spaceRef, "spaceRef"),
+            Objects.requireNonNull(settings, "settings"));
+    }
+
+    public static void putCollisionLodSettings(@Nonnull Store<PhysicsStore> store,
+        @Nonnull SpaceId spaceId,
+        @Nonnull PhysicsCollisionLodSettings settings) {
+        Store<PhysicsStore> checkedStore = requireWorldThread(store,
+            "update PhysicsStore collision LOD settings");
+        PhysicsStoreSpaceMutations.putCollisionLodSettings(checkedStore,
+            Objects.requireNonNull(spaceId, "spaceId"),
+            Objects.requireNonNull(settings, "settings"));
+    }
+
+    public static void putCollisionLodSettings(@Nonnull Store<PhysicsStore> store,
+        @Nonnull Ref<PhysicsStore> spaceRef,
+        @Nonnull PhysicsCollisionLodSettings settings) {
+        Store<PhysicsStore> checkedStore = requireWorldThread(store,
+            "update PhysicsStore collision LOD settings");
+        PhysicsStoreSpaceMutations.putCollisionLodSettings(checkedStore,
+            Objects.requireNonNull(spaceRef, "spaceRef"),
+            Objects.requireNonNull(settings, "settings"));
+    }
+
+    public static void putExtensionSettings(@Nonnull Store<PhysicsStore> store,
+        @Nonnull SpaceId spaceId,
+        @Nonnull PhysicsExtensionSettings settings) {
+        Store<PhysicsStore> checkedStore = requireWorldThread(store,
+            "update PhysicsStore extension settings");
+        PhysicsStoreSpaceMutations.putExtensionSettings(checkedStore,
+            Objects.requireNonNull(spaceId, "spaceId"),
+            Objects.requireNonNull(settings, "settings"));
+    }
+
+    public static void putExtensionSettings(@Nonnull Store<PhysicsStore> store,
+        @Nonnull Ref<PhysicsStore> spaceRef,
+        @Nonnull PhysicsExtensionSettings settings) {
+        Store<PhysicsStore> checkedStore = requireWorldThread(store,
+            "update PhysicsStore extension settings");
+        PhysicsStoreSpaceMutations.putExtensionSettings(checkedStore,
             Objects.requireNonNull(spaceRef, "spaceRef"),
             Objects.requireNonNull(settings, "settings"));
     }
@@ -297,6 +584,13 @@ public final class PhysicsSpaces {
         Store<PhysicsStore> checkedStore = Objects.requireNonNull(store, "store");
         PhysicsThreading.requireWorldThread(checkedStore, operation);
         return checkedStore;
+    }
+
+    private static boolean isSpaceRef(@Nonnull Store<PhysicsStore> store,
+        @Nonnull Ref<PhysicsStore> ref) {
+        return ref.getStore() == store
+            && ref.isValid()
+            && store.getComponent(ref, SpaceComponent.getComponentType()) != null;
     }
 
     @Nonnull

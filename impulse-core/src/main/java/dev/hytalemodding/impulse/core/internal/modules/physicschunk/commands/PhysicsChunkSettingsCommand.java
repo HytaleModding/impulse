@@ -16,7 +16,6 @@ import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsSpaces;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkTerrainMode;
 import dev.hytalemodding.impulse.core.plugin.settings.EntityChunkBoundaryMode;
-import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.settings.PhysicsChunkTerrainSettings;
 import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
@@ -78,20 +77,19 @@ public class PhysicsChunkSettingsCommand extends AbstractAsyncPlayerCommand {
             return CompletableFuture.completedFuture(null);
         }
 
-        PhysicsSpaceSettings currentSettings = PhysicsSpaces.settings(physicsStore,
+        PhysicsChunkTerrainSettings settings = PhysicsSpaces.chunkTerrainSettings(physicsStore,
             selection.spaceRef());
-        if (currentSettings == null) {
+        if (settings == null) {
             ctx.sender().sendMessage(Message.raw("Physics space id=" + selection.spaceId().value()
                 + " no longer exists."));
             return CompletableFuture.completedFuture(null);
         }
-        PhysicsSpaceSettings settings = new PhysicsSpaceSettings(currentSettings);
         if (!anyArgProvided(ctx)) {
             sendSummary(ctx, selection.spaceId(), settings);
             return CompletableFuture.completedFuture(null);
         }
 
-        PhysicsChunkTerrainMode mode = settings.getPhysicsChunkTerrainSettings().getTerrainMode();
+        PhysicsChunkTerrainMode mode = settings.getTerrainMode();
         if (modeArg.provided(ctx)) {
             mode = parseMode(modeArg.get(ctx));
             if (mode == null) {
@@ -100,7 +98,7 @@ public class PhysicsChunkSettingsCommand extends AbstractAsyncPlayerCommand {
             }
         }
 
-        EntityChunkBoundaryMode chunkBoundaryMode = settings.getPhysicsChunkTerrainSettings().getEntityChunkBoundaryMode();
+        EntityChunkBoundaryMode chunkBoundaryMode = settings.getEntityChunkBoundaryMode();
         if (chunkBoundaryArg.provided(ctx)) {
             chunkBoundaryMode = parseChunkBoundaryMode(chunkBoundaryArg.get(ctx));
             if (chunkBoundaryMode == null) {
@@ -109,7 +107,7 @@ public class PhysicsChunkSettingsCommand extends AbstractAsyncPlayerCommand {
             }
         }
 
-        boolean nativeVoxelCollisionEnabled = settings.getPhysicsChunkTerrainSettings().isNativeVoxelCollisionEnabled();
+        boolean nativeVoxelCollisionEnabled = settings.isNativeVoxelCollisionEnabled();
         if (terrainArg.provided(ctx)) {
             Boolean parsedNativeVoxelCollision = parseTerrain(terrainArg.get(ctx));
             if (parsedNativeVoxelCollision == null) {
@@ -121,11 +119,11 @@ public class PhysicsChunkSettingsCommand extends AbstractAsyncPlayerCommand {
 
         int playerRadius = playerRadiusArg.provided(ctx)
             ? playerRadiusArg.get(ctx)
-            : settings.getPhysicsChunkTerrainSettings().getTerrainRadius();
+            : settings.getTerrainRadius();
         int bodyRadius = bodyRadiusArg.provided(ctx)
             ? bodyRadiusArg.get(ctx)
-            : settings.getPhysicsChunkTerrainSettings().getBodyTerrainRadius();
-        int ttl = ttlArg.provided(ctx) ? ttlArg.get(ctx) : settings.getPhysicsChunkTerrainSettings().getTerrainTtlTicks();
+            : settings.getBodyTerrainRadius();
+        int ttl = ttlArg.provided(ctx) ? ttlArg.get(ctx) : settings.getTerrainTtlTicks();
         if (outOfRange(playerRadius, PhysicsChunkTerrainSettings.MAX_TERRAIN_RADIUS)
             || outOfRange(bodyRadius, PhysicsChunkTerrainSettings.MAX_BODY_TERRAIN_RADIUS)
             || outOfRange(ttl, PhysicsChunkTerrainSettings.MAX_TERRAIN_TTL_TICKS)) {
@@ -139,13 +137,13 @@ public class PhysicsChunkSettingsCommand extends AbstractAsyncPlayerCommand {
             return CompletableFuture.completedFuture(null);
         }
 
-        settings.getPhysicsChunkTerrainSettings().setTerrainMode(mode);
-        settings.getPhysicsChunkTerrainSettings().setEntityChunkBoundaryMode(chunkBoundaryMode);
-        settings.getPhysicsChunkTerrainSettings().setNativeVoxelCollisionEnabled(nativeVoxelCollisionEnabled);
-        settings.getPhysicsChunkTerrainSettings().setTerrainRadius(playerRadius);
-        settings.getPhysicsChunkTerrainSettings().setBodyTerrainRadius(bodyRadius);
-        settings.getPhysicsChunkTerrainSettings().setTerrainTtlTicks(ttl);
-        PhysicsSpaces.putSettings(physicsStore, selection.spaceRef(), settings);
+        settings.setTerrainMode(mode);
+        settings.setEntityChunkBoundaryMode(chunkBoundaryMode);
+        settings.setNativeVoxelCollisionEnabled(nativeVoxelCollisionEnabled);
+        settings.setTerrainRadius(playerRadius);
+        settings.setBodyTerrainRadius(bodyRadius);
+        settings.setTerrainTtlTicks(ttl);
+        PhysicsSpaces.putChunkTerrainSettings(physicsStore, selection.spaceRef(), settings);
         sendSummary(ctx, selection.spaceId(), settings);
         return CompletableFuture.completedFuture(null);
     }
@@ -165,17 +163,17 @@ public class PhysicsChunkSettingsCommand extends AbstractAsyncPlayerCommand {
 
     private static void sendSummary(@Nonnull CommandContext ctx,
         @Nonnull SpaceId spaceId,
-        @Nonnull PhysicsSpaceSettings settings) {
+        @Nonnull PhysicsChunkTerrainSettings settings) {
         ctx.sender().sendMessage(Message.raw("Impulse PhysicsChunk settings for space "
             + spaceId.value()
-            + ": mode=" + settings.getPhysicsChunkTerrainSettings().getTerrainMode().name().toLowerCase(Locale.ROOT)
-            + " playerRadius=" + settings.getPhysicsChunkTerrainSettings().getTerrainRadius()
-            + " bodyRadius=" + settings.getPhysicsChunkTerrainSettings().getBodyTerrainRadius()
-            + " ttl=" + settings.getPhysicsChunkTerrainSettings().getTerrainTtlTicks()
+            + ": mode=" + settings.getTerrainMode().name().toLowerCase(Locale.ROOT)
+            + " playerRadius=" + settings.getTerrainRadius()
+            + " bodyRadius=" + settings.getBodyTerrainRadius()
+            + " ttl=" + settings.getTerrainTtlTicks()
             + " chunkBoundary="
-            + settings.getPhysicsChunkTerrainSettings().getEntityChunkBoundaryMode().name().toLowerCase(Locale.ROOT)
+            + settings.getEntityChunkBoundaryMode().name().toLowerCase(Locale.ROOT)
             + " terrain="
-            + (settings.getPhysicsChunkTerrainSettings().isNativeVoxelCollisionEnabled()
+            + (settings.isNativeVoxelCollisionEnabled()
                 ? "native_voxels"
                 : "boxes")));
     }

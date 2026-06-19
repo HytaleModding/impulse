@@ -15,7 +15,6 @@ import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.internal.commands.SpaceSelection;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsSpaces;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
-import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.settings.PhysicsVisualMaterializationSettings;
 import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
@@ -98,14 +97,14 @@ public class VisualMaterializationSettingsCommand extends AbstractAsyncPlayerCom
         }
         SpaceId spaceId = selectedSpace.spaceId();
 
-        PhysicsSpaceSettings currentSettings = PhysicsSpaces.settings(physicsStore,
-            selectedSpace.spaceRef());
-        if (currentSettings == null) {
+        PhysicsVisualMaterializationSettings settings =
+            PhysicsSpaces.visualMaterializationSettings(physicsStore,
+                selectedSpace.spaceRef());
+        if (settings == null) {
             ctx.sender().sendMessage(Message.raw("Physics space id=" + spaceId.value()
                 + " no longer exists."));
             return CompletableFuture.completedFuture(null);
         }
-        PhysicsSpaceSettings settings = new PhysicsSpaceSettings(currentSettings);
         if (!anyArgProvided(ctx)) {
             sendSummary(ctx, spaceId, settings);
             return CompletableFuture.completedFuture(null);
@@ -117,44 +116,46 @@ public class VisualMaterializationSettingsCommand extends AbstractAsyncPlayerCom
                 ctx.sender().sendMessage(Message.raw("enabled must be true or false."));
                 return CompletableFuture.completedFuture(null);
             }
-            settings.getVisualMaterializationSettings().setDetachedVisualMaterializationEnabled(enabled);
+            settings.setDetachedVisualMaterializationEnabled(enabled);
         }
 
         int materializationRadius = materializationRadiusArg.provided(ctx)
             ? materializationRadiusArg.get(ctx)
-            : settings.getVisualMaterializationSettings().getDetachedVisualMaterializationRadius();
+            : settings.getDetachedVisualMaterializationRadius();
         int dematerializationRadius = dematerializationRadiusArg.provided(ctx)
             ? dematerializationRadiusArg.get(ctx)
-            : settings.getVisualMaterializationSettings().getDetachedVisualDematerializationRadius();
+            : settings.getDetachedVisualDematerializationRadius();
         try {
-            settings.getVisualMaterializationSettings().setDetachedVisualRadii(materializationRadius, dematerializationRadius);
+            settings.setDetachedVisualRadii(materializationRadius, dematerializationRadius);
             if (interestIntervalArg.provided(ctx)) {
-                settings.getVisualMaterializationSettings().setDetachedVisualInterestRefreshIntervalTicks(
+                settings.setDetachedVisualInterestRefreshIntervalTicks(
                     interestIntervalArg.get(ctx));
             }
             if (candidateIntervalArg.provided(ctx)) {
-                settings.getVisualMaterializationSettings().setDetachedVisualCandidateRefreshIntervalTicks(
+                settings.setDetachedVisualCandidateRefreshIntervalTicks(
                     candidateIntervalArg.get(ctx));
             }
             if (visibilityIntervalArg.provided(ctx)) {
-                settings.getVisualMaterializationSettings().setDetachedVisualVisibilityCheckIntervalTicks(
+                settings.setDetachedVisualVisibilityCheckIntervalTicks(
                     visibilityIntervalArg.get(ctx));
             }
             if (spawnRateArg.provided(ctx)) {
-                settings.getVisualMaterializationSettings().setDetachedVisualMaxSpawnsPerTick(spawnRateArg.get(ctx));
+                settings.setDetachedVisualMaxSpawnsPerTick(spawnRateArg.get(ctx));
             }
             if (capArg.provided(ctx)) {
-                settings.getVisualMaterializationSettings().setDetachedVisualMaxMaterialized(capArg.get(ctx));
+                settings.setDetachedVisualMaxMaterialized(capArg.get(ctx));
             }
             if (blockTypeArg.provided(ctx)) {
-                settings.getVisualMaterializationSettings().setDetachedVisualBlockType(blockTypeArg.get(ctx));
+                settings.setDetachedVisualBlockType(blockTypeArg.get(ctx));
             }
         } catch (IllegalArgumentException exception) {
             ctx.sender().sendMessage(Message.raw(exception.getMessage()));
             return CompletableFuture.completedFuture(null);
         }
 
-        PhysicsSpaces.putSettings(physicsStore, selectedSpace.spaceRef(), settings);
+        PhysicsSpaces.putVisualMaterializationSettings(physicsStore,
+            selectedSpace.spaceRef(),
+            settings);
         sendSummary(ctx, spaceId, settings);
         return CompletableFuture.completedFuture(null);
     }
@@ -173,18 +174,18 @@ public class VisualMaterializationSettingsCommand extends AbstractAsyncPlayerCom
 
     private static void sendSummary(@Nonnull CommandContext ctx,
         @Nonnull SpaceId spaceId,
-        @Nonnull PhysicsSpaceSettings settings) {
+        @Nonnull PhysicsVisualMaterializationSettings settings) {
         ctx.sender().sendMessage(Message.raw("Impulse visual materialization settings for space "
             + spaceId.value()
-            + ": enabled=" + settings.getVisualMaterializationSettings().isDetachedVisualMaterializationEnabled()
-            + " materializationRadius=" + settings.getVisualMaterializationSettings().getDetachedVisualMaterializationRadius()
-            + " dematerializationRadius=" + settings.getVisualMaterializationSettings().getDetachedVisualDematerializationRadius()
-            + " interestInterval=" + settings.getVisualMaterializationSettings().getDetachedVisualInterestRefreshIntervalTicks()
-            + " candidateInterval=" + settings.getVisualMaterializationSettings().getDetachedVisualCandidateRefreshIntervalTicks()
-            + " visibilityInterval=" + settings.getVisualMaterializationSettings().getDetachedVisualVisibilityCheckIntervalTicks()
-            + " spawnRate=" + settings.getVisualMaterializationSettings().getDetachedVisualMaxSpawnsPerTick()
-            + " cap=" + settings.getVisualMaterializationSettings().getDetachedVisualMaxMaterialized()
-            + " blockType=" + settings.getVisualMaterializationSettings().getDetachedVisualBlockType()));
+            + ": enabled=" + settings.isDetachedVisualMaterializationEnabled()
+            + " materializationRadius=" + settings.getDetachedVisualMaterializationRadius()
+            + " dematerializationRadius=" + settings.getDetachedVisualDematerializationRadius()
+            + " interestInterval=" + settings.getDetachedVisualInterestRefreshIntervalTicks()
+            + " candidateInterval=" + settings.getDetachedVisualCandidateRefreshIntervalTicks()
+            + " visibilityInterval=" + settings.getDetachedVisualVisibilityCheckIntervalTicks()
+            + " spawnRate=" + settings.getDetachedVisualMaxSpawnsPerTick()
+            + " cap=" + settings.getDetachedVisualMaxMaterialized()
+            + " blockType=" + settings.getDetachedVisualBlockType()));
     }
 
     private static Boolean parseBoolean(@Nonnull String value) {

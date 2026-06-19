@@ -303,6 +303,7 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
             PhysicsSolverSettings.DEFAULT_DYNAMIC_SLEEP_TIME_UNTIL_SLEEP);
         PhysicsChunkTerrainSettings terrainSettings =
             settings.getPhysicsChunkTerrainSettings();
+        PhysicsCollisionLodSettings collisionLodSettings = settings.getCollisionLodSettings();
         terrainSettings.setTerrainMode(PhysicsChunkTerrainMode.STREAMING);
         terrainSettings.setBodyTerrainRadius(
             Math.max(terrainSettings.getBodyTerrainRadius(),
@@ -325,10 +326,19 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
             visualSyncSettings.setVisualSnapshotPredictionEnabled(visualSettings.predictionEnabled());
             visualSyncSettings.setVisualSnapshotSmoothingEnabled(visualSettings.smoothingEnabled());
             if (collisionLod != null) {
-                settings.getCollisionLodSettings().setCollisionLodEnabled(collisionLod);
+                collisionLodSettings.setCollisionLodEnabled(collisionLod);
+            }
+            PhysicsSpaces.putVisualMaterializationSettings(physicsStore,
+                spaceRef,
+                visualMaterializationSettings);
+            PhysicsSpaces.putVisualSyncSettings(physicsStore, spaceRef, visualSyncSettings);
+            if (collisionLod != null) {
+                PhysicsSpaces.putCollisionLodSettings(physicsStore, spaceRef, collisionLodSettings);
             }
         }
-        PhysicsSpaces.putSettings(physicsStore, spaceRef, settings);
+        PhysicsSpaces.putSolverSettings(physicsStore, spaceRef, solverSettings);
+        PhysicsSpaces.putExtensionSettings(physicsStore, spaceRef, settings.getExtensionSettings());
+        PhysicsSpaces.putChunkTerrainSettings(physicsStore, spaceRef, terrainSettings);
         return settings;
     }
 

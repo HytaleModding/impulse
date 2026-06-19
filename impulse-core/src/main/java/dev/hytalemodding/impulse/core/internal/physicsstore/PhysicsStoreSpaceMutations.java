@@ -23,8 +23,14 @@ import dev.hytalemodding.impulse.core.plugin.components.VisualMaterializationSet
 import dev.hytalemodding.impulse.core.plugin.components.VisualSyncSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.ChunkCollisionSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.CollisionLodSettingsComponent;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.settings.PhysicsChunkTerrainSettings;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.settings.PhysicsCollisionLodSettings;
+import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.settings.PhysicsVisualMaterializationSettings;
+import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.settings.PhysicsVisualSyncSettings;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsEntities;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsExtensionSettings;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSolverSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import java.util.Objects;
 import java.util.UUID;
@@ -141,6 +147,153 @@ public final class PhysicsStoreSpaceMutations {
         requireSpaceUuid(store, ref);
         PhysicsThreading.requireWorldThread(store, "update a PhysicsStore space entity");
         putSpaceSettingsComponents(store, ref, Objects.requireNonNull(settings, "settings"));
+        store.getResource(PhysicsRuntimeResource.getResourceType())
+            .markSpaceSettingsPending(ref);
+    }
+
+    public static void putChunkCollisionSettings(@Nonnull Store<PhysicsStore> store,
+        @Nonnull SpaceId spaceId,
+        @Nonnull PhysicsChunkTerrainSettings settings) {
+        UUID spaceUuid = requireSpaceUuid(store, spaceId);
+        Ref<PhysicsStore> ref = requireSpaceRef(store, spaceUuid);
+        putChunkCollisionSettings(store, ref, settings);
+    }
+
+    public static void putChunkCollisionSettings(@Nonnull Store<PhysicsStore> store,
+        @Nonnull Ref<PhysicsStore> ref,
+        @Nonnull PhysicsChunkTerrainSettings settings) {
+        requireSpaceUuid(store, ref);
+        PhysicsThreading.requireWorldThread(store,
+            "update PhysicsStore chunk collision settings");
+        ChunkCollisionSettingsComponent component =
+            new ChunkCollisionSettingsComponent(Objects.requireNonNull(settings, "settings"));
+        putOrRemoveDefault(store,
+            ref,
+            ChunkCollisionSettingsComponent.getComponentType(),
+            component,
+            component.isDefault());
+        store.getResource(PhysicsRuntimeResource.getResourceType())
+            .markSpaceSettingsPending(ref);
+    }
+
+    public static void putSolverSettings(@Nonnull Store<PhysicsStore> store,
+        @Nonnull SpaceId spaceId,
+        @Nonnull PhysicsSolverSettings settings) {
+        UUID spaceUuid = requireSpaceUuid(store, spaceId);
+        Ref<PhysicsStore> ref = requireSpaceRef(store, spaceUuid);
+        putSolverSettings(store, ref, settings);
+    }
+
+    public static void putSolverSettings(@Nonnull Store<PhysicsStore> store,
+        @Nonnull Ref<PhysicsStore> ref,
+        @Nonnull PhysicsSolverSettings settings) {
+        requireSpaceUuid(store, ref);
+        PhysicsThreading.requireWorldThread(store, "update PhysicsStore solver settings");
+        SolverSettingsComponent component =
+            new SolverSettingsComponent(Objects.requireNonNull(settings, "settings"));
+        putOrRemoveDefault(store,
+            ref,
+            SolverSettingsComponent.getComponentType(),
+            component,
+            component.isDefault());
+        store.getResource(PhysicsRuntimeResource.getResourceType())
+            .markSpaceSettingsPending(ref);
+    }
+
+    public static void putVisualSyncSettings(@Nonnull Store<PhysicsStore> store,
+        @Nonnull SpaceId spaceId,
+        @Nonnull PhysicsVisualSyncSettings settings) {
+        UUID spaceUuid = requireSpaceUuid(store, spaceId);
+        Ref<PhysicsStore> ref = requireSpaceRef(store, spaceUuid);
+        putVisualSyncSettings(store, ref, settings);
+    }
+
+    public static void putVisualSyncSettings(@Nonnull Store<PhysicsStore> store,
+        @Nonnull Ref<PhysicsStore> ref,
+        @Nonnull PhysicsVisualSyncSettings settings) {
+        requireSpaceUuid(store, ref);
+        PhysicsThreading.requireWorldThread(store, "update PhysicsStore visual sync settings");
+        VisualSyncSettingsComponent component =
+            new VisualSyncSettingsComponent(Objects.requireNonNull(settings, "settings"));
+        putOrRemoveDefault(store,
+            ref,
+            VisualSyncSettingsComponent.getComponentType(),
+            component,
+            component.isDefault());
+        store.getResource(PhysicsRuntimeResource.getResourceType())
+            .markSpaceSettingsPending(ref);
+    }
+
+    public static void putVisualMaterializationSettings(@Nonnull Store<PhysicsStore> store,
+        @Nonnull SpaceId spaceId,
+        @Nonnull PhysicsVisualMaterializationSettings settings) {
+        UUID spaceUuid = requireSpaceUuid(store, spaceId);
+        Ref<PhysicsStore> ref = requireSpaceRef(store, spaceUuid);
+        putVisualMaterializationSettings(store, ref, settings);
+    }
+
+    public static void putVisualMaterializationSettings(@Nonnull Store<PhysicsStore> store,
+        @Nonnull Ref<PhysicsStore> ref,
+        @Nonnull PhysicsVisualMaterializationSettings settings) {
+        requireSpaceUuid(store, ref);
+        PhysicsThreading.requireWorldThread(store,
+            "update PhysicsStore visual materialization settings");
+        VisualMaterializationSettingsComponent component =
+            new VisualMaterializationSettingsComponent(Objects.requireNonNull(settings,
+                "settings"));
+        putOrRemoveDefault(store,
+            ref,
+            VisualMaterializationSettingsComponent.getComponentType(),
+            component,
+            component.isDefault());
+        store.getResource(PhysicsRuntimeResource.getResourceType())
+            .markSpaceSettingsPending(ref);
+    }
+
+    public static void putCollisionLodSettings(@Nonnull Store<PhysicsStore> store,
+        @Nonnull SpaceId spaceId,
+        @Nonnull PhysicsCollisionLodSettings settings) {
+        UUID spaceUuid = requireSpaceUuid(store, spaceId);
+        Ref<PhysicsStore> ref = requireSpaceRef(store, spaceUuid);
+        putCollisionLodSettings(store, ref, settings);
+    }
+
+    public static void putCollisionLodSettings(@Nonnull Store<PhysicsStore> store,
+        @Nonnull Ref<PhysicsStore> ref,
+        @Nonnull PhysicsCollisionLodSettings settings) {
+        requireSpaceUuid(store, ref);
+        PhysicsThreading.requireWorldThread(store, "update PhysicsStore collision LOD settings");
+        CollisionLodSettingsComponent component =
+            new CollisionLodSettingsComponent(Objects.requireNonNull(settings, "settings"));
+        putOrRemoveDefault(store,
+            ref,
+            CollisionLodSettingsComponent.getComponentType(),
+            component,
+            component.isDefault());
+        store.getResource(PhysicsRuntimeResource.getResourceType())
+            .markSpaceSettingsPending(ref);
+    }
+
+    public static void putExtensionSettings(@Nonnull Store<PhysicsStore> store,
+        @Nonnull SpaceId spaceId,
+        @Nonnull PhysicsExtensionSettings settings) {
+        UUID spaceUuid = requireSpaceUuid(store, spaceId);
+        Ref<PhysicsStore> ref = requireSpaceRef(store, spaceUuid);
+        putExtensionSettings(store, ref, settings);
+    }
+
+    public static void putExtensionSettings(@Nonnull Store<PhysicsStore> store,
+        @Nonnull Ref<PhysicsStore> ref,
+        @Nonnull PhysicsExtensionSettings settings) {
+        requireSpaceUuid(store, ref);
+        PhysicsThreading.requireWorldThread(store, "update PhysicsStore extension settings");
+        ExtensionSettingsComponent component =
+            new ExtensionSettingsComponent(Objects.requireNonNull(settings, "settings"));
+        putOrRemoveDefault(store,
+            ref,
+            ExtensionSettingsComponent.getComponentType(),
+            component,
+            component.isDefault());
         store.getResource(PhysicsRuntimeResource.getResourceType())
             .markSpaceSettingsPending(ref);
     }
