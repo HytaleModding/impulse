@@ -171,7 +171,8 @@ You can start a debug server with all the example mods and backend jars by runni
 
 ### Backend Provider Jars
 
-Backend jars are Java service-provider jars. Impulse discovers `PhysicsBackend` providers from jars anywhere under the configured Hytale `mods` directories.
+Backend jars are Java service-provider jars. Impulse discovers `PhysicsBackendRuntimeProvider`
+services from jars anywhere under the configured Hytale `mods` directories.
 
 When multiple backend jars are installed, create spaces with an explicit backend:
 

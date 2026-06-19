@@ -13,8 +13,8 @@ Impulse core is divided in two categories:
 
 - `/impulse backend list` - list discovered backends and active physics spaces.
 
-Backend jars are Java service-provider jars. Impulse discovers `PhysicsBackend` providers from jars 
-anywhere under the configured Hytale `mods` directories.
+Backend jars are Java service-provider jars. Impulse discovers `PhysicsBackendRuntimeProvider`
+services from jars anywhere under the configured Hytale `mods` directories.
 
 ## Event frames
 

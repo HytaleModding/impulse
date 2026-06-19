@@ -13,7 +13,6 @@ import com.hypixel.hytale.server.core.plugin.PluginManager;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.BackendId;
 import dev.hytalemodding.impulse.api.Impulse;
-import dev.hytalemodding.impulse.api.PhysicsBackend;
 import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntimeProvider;
 import dev.hytalemodding.impulse.core.internal.commands.ImpulseCommandContributionRegistry;
 import dev.hytalemodding.impulse.core.internal.modules.ImpulseSubPluginRegistration;
@@ -100,16 +99,11 @@ public final class ImpulsePlugin extends JavaPlugin {
         }
     }
 
-    @SuppressWarnings("removal")
     private void discoverBackends() {
         for (PhysicsBackendRuntimeProvider provider : BackendDiscovery.discoverRuntimeProviders(
             backendSearchRoots(),
             getClassLoader())) {
             Impulse.registerRuntimeProvider(provider);
-        }
-        for (PhysicsBackend backend : BackendDiscovery.discover(backendSearchRoots(),
-            getClassLoader())) {
-            Impulse.registerBackend(backend);
         }
 
         for (PhysicsBackendRuntimeProvider provider : Impulse.getRuntimeProviders()) {
