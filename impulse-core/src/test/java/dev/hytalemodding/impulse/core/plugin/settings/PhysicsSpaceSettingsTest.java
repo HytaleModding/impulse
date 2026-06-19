@@ -7,7 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkTerrainMode;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkCollisionMode;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.settings.PhysicsChunkCollisionSettings;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.settings.PhysicsCollisionLodSettings;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.settings.PhysicsVisualMaterializationSettings;
@@ -164,7 +164,7 @@ class PhysicsSpaceSettingsTest {
         PhysicsSpaceSettings second = PhysicsSpaceSettings.defaults();
 
         assertNotSame(first, second);
-        assertEquals(PhysicsChunkTerrainMode.NONE, first.getPhysicsChunkCollisionSettings().getMode());
+        assertEquals(PhysicsChunkCollisionMode.NONE, first.getPhysicsChunkCollisionSettings().getMode());
         assertSame(PhysicsChunkCollisionSettings.DEFAULT_ENTITY_CHUNK_BOUNDARY_MODE,
             first.getPhysicsChunkCollisionSettings().getEntityChunkBoundaryMode());
         assertFalse(first.getPhysicsChunkCollisionSettings().isNativeVoxelCollisionEnabled());
@@ -237,7 +237,7 @@ class PhysicsSpaceSettingsTest {
     void chunkCollisionSettingsCopyConstructorCopiesValues() {
         PhysicsChunkCollisionSettings canonical = new PhysicsChunkCollisionSettings();
 
-        canonical.setMode(PhysicsChunkTerrainMode.STREAMING);
+        canonical.setMode(PhysicsChunkCollisionMode.STREAMING);
         canonical.setEntityChunkBoundaryMode(EntityChunkBoundaryMode.LOAD_TICKING_CHUNK);
         canonical.setNativeVoxelCollisionEnabled(true);
         canonical.setRadius(18);
@@ -251,7 +251,7 @@ class PhysicsSpaceSettingsTest {
         canonical.setRadius(24);
         canonicalCopy.setRadius(30);
 
-        assertEquals(PhysicsChunkTerrainMode.STREAMING, canonicalCopy.getMode());
+        assertEquals(PhysicsChunkCollisionMode.STREAMING, canonicalCopy.getMode());
         assertEquals(EntityChunkBoundaryMode.LOAD_TICKING_CHUNK,
             canonicalCopy.getEntityChunkBoundaryMode());
         assertTrue(canonicalCopy.isNativeVoxelCollisionEnabled());
@@ -296,7 +296,7 @@ class PhysicsSpaceSettingsTest {
     void streamingPhysicsChunkFactoryEnablesStreamingMode() {
         PhysicsSpaceSettings settings = PhysicsSpaceSettings.streamingPhysicsChunk();
 
-        assertEquals(PhysicsChunkTerrainMode.STREAMING, settings.getPhysicsChunkCollisionSettings().getMode());
+        assertEquals(PhysicsChunkCollisionMode.STREAMING, settings.getPhysicsChunkCollisionSettings().getMode());
         assertEquals(PhysicsChunkCollisionSettings.DEFAULT_RADIUS,
             settings.getPhysicsChunkCollisionSettings().getRadius());
     }
@@ -304,7 +304,7 @@ class PhysicsSpaceSettingsTest {
     @Test
     void copyConstructorCopiesValuesWithoutSharingOriginalInstance() {
         PhysicsSpaceSettings original = new PhysicsSpaceSettings();
-        original.getPhysicsChunkCollisionSettings().setMode(PhysicsChunkTerrainMode.STREAMING);
+        original.getPhysicsChunkCollisionSettings().setMode(PhysicsChunkCollisionMode.STREAMING);
         original.getPhysicsChunkCollisionSettings().setRadius(12);
         original.getPhysicsChunkCollisionSettings().setBodyRadius(6);
         original.getPhysicsChunkCollisionSettings().setTtlTicks(180);
@@ -336,7 +336,7 @@ class PhysicsSpaceSettingsTest {
         assertNotSame(original.getVisualMaterializationSettings(),
             copy.getVisualMaterializationSettings());
         assertNotSame(original.getCollisionLodSettings(), copy.getCollisionLodSettings());
-        assertEquals(PhysicsChunkTerrainMode.STREAMING, copy.getPhysicsChunkCollisionSettings().getMode());
+        assertEquals(PhysicsChunkCollisionMode.STREAMING, copy.getPhysicsChunkCollisionSettings().getMode());
         assertEquals(12, copy.getPhysicsChunkCollisionSettings().getRadius());
         assertEquals(6, copy.getPhysicsChunkCollisionSettings().getBodyRadius());
         assertEquals(180, copy.getPhysicsChunkCollisionSettings().getTtlTicks());
