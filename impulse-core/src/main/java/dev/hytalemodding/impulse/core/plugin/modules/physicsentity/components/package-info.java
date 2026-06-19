@@ -1,4 +1,4 @@
 /**
- * EntityStore components that bind Hytale entities to authoritative PhysicsStore body entities.
+ * PhysicsEntity components for EntityStore projections and PhysicsStore visual policy settings.
  */
 package dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components;
