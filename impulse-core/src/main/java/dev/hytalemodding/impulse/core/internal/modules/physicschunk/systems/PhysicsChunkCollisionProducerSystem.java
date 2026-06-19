@@ -84,6 +84,8 @@ public final class PhysicsChunkCollisionProducerSystem extends TickingSystem<Ent
                 PhysicsChunkCollisionMutationQueueResource.getResourceType());
             PhysicsChunkSettingsIndexResource chunkCollisionSettingsIndex = physics.getResource(
                 PhysicsChunkSettingsIndexResource.getResourceType());
+            queue.updateStamp(PhysicsChunkLifecycle.generation(),
+                chunkCollisionSettingsIndex.generation());
             PhysicsSnapshotResource snapshotResource = physics.getResource(
                 PhysicsSnapshotResource.getResourceType());
             PhysicsChunkCollisionStreamingResource streaming = store.getResource(

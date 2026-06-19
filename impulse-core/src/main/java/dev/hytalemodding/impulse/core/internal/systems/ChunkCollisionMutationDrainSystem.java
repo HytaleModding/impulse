@@ -19,9 +19,11 @@ import dev.hytalemodding.impulse.core.internal.resources.PhysicsRestoreStatusRes
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkCollisionMutationQueueResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkCollisionPayloadResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkSettingsIndexResource;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.ChunkCollisionMutation;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.ChunkCollisionPayload;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.ChunkCollisionPayload.BoxPayload;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkLifecycle;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkCollisionDefaults;
 import dev.hytalemodding.impulse.core.internal.physicsstore.PhysicsStoreRowCleanup;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
@@ -58,7 +60,8 @@ public final class ChunkCollisionMutationDrainSystem extends TickingSystem<Physi
 
     private static final Set<Dependency<PhysicsStore>> DEPENDENCIES = Set.of(
         new SystemDependency<>(Order.AFTER, SpaceBindingSystem.class),
-        new SystemDependency<>(Order.AFTER, SpaceSettingsApplicationSystem.class)
+        new SystemDependency<>(Order.AFTER, SpaceSettingsApplicationSystem.class),
+        new SystemDependency<>(Order.AFTER, PhysicsChunkSettingsIndexSystem.class)
     );
 
     @Override
@@ -79,9 +82,17 @@ public final class ChunkCollisionMutationDrainSystem extends TickingSystem<Physi
             PhysicsIdentityIndexResource.getResourceType());
         PhysicsChunkCollisionPayloadResource chunkCollisionPayloads = store.getResource(
             PhysicsChunkCollisionPayloadResource.getResourceType());
+        PhysicsChunkSettingsIndexResource settingsIndex = store.getResource(
+            PhysicsChunkSettingsIndexResource.getResourceType());
 
         applyRemovals(store, runtime, identity, chunkCollisionPayloads, mutations);
-        applyUpserts(store, runtime, identity, chunkCollisionPayloads, restore, mutations);
+        applyUpserts(store,
+            runtime,
+            identity,
+            chunkCollisionPayloads,
+            settingsIndex,
+            restore,
+            mutations);
     }
 
     @Nonnull
@@ -113,13 +124,21 @@ public final class ChunkCollisionMutationDrainSystem extends TickingSystem<Physi
         @Nonnull PhysicsRuntimeResource runtime,
         @Nonnull PhysicsIdentityIndexResource identity,
         @Nonnull PhysicsChunkCollisionPayloadResource chunkCollisionPayloads,
+        @Nonnull PhysicsChunkSettingsIndexResource settingsIndex,
         @Nonnull PhysicsRestoreStatusResource restore,
         @Nonnull List<ChunkCollisionMutation> mutations) {
         for (ChunkCollisionMutation mutation : mutations) {
-            if (!mutation.remove()) {
+            if (!mutation.remove() && isFreshUpsert(settingsIndex, mutation)) {
                 applyUpsert(store, runtime, identity, chunkCollisionPayloads, restore, mutation);
             }
         }
+    }
+
+    private static boolean isFreshUpsert(@Nonnull PhysicsChunkSettingsIndexResource settingsIndex,
+        @Nonnull ChunkCollisionMutation mutation) {
+        return mutation.lifecycleGeneration() == PhysicsChunkLifecycle.generation()
+            && mutation.settingsGeneration() == settingsIndex.generation()
+            && settingsIndex.settings(mutation.spaceUuid()) != null;
     }
 
     private static void applyUpsert(@Nonnull Store<PhysicsStore> store,

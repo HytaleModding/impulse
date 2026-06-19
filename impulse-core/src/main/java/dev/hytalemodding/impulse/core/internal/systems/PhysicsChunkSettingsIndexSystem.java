@@ -10,6 +10,8 @@ import com.hypixel.hytale.component.query.Query;
 import com.hypixel.hytale.component.system.QuerySystem;
 import com.hypixel.hytale.component.system.tick.TickingSystem;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkLifecycle;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkCollisionMutationQueueResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkSettingsIndexResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkSettingsIndexResource.PhysicsChunkSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.components.SpaceComponent;
@@ -38,8 +40,11 @@ public final class PhysicsChunkSettingsIndexSystem extends TickingSystem<Physics
         BiConsumer<ArchetypeChunk<PhysicsStore>, CommandBuffer<PhysicsStore>> collector =
             (chunk, _) -> collectChunk(settingsBySpaceUuid, chunk);
         store.forEachChunk(systemIndex, collector);
-        store.getResource(PhysicsChunkSettingsIndexResource.getResourceType())
-            .replaceAll(settingsBySpaceUuid);
+        PhysicsChunkSettingsIndexResource settingsIndex =
+            store.getResource(PhysicsChunkSettingsIndexResource.getResourceType());
+        settingsIndex.replaceAll(settingsBySpaceUuid);
+        store.getResource(PhysicsChunkCollisionMutationQueueResource.getResourceType())
+            .updateStamp(PhysicsChunkLifecycle.generation(), settingsIndex.generation());
     }
 
     private static void collectChunk(

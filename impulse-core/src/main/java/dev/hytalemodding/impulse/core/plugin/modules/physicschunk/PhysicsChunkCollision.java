@@ -9,6 +9,7 @@ import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkLifecycle;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkCollisionStreamingResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.PhysicsStoreTopologyMutations;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkSettingsIndexResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkSettingsIndexResource.PhysicsChunkSpaceSettings;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkCollisionMutationQueueResource;
 import dev.hytalemodding.impulse.core.plugin.components.SpaceComponent;
@@ -71,8 +72,7 @@ public final class PhysicsChunkCollision {
         @Nonnull Vector3d center,
         int radius) {
         PhysicsChunkSpaceSettings settings = requireSettings(checkedStore, spaceRef);
-        PhysicsChunkCollisionMutationQueueResource queue = checkedStore.getResource(
-            PhysicsChunkCollisionMutationQueueResource.getResourceType());
+        PhysicsChunkCollisionMutationQueueResource queue = stampedQueue(checkedStore);
         int removed = clearSpaceRows(world, checkedStore, settings.spaceUuid());
         PhysicsChunkCollisionPrewarmStats stats = streaming(world).ensureAround(world,
             settings.spaceUuid(),
@@ -125,7 +125,7 @@ public final class PhysicsChunkCollision {
         PhysicsChunkSpaceSettings settings = requireSettings(checkedStore, spaceRef);
         return streaming(world).refreshAround(world,
             settings.spaceUuid(),
-            checkedStore.getResource(PhysicsChunkCollisionMutationQueueResource.getResourceType()),
+            stampedQueue(checkedStore),
             Objects.requireNonNull(center, "center"),
             radius,
             Math.max(0L, world.getTick()),
@@ -176,7 +176,7 @@ public final class PhysicsChunkCollision {
         PhysicsChunkSpaceSettings settings = requireSettings(checkedStore, spaceRef);
         return streaming(world).ensureAround(world,
             settings.spaceUuid(),
-            checkedStore.getResource(PhysicsChunkCollisionMutationQueueResource.getResourceType()),
+            stampedQueue(checkedStore),
             Objects.requireNonNull(centers, "centers"),
             radius,
             tick,
@@ -313,12 +313,22 @@ public final class PhysicsChunkCollision {
         @Nonnull UUID spaceUuid) {
         int removed = 0;
         if (isSubPluginEnabled()) {
-            removed = streaming(world).clearSpace(spaceUuid,
-                store.getResource(PhysicsChunkCollisionMutationQueueResource.getResourceType()));
+            removed = streaming(world).clearSpace(spaceUuid, stampedQueue(store));
         }
         int directlyRemoved =
             PhysicsStoreTopologyMutations.clearTerrainForSpace(store, spaceUuid);
         return removed != 0 ? removed : directlyRemoved;
+    }
+
+    @Nonnull
+    private static PhysicsChunkCollisionMutationQueueResource stampedQueue(
+        @Nonnull Store<PhysicsStore> store) {
+        PhysicsChunkCollisionMutationQueueResource queue = store.getResource(
+            PhysicsChunkCollisionMutationQueueResource.getResourceType());
+        PhysicsChunkSettingsIndexResource settingsIndex = store.getResource(
+            PhysicsChunkSettingsIndexResource.getResourceType());
+        queue.updateStamp(PhysicsChunkLifecycle.generation(), settingsIndex.generation());
+        return queue;
     }
 
     @Nonnull

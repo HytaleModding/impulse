@@ -16,7 +16,11 @@ public record ChunkCollisionMutation(@Nonnull UUID spaceUuid,
                                        int chunkZ,
                                        @Nonnull String payloadResourceKey,
                                        @Nullable ChunkCollisionPayload payload,
-                                       boolean remove) {
+                                       boolean remove,
+                                       long lifecycleGeneration,
+                                       long settingsGeneration) {
+
+    private static final long UNSTAMPED_GENERATION = 0L;
 
     public ChunkCollisionMutation {
         Objects.requireNonNull(spaceUuid, "spaceUuid");
@@ -44,7 +48,9 @@ public record ChunkCollisionMutation(@Nonnull UUID spaceUuid,
             chunkZ,
             payloadResourceKey,
             payload,
-            false);
+            false,
+            UNSTAMPED_GENERATION,
+            UNSTAMPED_GENERATION);
     }
 
     @Nonnull
@@ -60,7 +66,24 @@ public record ChunkCollisionMutation(@Nonnull UUID spaceUuid,
             chunkZ,
             "",
             null,
-            true);
+            true,
+            UNSTAMPED_GENERATION,
+            UNSTAMPED_GENERATION);
+    }
+
+    @Nonnull
+    public ChunkCollisionMutation stamped(long lifecycleGeneration,
+        long settingsGeneration) {
+        return new ChunkCollisionMutation(spaceUuid,
+            sourceKey,
+            chunkX,
+            sectionY,
+            chunkZ,
+            payloadResourceKey,
+            payload,
+            remove,
+            lifecycleGeneration,
+            settingsGeneration);
     }
 
     @Nonnull

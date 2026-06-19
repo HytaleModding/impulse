@@ -19,18 +19,25 @@ import javax.annotation.Nullable;
  */
 public final class PhysicsChunkSettingsIndexResource implements Resource<PhysicsStore> {
 
+    public static final long INITIAL_GENERATION = 1L;
+
     @Nullable
     private static ResourceType<PhysicsStore, PhysicsChunkSettingsIndexResource> resourceType;
     @Nonnull
     private final Map<UUID, PhysicsChunkSpaceSettings> settingsBySpaceUuid =
         new Object2ObjectOpenHashMap<>();
+    private long generation = INITIAL_GENERATION;
 
     public PhysicsChunkSettingsIndexResource() {
     }
 
     public synchronized void replaceAll(@Nonnull Map<UUID, PhysicsChunkSpaceSettings> settings) {
+        if (settingsBySpaceUuid.equals(settings)) {
+            return;
+        }
         settingsBySpaceUuid.clear();
         settingsBySpaceUuid.putAll(settings);
+        generation++;
     }
 
     @Nonnull
@@ -45,7 +52,14 @@ public final class PhysicsChunkSettingsIndexResource implements Resource<Physics
         return settingsBySpaceUuid.get(spaceUuid);
     }
 
+    public synchronized long generation() {
+        return generation;
+    }
+
     public synchronized void clear() {
+        if (!settingsBySpaceUuid.isEmpty()) {
+            generation++;
+        }
         settingsBySpaceUuid.clear();
     }
 
@@ -54,6 +68,7 @@ public final class PhysicsChunkSettingsIndexResource implements Resource<Physics
     public synchronized PhysicsChunkSettingsIndexResource clone() {
         PhysicsChunkSettingsIndexResource copy = new PhysicsChunkSettingsIndexResource();
         copy.settingsBySpaceUuid.putAll(settingsBySpaceUuid);
+        copy.generation = generation;
         return copy;
     }
 

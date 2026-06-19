@@ -4,6 +4,7 @@ import com.hypixel.hytale.component.Resource;
 import com.hypixel.hytale.component.ResourceType;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.ChunkCollisionMutation;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkLifecycle;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.List;
@@ -22,12 +23,20 @@ public final class PhysicsChunkCollisionMutationQueueResource implements Resourc
     private static ResourceType<PhysicsStore, PhysicsChunkCollisionMutationQueueResource> resourceType;
     @Nonnull
     private final Queue<ChunkCollisionMutation> mutations = new ArrayDeque<>();
+    private long lifecycleGeneration = PhysicsChunkLifecycle.generation();
+    private long settingsGeneration = PhysicsChunkSettingsIndexResource.INITIAL_GENERATION;
 
     public PhysicsChunkCollisionMutationQueueResource() {
     }
 
     public synchronized void enqueue(@Nonnull ChunkCollisionMutation mutation) {
-        mutations.add(Objects.requireNonNull(mutation, "mutation"));
+        mutations.add(Objects.requireNonNull(mutation, "mutation")
+            .stamped(lifecycleGeneration, settingsGeneration));
+    }
+
+    public synchronized void updateStamp(long lifecycleGeneration, long settingsGeneration) {
+        this.lifecycleGeneration = lifecycleGeneration;
+        this.settingsGeneration = settingsGeneration;
     }
 
     @Nonnull
@@ -60,6 +69,8 @@ public final class PhysicsChunkCollisionMutationQueueResource implements Resourc
     public synchronized PhysicsChunkCollisionMutationQueueResource clone() {
         PhysicsChunkCollisionMutationQueueResource copy = new PhysicsChunkCollisionMutationQueueResource();
         copy.mutations.addAll(mutations);
+        copy.lifecycleGeneration = lifecycleGeneration;
+        copy.settingsGeneration = settingsGeneration;
         return copy;
     }
 
