@@ -6,7 +6,6 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.SpaceId;
-import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkCollisionDefaults;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkLifecycle;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkTerrainStreamingResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.PhysicsStoreSpaceMutations;
@@ -14,8 +13,6 @@ import dev.hytalemodding.impulse.core.internal.physicsstore.PhysicsStoreTopology
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkSettingsIndexResource.PhysicsChunkSpaceSettings;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsIdentityIndexResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkCollisionMutationQueueResource;
-import dev.hytalemodding.impulse.core.plugin.components.CollisionFilterComponent;
-import dev.hytalemodding.impulse.core.plugin.components.MaterialComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.ChunkCollisionSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
 import java.util.List;
@@ -168,29 +165,13 @@ public final class PhysicsChunkTerrain {
             throw new IllegalStateException("PhysicsChunk terrain is disabled for space "
                 + spaceId);
         }
-        MaterialComponent material =
-            store.getComponent(spaceRef, MaterialComponent.getComponentType());
-        CollisionFilterComponent filter =
-            store.getComponent(spaceRef, CollisionFilterComponent.getComponentType());
         return new PhysicsChunkSpaceSettings(spaceUuid,
             settings.getMode(),
             settings.getEntityChunkBoundaryMode(),
             settings.isNativeVoxelCollisionEnabled(),
             settings.getRadius(),
             settings.getBodyRadius(),
-            settings.getTtlTicks(),
-            material != null
-                ? material.getFriction()
-                : PhysicsChunkCollisionDefaults.FRICTION,
-            material != null
-                ? material.getRestitution()
-                : PhysicsChunkCollisionDefaults.RESTITUTION,
-            filter != null
-                ? filter.getCollisionGroup()
-                : PhysicsChunkCollisionDefaults.COLLISION_GROUP,
-            filter != null
-                ? filter.getCollisionMask()
-                : PhysicsChunkCollisionDefaults.COLLISION_MASK);
+            settings.getTtlTicks());
     }
 
     @Nonnull

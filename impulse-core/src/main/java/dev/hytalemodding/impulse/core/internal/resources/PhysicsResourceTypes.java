@@ -96,6 +96,9 @@ public final class PhysicsResourceTypes {
         PhysicsChunkSettingsIndexResource.setResourceType(registry.registerResource(
             PhysicsChunkSettingsIndexResource.class,
             PhysicsChunkSettingsIndexResource::new));
+        PhysicsChunkComponentSyncResource.setResourceType(registry.registerResource(
+            PhysicsChunkComponentSyncResource.class,
+            PhysicsChunkComponentSyncResource::new));
     }
 
     @Nonnull

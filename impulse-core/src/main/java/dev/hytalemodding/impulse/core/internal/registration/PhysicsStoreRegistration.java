@@ -22,10 +22,12 @@ import dev.hytalemodding.impulse.core.internal.resources.PhysicsStepSchedulerRes
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsStoreReadQueueResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkCollisionMutationQueueResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkCollisionPayloadResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkComponentSyncResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldSettingsResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkSettingsIndexResource;
 import dev.hytalemodding.impulse.core.internal.systems.BodyBindingSystem;
 import dev.hytalemodding.impulse.core.internal.systems.BodyCommandApplicationSystem;
+import dev.hytalemodding.impulse.core.internal.systems.ChunkCollisionComponentSyncSystem;
 import dev.hytalemodding.impulse.core.internal.systems.ColliderBindingSystem;
 import dev.hytalemodding.impulse.core.internal.systems.CompletedStepPublicationSystem;
 import dev.hytalemodding.impulse.core.internal.systems.IdentityIndexSystem;
@@ -78,6 +80,7 @@ public final class PhysicsStoreRegistration {
         registry.registerSystem(new SpaceSettingsApplicationSystem());
         registry.registerSystem(new ChunkCollisionMutationDrainSystem());
         registry.registerSystem(new BodyBindingSystem());
+        registry.registerSystem(new ChunkCollisionComponentSyncSystem());
         registry.registerSystem(new ColliderBindingSystem());
         registry.registerSystem(new JointBindingSystem());
         registry.registerSystem(new StaleBodyRemovalSystem());
@@ -118,6 +121,10 @@ public final class PhysicsStoreRegistration {
             () -> cleanupResource(store,
                 PhysicsChunkSettingsIndexResource.getResourceType(),
                 PhysicsChunkSettingsIndexResource::clear));
+        failure = runShutdownCleanup(failure,
+            () -> cleanupResource(store,
+                PhysicsChunkComponentSyncResource.getResourceType(),
+                PhysicsChunkComponentSyncResource::clear));
         failure = runShutdownCleanup(failure,
             () -> cleanupResource(store,
                 PhysicsIdentityIndexResource.getResourceType(),

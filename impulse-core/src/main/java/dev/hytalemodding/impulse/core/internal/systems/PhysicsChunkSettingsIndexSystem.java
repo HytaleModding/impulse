@@ -12,9 +12,6 @@ import com.hypixel.hytale.component.system.tick.TickingSystem;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkSettingsIndexResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkSettingsIndexResource.PhysicsChunkSpaceSettings;
-import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkCollisionDefaults;
-import dev.hytalemodding.impulse.core.plugin.components.CollisionFilterComponent;
-import dev.hytalemodding.impulse.core.plugin.components.MaterialComponent;
 import dev.hytalemodding.impulse.core.plugin.components.SpaceComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.ChunkCollisionSettingsComponent;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
@@ -62,29 +59,13 @@ public final class PhysicsChunkSettingsIndexSystem extends TickingSystem<Physics
             ChunkCollisionSettingsComponent settings = chunkCollision != null
                 ? chunkCollision
                 : new ChunkCollisionSettingsComponent();
-            MaterialComponent material = chunk.getComponent(index,
-                MaterialComponent.getComponentType());
-            CollisionFilterComponent filter = chunk.getComponent(index,
-                CollisionFilterComponent.getComponentType());
             settingsBySpaceUuid.put(spaceUuid, new PhysicsChunkSpaceSettings(spaceUuid,
                 settings.getMode(),
                 settings.getEntityChunkBoundaryMode(),
                 settings.isNativeVoxelCollisionEnabled(),
                 settings.getRadius(),
                 settings.getBodyRadius(),
-                settings.getTtlTicks(),
-                material != null
-                    ? material.getFriction()
-                    : PhysicsChunkCollisionDefaults.FRICTION,
-                material != null
-                    ? material.getRestitution()
-                    : PhysicsChunkCollisionDefaults.RESTITUTION,
-                filter != null
-                    ? filter.getCollisionGroup()
-                    : PhysicsChunkCollisionDefaults.COLLISION_GROUP,
-                filter != null
-                    ? filter.getCollisionMask()
-                    : PhysicsChunkCollisionDefaults.COLLISION_MASK));
+                settings.getTtlTicks()));
         }
     }
 

@@ -73,20 +73,12 @@ public final class PhysicsChunkSettingsIndexResource implements Resource<Physics
                                               boolean nativeVoxelCollisionEnabled,
                                               int radius,
                                               int bodyRadius,
-                                              int ttlTicks,
-                                              float friction,
-                                              float restitution,
-                                              int collisionGroup,
-                                              int collisionMask) {
+                                              int ttlTicks) {
 
         @Nonnull
         public PhysicsChunkBuildOptions buildOptions() {
             return new PhysicsChunkBuildOptions(
-                ChunkCollisionMode.fromNativeVoxelCollisionEnabled(nativeVoxelCollisionEnabled),
-                friction,
-                restitution,
-                collisionGroup,
-                collisionMask);
+                ChunkCollisionMode.fromNativeVoxelCollisionEnabled(nativeVoxelCollisionEnabled));
         }
     }
 }
