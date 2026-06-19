@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.hypixel.hytale.codec.ExtraInfo;
 import com.hypixel.hytale.component.AddReason;
 import com.hypixel.hytale.component.ComponentRegistry;
 import com.hypixel.hytale.component.ComponentRegistryProxy;
@@ -17,6 +18,7 @@ import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
+import com.hypixel.hytale.server.core.util.BsonUtil;
 import dev.hytalemodding.impulse.api.BackendId;
 import dev.hytalemodding.impulse.api.Impulse;
 import dev.hytalemodding.impulse.api.PhysicsAxis;
@@ -27,6 +29,7 @@ import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackendRuntimeProvid
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.components.ChunkCollisionSourceComponent;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.components.ChunkCollisionSourceComponent.PartKind;
 import dev.hytalemodding.impulse.core.internal.registration.PhysicsComponentTypeRegistry;
+import dev.hytalemodding.impulse.core.internal.registration.PhysicsStoreRegistration;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsResourceTypes;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRestoreStatusResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSnapshotResource;
@@ -154,13 +157,8 @@ class PhysicsStoreHolderPersistenceTest {
         try {
             Impulse.registerRuntimeProvider(new FakePhysicsBackendRuntimeProvider(
                 "test:legacy-holder-fallback"));
-            PersistentPhysicsStoreResource legacy = target.store().getResource(
-                PersistentPhysicsStoreResource.getResourceType());
-            legacy.setSpaces(new PersistentSpaceDto[] {
-                new PersistentSpaceDto(LEGACY_SPACE_UUID,
-                    "test:legacy-holder-fallback",
-                    new Vector3f(0.0f, -9.81f, 0.0f))
-            });
+            writeLegacyDto(target.store(),
+                legacyResource(LEGACY_SPACE_UUID, "test:legacy-holder-fallback"));
 
             new PersistenceHydrationSystem().tick(0.0f, 0, target.store());
 
@@ -177,6 +175,55 @@ class PhysicsStoreHolderPersistenceTest {
         }
     }
 
+    @Test
+    void hydrationFallsBackToLegacyDtoWhenHolderStorageIsMissing() {
+        StoreFixture fixture = store("legacy-fallback", tempDir.resolve("legacy"));
+        try {
+            Impulse.registerRuntimeProvider(new FakePhysicsBackendRuntimeProvider(
+                "test:legacy-only-fallback"));
+            writeLegacyDto(fixture.store(),
+                legacyResource(LEGACY_SPACE_UUID, "test:legacy-only-fallback"));
+
+            new PersistenceHydrationSystem().tick(0.0f, 0, fixture.store());
+
+            PhysicsRestoreStatusResource restore = fixture.store().getResource(
+                PhysicsRestoreStatusResource.getResourceType());
+            assertTrue(restore.isHydrated());
+            assertFalse(restore.isFailed());
+            List<UUID> rowUuids = rowUuids(fixture.store());
+            assertTrue(rowUuids.contains(LEGACY_SPACE_UUID));
+            assertFalse(rowUuids.contains(SPACE_UUID));
+        } finally {
+            fixture.close();
+        }
+    }
+
+    @Test
+    void registeredPhysicsStoreTickDoesNotRewriteLegacyDtoResource() {
+        StoreFixture fixture = registeredStore("registered-no-dto-capture",
+            tempDir.resolve("registered"));
+        try {
+            fixture.store()
+                .getResource(PersistentPhysicsStoreResource.getResourceType())
+                .setSpaces(new PersistentSpaceDto[] {
+                    new PersistentSpaceDto(LEGACY_SPACE_UUID,
+                        "test:legacy-sentinel",
+                        new Vector3f(0.0f, -9.81f, 0.0f))
+                });
+            addSpace(fixture.store(), SPACE_UUID);
+
+            fixture.store().tick(0.0f);
+
+            PersistentSpaceDto[] spaces = fixture.store()
+                .getResource(PersistentPhysicsStoreResource.getResourceType())
+                .getSpaces();
+            assertEquals(1, spaces.length);
+            assertEquals(LEGACY_SPACE_UUID, spaces[0].getSpaceUuid());
+        } finally {
+            fixture.close();
+        }
+    }
+
     @Nonnull
     private static StoreFixture store(@Nonnull String worldName, @Nonnull Path savePath) {
         ComponentRegistry<PhysicsStore> registry = new ComponentRegistry<>();
@@ -184,6 +231,18 @@ class PhysicsStoreHolderPersistenceTest {
             new ComponentRegistryProxy<>(new ArrayList<>(), registry);
         PhysicsComponentTypeRegistry.registerComponentTypes(proxy);
         PhysicsResourceTypes.registerResourceTypes(proxy);
+        PhysicsStore physicsStore = new PhysicsStore(world(worldName, savePath));
+        Store<PhysicsStore> store = registry.addStore(physicsStore, EmptyResourceStorage.get());
+        return new StoreFixture(registry, store);
+    }
+
+    @Nonnull
+    private static StoreFixture registeredStore(@Nonnull String worldName, @Nonnull Path savePath) {
+        ComponentRegistry<PhysicsStore> registry = new ComponentRegistry<>();
+        ComponentRegistryProxy<PhysicsStore> proxy =
+            new ComponentRegistryProxy<>(new ArrayList<>(), registry);
+        PhysicsComponentTypeRegistry.registerComponentTypes(proxy);
+        PhysicsStoreRegistration.register(proxy);
         PhysicsStore physicsStore = new PhysicsStore(world(worldName, savePath));
         Store<PhysicsStore> store = registry.addStore(physicsStore, EmptyResourceStorage.get());
         return new StoreFixture(registry, store);
@@ -286,6 +345,25 @@ class PhysicsStoreHolderPersistenceTest {
                     new Vector3f(0.4f, 0.5f, 0.6f),
                     0.0f,
                     true))));
+    }
+
+    @Nonnull
+    private static PersistentPhysicsStoreResource legacyResource(@Nonnull UUID spaceUuid,
+        @Nonnull String backendId) {
+        PersistentPhysicsStoreResource legacy = new PersistentPhysicsStoreResource();
+        legacy.setSpaces(new PersistentSpaceDto[] {
+            new PersistentSpaceDto(spaceUuid,
+                backendId,
+                new Vector3f(0.0f, -9.81f, 0.0f))
+        });
+        return legacy;
+    }
+
+    private static void writeLegacyDto(@Nonnull Store<PhysicsStore> store,
+        @Nonnull PersistentPhysicsStoreResource legacy) {
+        BsonUtil.writeDocument(PersistentPhysicsStoreStorage.file(store.getExternalData()),
+            PersistentPhysicsStoreResource.CODEC.encode(legacy, new ExtraInfo()).asDocument(),
+            false).join();
     }
 
     private static Holder<PhysicsStore> holder(@Nonnull List<Holder<PhysicsStore>> holders,
