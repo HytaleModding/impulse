@@ -5,16 +5,16 @@ import javax.annotation.Nullable;
 
 record BlockBodyBatchResult(@Nullable ExamplePhysicsUtils.SpawnedBlockBody[] bodies,
                             int count,
-                            long entityApplyNanos,
-                            long entityAttachNanos) {
+                            long physicsStoreApplyNanos,
+                            long visualAttachNanos) {
 
     BlockBodyBatchResult {
         if (bodies != null && bodies.length != count) {
             throw new IllegalArgumentException("Collected body count does not match batch count");
         }
         count = Math.max(0, count);
-        entityApplyNanos = Math.max(0L, entityApplyNanos);
-        entityAttachNanos = Math.max(0L, entityAttachNanos);
+        physicsStoreApplyNanos = Math.max(0L, physicsStoreApplyNanos);
+        visualAttachNanos = Math.max(0L, visualAttachNanos);
     }
 
     @Nonnull
@@ -28,7 +28,7 @@ record BlockBodyBatchResult(@Nullable ExamplePhysicsUtils.SpawnedBlockBody[] bod
     @Nonnull
     ExamplePhysicsUtils.BlockBodyBatchTiming timing() {
         return new ExamplePhysicsUtils.BlockBodyBatchTiming(count,
-            entityApplyNanos,
-            entityAttachNanos);
+            physicsStoreApplyNanos,
+            visualAttachNanos);
     }
 }

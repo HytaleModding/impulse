@@ -110,9 +110,9 @@ public class StressRawBodiesCommand extends AbstractAsyncPlayerCommand {
         long totalWallNanos) {
         return "PhysicsStore added body rows for " + timing.count()
             + " physics-only bodies: setupWallMs=" + millis(timing.setupWallNanos())
-            + " entityApplyMs=" + millis(timing.entityApplyNanos())
+            + " physicsStoreApplyMs=" + millis(timing.physicsStoreApplyNanos())
             + " totalWallMs=" + millis(totalWallNanos)
-            + ". Body-count updates are visible after PhysicsStore binds the new entities.";
+            + ". Body-count updates are visible after PhysicsStore binds the new rows.";
     }
 
 }

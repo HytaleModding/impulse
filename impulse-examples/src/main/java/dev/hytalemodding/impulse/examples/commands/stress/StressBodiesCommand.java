@@ -112,7 +112,7 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
         ArgTypes.INTEGER);
 
     public StressBodiesCommand() {
-        super("bodies", "Spawn many dynamic box bodies");
+        super("bodies", "Spawn dynamic bodies in detached-view, detached, or entity visual modes");
     }
 
     @Nonnull
@@ -202,9 +202,9 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
                             layout.positionZ(i));
                     }
                 });
-            timing = new StressSpawnTiming(batchTiming.entityApplyNanos() + batchTiming.entityAttachNanos(),
-                batchTiming.entityApplyNanos(),
-                batchTiming.entityAttachNanos());
+            timing = new StressSpawnTiming(batchTiming.physicsStoreApplyNanos() + batchTiming.visualAttachNanos(),
+                batchTiming.physicsStoreApplyNanos(),
+                batchTiming.visualAttachNanos());
         } else {
             PhysicsShapeSpec box = PhysicsShapeSpec.box(0.48f, 0.48f, 0.48f);
             RigidBodySpawnSettings spawnSettings = detachedSpawnSettings(collisionPolicy);
@@ -226,7 +226,7 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
                         }
                     });
             timing = new StressSpawnTiming(batchTiming.setupWallNanos(),
-                batchTiming.entityApplyNanos(),
+                batchTiming.physicsStoreApplyNanos(),
                 0L);
         }
         PhysicsChunkCollisionSettings chunkCollisionSettings =
@@ -241,9 +241,9 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
             + " stress bodies: setupWallMs="
             + millis(prewarmNanos + timing.setupWallNanos())
             + " prewarmMs=" + millis(prewarmNanos)
-            + " entityApplyMs=" + millis(timing.entityApplyNanos())
-            + (timing.entityAttachNanos() > 0L
-                ? " entityAttachMs=" + millis(timing.entityAttachNanos())
+            + " physicsStoreApplyMs=" + millis(timing.physicsStoreApplyNanos())
+            + (timing.visualAttachNanos() > 0L
+                ? " visualAttachMs=" + millis(timing.visualAttachNanos())
                 : "")
             + ": mode=" + mode.serialized()
             + " space=" + spaceId.value()
@@ -255,9 +255,7 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
             + " maxStepDt=" + String.format(Locale.ROOT, "%.3f", worldSettings.getMaxStepDt())
             + " visuals=" + mode.visualDescription()
             + (mode == StressMode.ENTITY ? " blockType=" + visualSettings.blockType() : "")
-            + (mode.usesDetachedBodies()
-                ? " body-count and detached-view snapshots update after PhysicsStore binds the new entities"
-                : "")
+            + " " + mode.bindingMessage()
             + (mode == StressMode.DETACHED_VIEW
                 ? " visualProxyCap="
                 + visualMaterializationSettings.getDetachedVisualMaxMaterialized()
@@ -548,6 +546,18 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
             };
         }
 
+        @Nonnull
+        private String bindingMessage() {
+            return switch (this) {
+                case ENTITY -> "Hytale EntityStore block visuals are attached immediately;"
+                    + " physics motion follows copied PhysicsStore snapshots.";
+                case DETACHED -> "Body-count diagnostics update after PhysicsStore binds the new rows;"
+                    + " no EntityStore visuals are created.";
+                case DETACHED_VIEW -> "Body-count diagnostics update after PhysicsStore binds the new rows;"
+                    + " detached visual proxies materialize progressively from copied snapshots.";
+            };
+        }
+
         @Nullable
         private static StressMode from(@Nonnull String value) {
             return switch (value) {
@@ -619,13 +629,13 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
     }
 
     private record StressSpawnTiming(long setupWallNanos,
-                                     long entityApplyNanos,
-                                     long entityAttachNanos) {
+                                     long physicsStoreApplyNanos,
+                                     long visualAttachNanos) {
 
         private StressSpawnTiming {
             setupWallNanos = Math.max(0L, setupWallNanos);
-            entityApplyNanos = Math.max(0L, entityApplyNanos);
-            entityAttachNanos = Math.max(0L, entityAttachNanos);
+            physicsStoreApplyNanos = Math.max(0L, physicsStoreApplyNanos);
+            visualAttachNanos = Math.max(0L, visualAttachNanos);
         }
     }
 

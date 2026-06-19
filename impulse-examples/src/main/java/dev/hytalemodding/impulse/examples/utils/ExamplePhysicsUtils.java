@@ -303,10 +303,10 @@ public final class ExamplePhysicsUtils {
 
         long applyStartNanos = System.nanoTime();
         addPhysicsStoreBodies(world, plan.bodies());
-        long entityApplyNanos = System.nanoTime() - applyStartNanos;
+        long physicsStoreApplyNanos = System.nanoTime() - applyStartNanos;
         return new BodyEntityBatchTiming(plan.count(),
             plan.setupWallNanos(),
-            entityApplyNanos);
+            physicsStoreApplyNanos);
     }
 
     @Nonnull
@@ -335,10 +335,10 @@ public final class ExamplePhysicsUtils {
 
         long applyStartNanos = System.nanoTime();
         addPhysicsStoreBodies(world, plan.bodies());
-        long entityApplyNanos = System.nanoTime() - applyStartNanos;
+        long physicsStoreApplyNanos = System.nanoTime() - applyStartNanos;
         return new BodyEntityBatchTiming(plan.count(),
             plan.setupWallNanos(),
-            entityApplyNanos);
+            physicsStoreApplyNanos);
     }
 
     @Nonnull
@@ -690,11 +690,11 @@ public final class ExamplePhysicsUtils {
                 null));
         }
 
-        long entityApplyStartNanos = System.nanoTime();
+        long physicsStoreApplyStartNanos = System.nanoTime();
         addPhysicsStoreBodies(world, descriptors);
-        long entityApplyNanos = System.nanoTime() - entityApplyStartNanos;
+        long physicsStoreApplyNanos = System.nanoTime() - physicsStoreApplyStartNanos;
 
-        long entityAttachStartNanos = System.nanoTime();
+        long visualAttachStartNanos = System.nanoTime();
         SpawnedBlockBody[] spawned = collectBodies ? new SpawnedBlockBody[batch.size()] : null;
         for (int i = 0; i < batch.size(); i++) {
             UUID bodyUuid = batch.bodyUuid(i);
@@ -710,11 +710,11 @@ public final class ExamplePhysicsUtils {
                 spawned[i] = new SpawnedBlockBody(bodyUuid, spaceId, entity);
             }
         }
-        long entityAttachNanos = System.nanoTime() - entityAttachStartNanos;
+        long visualAttachNanos = System.nanoTime() - visualAttachStartNanos;
         return new BlockBodyBatchResult(spawned,
             batch.size(),
-            entityApplyNanos,
-            entityAttachNanos);
+            physicsStoreApplyNanos,
+            visualAttachNanos);
     }
 
     static void addControllableMarkerIfAvailable(@Nonnull Holder<EntityStore> holder,
@@ -888,24 +888,24 @@ public final class ExamplePhysicsUtils {
     }
 
     public record BlockBodyBatchTiming(int count,
-                                       long entityApplyNanos,
-                                       long entityAttachNanos) {
+                                       long physicsStoreApplyNanos,
+                                       long visualAttachNanos) {
 
         public BlockBodyBatchTiming {
             count = Math.max(0, count);
-            entityApplyNanos = Math.max(0L, entityApplyNanos);
-            entityAttachNanos = Math.max(0L, entityAttachNanos);
+            physicsStoreApplyNanos = Math.max(0L, physicsStoreApplyNanos);
+            visualAttachNanos = Math.max(0L, visualAttachNanos);
         }
     }
 
     public record BodyEntityBatchTiming(int count,
                                         long setupWallNanos,
-                                        long entityApplyNanos) {
+                                        long physicsStoreApplyNanos) {
 
         public BodyEntityBatchTiming {
             count = Math.max(0, count);
             setupWallNanos = Math.max(0L, setupWallNanos);
-            entityApplyNanos = Math.max(0L, entityApplyNanos);
+            physicsStoreApplyNanos = Math.max(0L, physicsStoreApplyNanos);
         }
     }
 

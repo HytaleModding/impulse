@@ -39,7 +39,7 @@ public class StressBenchmarkCommand extends AbstractAsyncPlayerCommand {
 
     private final OptionalArg<String> modeArg = this.withOptionalArg(
         "mode",
-        "Benchmark mode: raw/physics-only or entity",
+        "Benchmark mode: raw PhysicsStore rows or entity visuals",
         ArgTypes.STRING);
     private final OptionalArg<Integer> countArg = this.withOptionalArg(
         "count",
@@ -47,7 +47,7 @@ public class StressBenchmarkCommand extends AbstractAsyncPlayerCommand {
         ArgTypes.INTEGER);
     private final OptionalArg<String> blockTypeArg = this.withOptionalArg(
         "blockType",
-        "Hytale block type for entity-backed benchmark visuals",
+        "Hytale block type for entity visual benchmark rows",
         ArgTypes.STRING);
     private final OptionalArg<Integer> spaceArg = this.withOptionalArg(
         "space",
@@ -55,7 +55,7 @@ public class StressBenchmarkCommand extends AbstractAsyncPlayerCommand {
         ArgTypes.INTEGER);
 
     public StressBenchmarkCommand() {
-        super("benchmark", "Spawn repeatable physics-only or entity-backed body grids");
+        super("benchmark", "Spawn repeatable PhysicsStore row or entity visual body grids");
     }
 
     @Nonnull
@@ -119,16 +119,17 @@ public class StressBenchmarkCommand extends AbstractAsyncPlayerCommand {
             ctx.sender().sendMessage(Message.raw("Added " + timing.spawned() + " "
                 + request.mode().label() + " benchmark bodies: setupWallMs="
                 + millis(timing.setupWallNanos())
-                + " entityApplyMs=" + millis(timing.entityApplyNanos())
-                + (timing.entityAttachNanos() > 0L
-                    ? " entityAttachMs=" + millis(timing.entityAttachNanos())
+                + " physicsStoreApplyMs=" + millis(timing.physicsStoreApplyNanos())
+                + (timing.visualAttachNanos() > 0L
+                    ? " visualAttachMs=" + millis(timing.visualAttachNanos())
                     : "")
                 + " (" + microsPerBody(timing.setupWallNanos(), timing.spawned())
                 + " us/body). Space bodies before add: " + beforeBodies
                 + (request.mode() == BenchmarkMode.ENTITY ? ". blockType=" + request.blockType() : "")
-                + ". Body-count updates are visible after PhysicsStore binds the new entities"
-                + ". This command measures PhysicsStore row setup/entity attachment; use /impulse-examples stress bodies"
-                + " for detached/detached-view scalability scenarios"
+                + ". Body-count updates are visible after PhysicsStore binds the new rows"
+                + ". This command measures raw PhysicsStore row setup or entity visual attachment;"
+                + " use /impulse-examples stress bodies <count> detached-view"
+                + " for scalable detached visual diagnostics"
                 + ". For clean comparisons run /impulse clean, /impulse physicschunk perf reset,"
                 + " /impulse physicschunk perf toggle before spawning,"
                 + " then /impulse physicschunk perf report."));
@@ -185,7 +186,7 @@ public class StressBenchmarkCommand extends AbstractAsyncPlayerCommand {
                 });
         return new BenchmarkSpawnTiming(timing.count(),
             timing.setupWallNanos(),
-            timing.entityApplyNanos(),
+            timing.physicsStoreApplyNanos(),
             0L);
     }
 
@@ -218,9 +219,9 @@ public class StressBenchmarkCommand extends AbstractAsyncPlayerCommand {
                 }
             });
         return new BenchmarkSpawnTiming(timing.count(),
-            timing.entityApplyNanos() + timing.entityAttachNanos(),
-            timing.entityApplyNanos(),
-            timing.entityAttachNanos());
+            timing.physicsStoreApplyNanos() + timing.visualAttachNanos(),
+            timing.physicsStoreApplyNanos(),
+            timing.visualAttachNanos());
     }
 
     @Nonnull
@@ -257,8 +258,8 @@ public class StressBenchmarkCommand extends AbstractAsyncPlayerCommand {
     }
 
     private enum BenchmarkMode {
-        RAW("physics-only PhysicsStore rows"),
-        ENTITY("entity-backed Hytale");
+        RAW("PhysicsStore row"),
+        ENTITY("entity visual");
 
         private final String label;
 
@@ -286,13 +287,13 @@ public class StressBenchmarkCommand extends AbstractAsyncPlayerCommand {
 
     private record BenchmarkSpawnTiming(int spawned,
                                         long setupWallNanos,
-                                        long entityApplyNanos,
-                                        long entityAttachNanos) {
+                                        long physicsStoreApplyNanos,
+                                        long visualAttachNanos) {
 
         private BenchmarkSpawnTiming {
             setupWallNanos = Math.max(0L, setupWallNanos);
-            entityApplyNanos = Math.max(0L, entityApplyNanos);
-            entityAttachNanos = Math.max(0L, entityAttachNanos);
+            physicsStoreApplyNanos = Math.max(0L, physicsStoreApplyNanos);
+            visualAttachNanos = Math.max(0L, visualAttachNanos);
         }
     }
 
