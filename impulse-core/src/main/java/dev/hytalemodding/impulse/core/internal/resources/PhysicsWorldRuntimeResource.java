@@ -141,7 +141,6 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     @Nonnull
-    @Override
     public PhysicsEventFrame getLatestEventFrame() {
         if (hasAttachedAuthoritativePhysicsStore()) {
             return authoritativePhysicsStore("read latest physics event frame")
@@ -388,7 +387,6 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
 
 
     @Nonnull
-    @Override
     public PhysicsWorldSettings getWorldSettings() {
         if (hasAttachedAuthoritativePhysicsStore()) {
             return authoritativePhysicsStore("read physics world settings")
@@ -398,7 +396,6 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         return simulationRuntime.getWorldSettings();
     }
 
-    @Override
     public void setWorldSettings(@Nonnull PhysicsWorldSettings settings) {
         PhysicsWorldSettings requested = new PhysicsWorldSettings(settings);
         if (hasAttachedAuthoritativePhysicsStore()) {
@@ -416,7 +413,6 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     @Nonnull
-    @Override
     public PhysicsMutationHandle<Void> setWorldSettingsAsync(
         @Nonnull PhysicsWorldSettings settings) {
         PhysicsWorldSettings requested = new PhysicsWorldSettings(settings);
@@ -448,19 +444,16 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     @Nonnull
-    @Override
     public SpaceId createSpace(@Nonnull BackendId backendId) {
         return createSpace(backendId, "<unknown>", PhysicsSpaceSettings.defaults());
     }
 
     @Nonnull
-    @Override
     public SpaceId createSpace(@Nonnull BackendId backendId, @Nonnull String worldName) {
         return createSpace(backendId, worldName, PhysicsSpaceSettings.defaults());
     }
 
     @Nonnull
-    @Override
     public SpaceId createSpace(@Nonnull BackendId backendId,
         @Nonnull String worldName,
         @Nonnull PhysicsSpaceSettings settings) {
@@ -468,7 +461,6 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     @Nonnull
-    @Override
     public SpaceId createSpace(@Nonnull BackendId backendId,
         @Nonnull SpaceId spaceId,
         @Nonnull String worldName,
@@ -489,7 +481,6 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     @Nonnull
-    @Override
     public PhysicsMutationHandle<SpaceId> createSpaceAsync(@Nonnull BackendId backendId,
         @Nonnull String worldName,
         @Nonnull PhysicsSpaceSettings settings) {
@@ -498,7 +489,6 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     @Nonnull
-    @Override
     public PhysicsMutationHandle<SpaceId> createSpaceAsync(@Nonnull BackendId backendId,
         @Nonnull SpaceId spaceId,
         @Nonnull String worldName,
@@ -539,7 +529,6 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         return spaceRuntime.getBinding(spaceId);
     }
 
-    @Override
     public boolean hasSpace(@Nonnull SpaceId spaceId) {
         if (isAuthoritativePhysicsStoreActive()) {
             return authoritativePhysicsStore("check physics space")
@@ -555,7 +544,6 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     @Nonnull
-    @Override
     public Collection<SpaceId> getSpaceIds() {
         if (isAuthoritativePhysicsStoreActive()) {
             return List.copyOf(authoritativePhysicsStore("list physics spaces")
@@ -565,7 +553,6 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         return spaceRuntime.getSpaceIds();
     }
 
-    @Override
     public int getSpaceCount() {
         if (isAuthoritativePhysicsStoreActive()) {
             return authoritativePhysicsStore("count physics spaces")
@@ -1203,12 +1190,10 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
                 visitor.accept(bodyUuid, null, snapshot, bodySpaceId, kind, persistenceMode));
     }
 
-    @Override
     public void removeSpace(@Nonnull SpaceId spaceId) {
         removeSpace(spaceId, "<unknown>");
     }
 
-    @Override
     public void removeSpace(@Nonnull SpaceId spaceId, @Nonnull String worldName) {
         if (isAuthoritativePhysicsStoreActive()) {
             Store<PhysicsStore> store = authoritativePhysicsStore("remove physics space");
@@ -1222,7 +1207,6 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     @Nonnull
-    @Override
     public PhysicsMutationHandle<SpaceId> removeSpaceAsync(@Nonnull SpaceId spaceId,
         @Nonnull String worldName) {
         if (isAuthoritativePhysicsStoreActive()) {
@@ -1264,7 +1248,6 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         }
     }
 
-    @Override
     public void clearAllSpaces(@Nonnull String worldName) {
         if (isAuthoritativePhysicsStoreActive()) {
             Store<PhysicsStore> store = authoritativePhysicsStore("clear physics spaces");
@@ -1277,7 +1260,6 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     @Nonnull
-    @Override
     public PhysicsMutationHandle<Void> clearAllSpacesAsync(@Nonnull String worldName) {
         if (isAuthoritativePhysicsStoreActive()) {
             return enqueueAuthoritativePhysicsStoreMutation("clear physics spaces",
@@ -1365,7 +1347,6 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     @Nonnull
-    @Override
     public PhysicsSpaceSettings getSpaceSettings(@Nonnull SpaceId spaceId) {
         if (isAuthoritativePhysicsStoreActive()) {
             PhysicsSpaceSettings settings = getPhysicsStoreSpaceSettings(
@@ -1381,7 +1362,6 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     @Nonnull
-    @Override
     public PhysicsSpaceSettings getSpaceSettings(@Nonnull Ref<PhysicsStore> spaceRef) {
         if (!isAuthoritativePhysicsStoreActive()) {
             throw new IllegalStateException("Cannot read PhysicsStore space settings by entity ref "
@@ -1402,7 +1382,6 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         return spaceRuntime.getLiveSpaceSettings(spaceId);
     }
 
-    @Override
     public void setSpaceSettings(@Nonnull SpaceId spaceId, @Nonnull PhysicsSpaceSettings settings) {
         if (isAuthoritativePhysicsStoreActive()) {
             PhysicsStoreSpaceMutations.putSpaceSettings(
@@ -1416,7 +1395,6 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         runDirectRuntimeMutation("set physics space settings", () -> setSpaceSettingsDirect(spaceId, requested));
     }
 
-    @Override
     public void setSpaceSettings(@Nonnull Ref<PhysicsStore> spaceRef,
         @Nonnull PhysicsSpaceSettings settings) {
         if (!isAuthoritativePhysicsStoreActive()) {
@@ -1430,7 +1408,6 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     @Nonnull
-    @Override
     public PhysicsMutationHandle<SpaceId> setSpaceSettingsAsync(@Nonnull SpaceId spaceId,
         @Nonnull PhysicsSpaceSettings settings) {
         if (isAuthoritativePhysicsStoreActive()) {
@@ -1455,7 +1432,6 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         spaceRuntime.validateStepModeSupported(stepMode);
     }
 
-    @Override
     public void destroyBody(@Nonnull UUID bodyUuid) {
         UUID checkedBodyUuid = Objects.requireNonNull(bodyUuid, "bodyUuid");
         if (isAuthoritativePhysicsStoreActive()) {
@@ -1469,7 +1445,6 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     @Nonnull
-    @Override
     public PhysicsMutationHandle<UUID> destroyBodyAsync(@Nonnull UUID bodyUuid) {
         UUID checkedBodyUuid = Objects.requireNonNull(bodyUuid, "bodyUuid");
         if (isAuthoritativePhysicsStoreActive()) {

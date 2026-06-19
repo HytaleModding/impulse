@@ -19,6 +19,7 @@ import dev.hytalemodding.impulse.core.internal.resources.PhysicsSnapshotResource
 import dev.hytalemodding.impulse.core.plugin.physicsstore.BodyEntityDescriptor;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsBodyEntities;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsEntities;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsSpaces;
 import dev.hytalemodding.impulse.core.plugin.snapshots.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.core.plugin.modules.control.ImpulseControllableComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.BodyAttachmentComponent;
@@ -26,7 +27,6 @@ import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.Bo
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.BodyAttachmentComponent.TransformAuthority;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
 import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
 import java.util.Comparator;
@@ -73,14 +73,13 @@ final class ImpulseLiveCrucibleTests {
         try {
             World world = context.world();
             Store<EntityStore> store = world.getEntityStore().getStore();
-            PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
-            SpaceId spaceId = liveTestSpaceId(resource, world);
+            Store<PhysicsStore> physicsStore = physicsStore(world);
+            SpaceId spaceId = liveTestSpaceId(physicsStore, world);
 
             Vector3d visualPosition = new Vector3d(
                 context.wx(0),
                 context.wy(20),
                 context.wz(0));
-            Store<PhysicsStore> physicsStore = physicsStore(world);
             PhysicsStoreSpaceMutations.putSpaceGravity(physicsStore,
                 spaceId,
                 new Vector3f(0.0f, -9.81f, 0.0f));
@@ -123,16 +122,16 @@ final class ImpulseLiveCrucibleTests {
         return transformY < startY - 0.05 && bodyY < startY - 0.05f;
     }
 
-    private static SpaceId liveTestSpaceId(PhysicsWorldResource resource, World world) {
-        SpaceId existingSpaceId = resource.getSpaceIds()
+    private static SpaceId liveTestSpaceId(Store<PhysicsStore> store, World world) {
+        SpaceId existingSpaceId = PhysicsSpaces.spaceIds(store)
             .stream()
             .min(Comparator.comparingInt(SpaceId::value))
             .orElse(null);
         if (existingSpaceId != null) {
             return existingSpaceId;
         }
-        return resource.createSpace(CrucibleBackends.requireBackendId(),
-            world.getName(),
+        return PhysicsSpaces.create(store,
+            CrucibleBackends.requireBackendId(),
             PhysicsSpaceSettings.defaults());
     }
 

@@ -22,6 +22,7 @@ import dev.hytalemodding.impulse.core.plugin.physicsstore.BodyEntityDescriptor;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsBodyEntities;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsDiagnostics;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsEntities;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsSpaces;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
 import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
@@ -184,30 +185,31 @@ final class ImpulseApiCrucibleTests {
 
     private static CompletionStage<Boolean> spaceCountRoundTrip(@Nonnull CrucibleContext context) {
         return callWhenPhysicsStoreIdle(context, "run Crucible space count round trip", world -> {
-            PhysicsWorldResource resource = physicsResource(world);
             Store<PhysicsStore> store = physicsStore(world);
-            int previousCount = resource.getSpaceCount();
-            SpaceId spaceId = resource.createSpace(CrucibleBackends.requireBackendId(),
-                "crucible",
+            int previousCount = PhysicsSpaces.count(store);
+            SpaceId spaceId = PhysicsSpaces.create(store,
+                CrucibleBackends.requireBackendId(),
                 PhysicsSpaceSettings.defaults());
             PhysicsStoreSpaceMutations.removeEmptySpace(store, spaceId);
-            return resource.getSpaceCount() == previousCount && !resource.hasSpace(spaceId);
+            return PhysicsSpaces.count(store) == previousCount
+                && !PhysicsSpaces.hasSpace(store, spaceId);
         });
     }
 
     private static CompletionStage<Boolean> createdExplicitSpaceLifecycleWorks(
         @Nonnull CrucibleContext context) {
         return callWhenPhysicsStoreIdle(context, "run Crucible explicit space lifecycle", world -> {
-            PhysicsWorldResource resource = physicsResource(world);
             Store<PhysicsStore> store = physicsStore(world);
-            SpaceId spaceId = resource.createSpace(CrucibleBackends.requireBackendId(),
-                "crucible",
+            SpaceId spaceId = PhysicsSpaces.create(store,
+                CrucibleBackends.requireBackendId(),
                 PhysicsSpaceSettings.streamingPhysicsChunk());
-            boolean registered = resource.hasSpace(spaceId)
-                && resource.getSpaceSettings(spaceId).getPhysicsChunkTerrainSettings().getTerrainMode()
-                == PhysicsChunkTerrainMode.STREAMING;
+            PhysicsSpaceSettings spaceSettings = PhysicsSpaces.settings(store, spaceId);
+            boolean registered = PhysicsSpaces.hasSpace(store, spaceId)
+                && spaceSettings != null
+                && spaceSettings.getPhysicsChunkTerrainSettings().getTerrainMode()
+                    == PhysicsChunkTerrainMode.STREAMING;
             PhysicsStoreSpaceMutations.removeEmptySpace(store, spaceId);
-            return registered && !resource.hasSpace(spaceId);
+            return registered && !PhysicsSpaces.hasSpace(store, spaceId);
         });
     }
 
@@ -240,7 +242,7 @@ final class ImpulseApiCrucibleTests {
                             PhysicsStoreSpaceMutations.removeEmptySpace(
                                 state.store(),
                                 state.spaceId());
-                            removedSpace = !resource.hasSpace(state.spaceId());
+                            removedSpace = !PhysicsSpaces.hasSpace(state.store(), state.spaceId());
                         }
                         return spaceEmpty && noRegistrations && removedSpace;
                     })));
@@ -249,10 +251,9 @@ final class ImpulseApiCrucibleTests {
     private static CompletionStage<PopulatedBodyCleanupState> createPopulatedBodyCleanupState(
         @Nonnull CrucibleContext context) {
         return callWhenPhysicsStoreIdle(context, "create Crucible body cleanup state", world -> {
-            PhysicsWorldResource resource = physicsResource(world);
             Store<PhysicsStore> store = physicsStore(world);
-            SpaceId spaceId = resource.createSpace(CrucibleBackends.requireBackendId(),
-                "crucible",
+            SpaceId spaceId = PhysicsSpaces.create(store,
+                CrucibleBackends.requireBackendId(),
                 PhysicsSpaceSettings.defaults());
             Ref<PhysicsStore> bodyRef = addCrucibleBox(store, spaceId, UUID.randomUUID());
             return new PopulatedBodyCleanupState(world, store, spaceId, bodyRef);
@@ -324,13 +325,15 @@ final class ImpulseApiCrucibleTests {
         PhysicsSpaceSettings settings = populatedSettings();
 
         return callWhenPhysicsStoreIdle(context, "run Crucible settings round trip", world -> {
-            PhysicsWorldResource resource = physicsResource(world);
             Store<PhysicsStore> store = physicsStore(world);
-            SpaceId spaceId = resource.createSpace(CrucibleBackends.requireBackendId(),
-                "crucible",
+            SpaceId spaceId = PhysicsSpaces.create(store,
+                CrucibleBackends.requireBackendId(),
                 settings);
             try {
-                PhysicsSpaceSettings copy = resource.getSpaceSettings(spaceId);
+                PhysicsSpaceSettings copy = PhysicsSpaces.settings(store, spaceId);
+                if (copy == null) {
+                    return false;
+                }
                 return copy.getPhysicsChunkTerrainSettings().getTerrainMode() == PhysicsChunkTerrainMode.STREAMING
                 && copy.getPhysicsChunkTerrainSettings().getTerrainRadius() == 9
                 && copy.getPhysicsChunkTerrainSettings().getBodyTerrainRadius() == 5

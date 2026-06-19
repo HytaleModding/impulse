@@ -5,18 +5,12 @@ import com.hypixel.hytale.component.ResourceType;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
-import dev.hytalemodding.impulse.api.BackendId;
 import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.PhysicsEntityTypes;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
-import dev.hytalemodding.impulse.core.plugin.events.PhysicsEventFrame;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsSpaces;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsWorlds;
-import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
-import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
 import dev.hytalemodding.impulse.core.plugin.snapshot.PhysicsBodySnapshotEntry;
 import java.util.Collection;
 import java.util.UUID;
@@ -26,13 +20,11 @@ import javax.annotation.Nullable;
 import org.joml.Vector3f;
 
 /**
- * Public alpha facade for a world's physics runtime resource.
+ * Public legacy read facade for copied physics snapshots, registrations, and attachments.
  *
- * <p>The concrete Impulse runtime lives in the internal package. This facade remains for
- * compatibility body lifetime by durable UUID, immutable snapshots, read-only registration views,
- * and public attachment/control hooks. New code that already has the real PhysicsStore should use
- * {@link PhysicsWorlds} for world settings/event-frame reads and {@link PhysicsSpaces} for space
- * lifecycle and per-space settings.</p>
+ * <p>The concrete Impulse runtime lives in the internal package. New authoring code should mutate
+ * PhysicsStore entities and resources through {@code core.plugin.physicsstore} helpers and direct
+ * {@code Store<PhysicsStore>} ECS operations.</p>
  *
  * <p>No physics space is created implicitly. Consumers choose which explicit {@link SpaceId} to
  * target for each operation.</p>
@@ -45,121 +37,6 @@ public abstract class PhysicsWorldResource implements Resource<EntityStore> {
 
     protected PhysicsWorldResource() {
     }
-
-    /**
-     * Returns the latest value-only physics store event frame.
-     *
-     * <p>Event frames describe store tick lane outcomes. They do not expose live
-     * backend handles and do not imply that command completion has been
-     * included in a captured or reader-applied body snapshot.</p>
-     */
-    @Nonnull
-    public abstract PhysicsEventFrame getLatestEventFrame();
-
-    /**
-     * Returns a defensive copy of the world-level simulation settings.
-     *
-     * <p>Changing the returned copy has no effect until it is passed to
-     * {@link #setWorldSettings(PhysicsWorldSettings)} or
-     * {@link #setWorldSettingsAsync(PhysicsWorldSettings)}.</p>
-     */
-    @Nonnull
-    public abstract PhysicsWorldSettings getWorldSettings();
-
-    /**
-     * Applies world-level simulation settings on the store tick lane.
-     */
-    public abstract void setWorldSettings(@Nonnull PhysicsWorldSettings settings);
-
-    /**
-     * Queues a world-level simulation settings update.
-     */
-    @Nonnull
-    public abstract PhysicsMutationHandle<Void> setWorldSettingsAsync(
-        @Nonnull PhysicsWorldSettings settings);
-
-    /**
-     * Creates a physics space using default settings and returns its id.
-     *
-     * <p>Creation is serialized through this world's logical store tick lane. Callers must not
-     * infer a stable Java thread identity from the synchronous return path.</p>
-     */
-    @Nonnull
-    public abstract SpaceId createSpace(@Nonnull BackendId backendId);
-
-    /**
-     * Creates a physics space for logging under the supplied world name and returns its id.
-     *
-     * <p>No default space is created implicitly; the returned id is the explicit space handle for
-     * later world-resource operations.</p>
-     */
-    @Nonnull
-    public abstract SpaceId createSpace(@Nonnull BackendId backendId,
-        @Nonnull String worldName);
-
-    /**
-     * Creates a physics space with generated logical id and supplied settings.
-     *
-     * <p>The live backend space is created inside the serialized store tick lane. Use the async
-     * variant when the caller should not block on store tick execution.</p>
-     */
-    @Nonnull
-    public abstract SpaceId createSpace(@Nonnull BackendId backendId,
-        @Nonnull String worldName,
-        @Nonnull PhysicsSpaceSettings settings);
-
-    /**
-     * Creates a physics space with an explicit logical id and supplied settings.
-     *
-     * <p>The explicit id is reserved by the caller, but live backend creation still runs inside the
-     * serialized store tick lane.</p>
-     */
-    @Nonnull
-    public abstract SpaceId createSpace(@Nonnull BackendId backendId,
-        @Nonnull SpaceId spaceId,
-        @Nonnull String worldName,
-        @Nonnull PhysicsSpaceSettings settings);
-
-    /**
-     * Queues physics-space creation and returns the reserved generated space id.
-     *
-     * <p>The returned mutation handle completes when the store tick lane creates the live backend
-     * space, not when a later snapshot or ECS reader has consumed any resulting state.</p>
-     */
-    @Nonnull
-    public abstract PhysicsMutationHandle<SpaceId> createSpaceAsync(
-        @Nonnull BackendId backendId,
-        @Nonnull String worldName,
-        @Nonnull PhysicsSpaceSettings settings);
-
-    /**
-     * Queues physics-space creation and returns the requested explicit space id.
-     *
-     * <p>Different worlds may queue work concurrently, but this world's spaces remain serialized by
-     * its store tick lane.</p>
-     */
-    @Nonnull
-    public abstract PhysicsMutationHandle<SpaceId> createSpaceAsync(
-        @Nonnull BackendId backendId,
-        @Nonnull SpaceId spaceId,
-        @Nonnull String worldName,
-        @Nonnull PhysicsSpaceSettings settings);
-
-    /**
-     * Returns whether a physics space id is currently registered.
-     */
-    public abstract boolean hasSpace(@Nonnull SpaceId spaceId);
-
-    /**
-     * Returns a snapshot collection of registered physics space ids.
-     */
-    @Nonnull
-    public abstract Collection<SpaceId> getSpaceIds();
-
-    /**
-     * Returns the number of registered physics spaces.
-     */
-    public abstract int getSpaceCount();
 
     /**
      * Captures and publishes body snapshots from the live backend state in the legacy runtime, or
@@ -212,87 +89,6 @@ public abstract class PhysicsWorldResource implements Resource<EntityStore> {
         @Nonnull Vector3f center,
         float radius,
         @Nonnull Consumer<PhysicsBodySnapshotEntry> consumer);
-
-    /**
-     * Removes a physics space and destroys its registered bodies.
-     */
-    public abstract void removeSpace(@Nonnull SpaceId spaceId);
-
-    /**
-     * Removes a physics space and destroys its registered bodies, using the world name for logging.
-     */
-    public abstract void removeSpace(@Nonnull SpaceId spaceId, @Nonnull String worldName);
-
-    /**
-     * Queues physics-space removal and returns the removed space id.
-     */
-    @Nonnull
-    public abstract PhysicsMutationHandle<SpaceId> removeSpaceAsync(@Nonnull SpaceId spaceId,
-        @Nonnull String worldName);
-
-    /**
-     * Removes all physics spaces and destroys their registered bodies.
-     */
-    public abstract void clearAllSpaces(@Nonnull String worldName);
-
-    /**
-     * Queues removal of all physics spaces.
-     */
-    @Nonnull
-    public abstract PhysicsMutationHandle<Void> clearAllSpacesAsync(@Nonnull String worldName);
-
-    /**
-     * Returns the current settings for a registered physics space.
-     */
-    @Nonnull
-    public abstract PhysicsSpaceSettings getSpaceSettings(@Nonnull SpaceId spaceId);
-
-    /**
-     * Returns the current settings for a live PhysicsStore space entity.
-     *
-     * <p>Prefer this overload when command or gameplay code already resolved the target
-     * space entity.</p>
-     */
-    @Nonnull
-    public abstract PhysicsSpaceSettings getSpaceSettings(@Nonnull Ref<PhysicsStore> spaceRef);
-
-    /**
-     * Applies settings to a registered physics space on the store tick lane.
-     */
-    public abstract void setSpaceSettings(@Nonnull SpaceId spaceId,
-        @Nonnull PhysicsSpaceSettings settings);
-
-    /**
-     * Applies settings to a live PhysicsStore space entity.
-     *
-     * <p>Prefer this overload when command or gameplay code already resolved the target
-     * space entity.</p>
-     */
-    public abstract void setSpaceSettings(@Nonnull Ref<PhysicsStore> spaceRef,
-        @Nonnull PhysicsSpaceSettings settings);
-
-    /**
-     * Queues settings replacement for a registered physics space.
-     */
-    @Nonnull
-    public abstract PhysicsMutationHandle<SpaceId> setSpaceSettingsAsync(@Nonnull SpaceId spaceId,
-        @Nonnull PhysicsSpaceSettings settings);
-
-    /**
-     * Destroys a registered body by durable body UUID.
-     *
-     * <p>Prefer {@code PhysicsBodies.destroy(...)} for PhysicsStore-aware code. Keep this
-     * facade for compatibility callers crossing a durable identity boundary.</p>
-     */
-    public abstract void destroyBody(@Nonnull UUID bodyUuid);
-
-    /**
-     * Queues body destruction by durable body UUID.
-     *
-     * <p>Prefer {@code PhysicsBodies.destroyAsync(...)} for PhysicsStore-aware code.</p>
-     */
-    @Nonnull
-    public abstract PhysicsMutationHandle<UUID> destroyBodyAsync(@Nonnull UUID bodyUuid);
 
     /**
      * Returns immutable registration metadata for a body UUID.
