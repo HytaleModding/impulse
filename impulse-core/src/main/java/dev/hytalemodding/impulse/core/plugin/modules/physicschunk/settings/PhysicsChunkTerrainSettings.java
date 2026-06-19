@@ -3,6 +3,8 @@ package dev.hytalemodding.impulse.core.plugin.modules.physicschunk.settings;
 import dev.hytalemodding.impulse.api.PhysicsCollisionFilters;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkTerrainMode;
 import dev.hytalemodding.impulse.core.plugin.settings.EntityChunkBoundaryMode;
+import lombok.Getter;
+import lombok.Setter;
 import java.util.Objects;
 import javax.annotation.Nonnull;
 
@@ -77,13 +79,22 @@ public class PhysicsChunkTerrainSettings {
     private PhysicsChunkTerrainMode terrainMode = PhysicsChunkTerrainMode.NONE;
     @Nonnull
     private EntityChunkBoundaryMode entityChunkBoundaryMode = DEFAULT_ENTITY_CHUNK_BOUNDARY_MODE;
+    @Setter
+    @Getter
     private boolean nativeVoxelCollisionEnabled = DEFAULT_NATIVE_VOXEL_COLLISION_ENABLED;
+    @Getter
     private int terrainRadius = DEFAULT_TERRAIN_RADIUS;
+    @Getter
     private int bodyTerrainRadius = DEFAULT_BODY_TERRAIN_RADIUS;
+    @Getter
     private int terrainTtlTicks = DEFAULT_TERRAIN_TTL_TICKS;
+    @Getter
     private float chunkCollisionFriction = DEFAULT_CHUNK_COLLISION_FRICTION;
+    @Getter
     private float chunkCollisionRestitution = DEFAULT_CHUNK_COLLISION_RESTITUTION;
+    @Getter
     private int chunkCollisionGroup = DEFAULT_CHUNK_COLLISION_GROUP;
+    @Getter
     private int chunkCollisionMask = DEFAULT_CHUNK_COLLISION_MASK;
 
     public PhysicsChunkTerrainSettings() {
@@ -122,27 +133,11 @@ public class PhysicsChunkTerrainSettings {
             "entityChunkBoundaryMode");
     }
 
-    public boolean isNativeVoxelCollisionEnabled() {
-        return nativeVoxelCollisionEnabled;
-    }
-
-    public void setNativeVoxelCollisionEnabled(boolean nativeVoxelCollisionEnabled) {
-        this.nativeVoxelCollisionEnabled = nativeVoxelCollisionEnabled;
-    }
-
-    public int getTerrainRadius() {
-        return terrainRadius;
-    }
-
     public void setTerrainRadius(int terrainRadius) {
         this.terrainRadius = PhysicsChunkSettingsValidation.requirePositiveAtMost(
             "PhysicsChunk terrain radius",
             terrainRadius,
             MAX_TERRAIN_RADIUS);
-    }
-
-    public int getBodyTerrainRadius() {
-        return bodyTerrainRadius;
     }
 
     public void setBodyTerrainRadius(int bodyTerrainRadius) {
@@ -152,10 +147,6 @@ public class PhysicsChunkTerrainSettings {
             MAX_BODY_TERRAIN_RADIUS);
     }
 
-    public int getTerrainTtlTicks() {
-        return terrainTtlTicks;
-    }
-
     public void setTerrainTtlTicks(int terrainTtlTicks) {
         this.terrainTtlTicks = PhysicsChunkSettingsValidation.requirePositiveAtMost(
             "PhysicsChunk terrain TTL",
@@ -163,19 +154,11 @@ public class PhysicsChunkTerrainSettings {
             MAX_TERRAIN_TTL_TICKS);
     }
 
-    public float getChunkCollisionFriction() {
-        return chunkCollisionFriction;
-    }
-
     public void setChunkCollisionFriction(float chunkCollisionFriction) {
         this.chunkCollisionFriction = PhysicsChunkSettingsValidation.requireFiniteAtLeast(
             "Chunk collision friction",
             chunkCollisionFriction,
             0.0f);
-    }
-
-    public float getChunkCollisionRestitution() {
-        return chunkCollisionRestitution;
     }
 
     public void setChunkCollisionRestitution(float chunkCollisionRestitution) {
@@ -196,14 +179,6 @@ public class PhysicsChunkTerrainSettings {
             0.0f);
         this.chunkCollisionFriction = validatedFriction;
         this.chunkCollisionRestitution = validatedRestitution;
-    }
-
-    public int getChunkCollisionGroup() {
-        return chunkCollisionGroup;
-    }
-
-    public int getChunkCollisionMask() {
-        return chunkCollisionMask;
     }
 
     public void setChunkCollisionFilter(int collisionGroup, int collisionMask) {
