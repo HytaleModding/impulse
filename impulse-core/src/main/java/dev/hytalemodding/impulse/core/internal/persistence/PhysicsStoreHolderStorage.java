@@ -13,6 +13,7 @@ import java.nio.file.StandardOpenOption;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.bson.BsonArray;
 import org.bson.BsonBinary;
 import org.bson.BsonDocument;
@@ -43,13 +44,19 @@ public final class PhysicsStoreHolderStorage {
         List<byte[]> holderBlobs = PhysicsStoreHolderPersistence.capturePersistentHolderBlobs(
             store);
         byte[] document = BsonUtil.writeToBytes(document(holderBlobs));
-        Path file = file(store.getExternalData());
+        Path file = fileOrNull(store.getExternalData());
+        if (file == null) {
+            return CompletableFuture.completedFuture(null);
+        }
         return CompletableFuture.runAsync(() -> writeBinaryAtomic(file, document));
     }
 
     @Nonnull
     public static LoadResult load(@Nonnull Store<PhysicsStore> store) {
-        Path file = file(store.getExternalData());
+        Path file = fileOrNull(store.getExternalData());
+        if (file == null) {
+            return LoadResult.missing();
+        }
         if (!Files.exists(file)) {
             return LoadResult.missing();
         }
@@ -85,6 +92,12 @@ public final class PhysicsStoreHolderStorage {
     @Nonnull
     static Path file(@Nonnull PhysicsStore physicsStore) {
         return physicsStore.getWorld().getSavePath().resolve(DIRECTORY).resolve(FILE_NAME);
+    }
+
+    @Nullable
+    private static Path fileOrNull(@Nonnull PhysicsStore physicsStore) {
+        Path savePath = physicsStore.getWorld().getSavePath();
+        return savePath != null ? savePath.resolve(DIRECTORY).resolve(FILE_NAME) : null;
     }
 
     @Nonnull
