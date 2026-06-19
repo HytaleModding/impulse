@@ -73,7 +73,7 @@ public final class PhysicsChunkCollision {
         int radius) {
         PhysicsChunkSpaceSettings settings = requireSettings(checkedStore, spaceRef);
         PhysicsChunkCollisionMutationQueueResource queue = stampedQueue(checkedStore);
-        int removed = clearSpaceRows(world, checkedStore, settings.spaceUuid());
+        int removed = clearSpaceChunkCollisionRows(world, checkedStore, settings.spaceUuid());
         PhysicsChunkCollisionPrewarmStats stats = streaming(world).ensureAround(world,
             settings.spaceUuid(),
             queue,
@@ -190,7 +190,7 @@ public final class PhysicsChunkCollision {
         Store<PhysicsStore> checkedStore = requireMatchingWorldThread(world,
             store,
             "clear PhysicsChunk collision");
-        return clearSpaceRows(world,
+        return clearSpaceChunkCollisionRows(world,
             checkedStore,
             requireSpaceUuid(checkedStore, requireSpaceRef(checkedStore, spaceId)));
     }
@@ -201,7 +201,8 @@ public final class PhysicsChunkCollision {
         Store<PhysicsStore> checkedStore = requireMatchingWorldThread(world,
             store,
             "clear PhysicsChunk collision");
-        return clearSpaceRows(world, checkedStore, requireSpaceUuid(checkedStore, spaceRef));
+        return clearSpaceChunkCollisionRows(world, checkedStore, requireSpaceUuid(checkedStore,
+            spaceRef));
     }
 
     @Nonnull
@@ -308,7 +309,7 @@ public final class PhysicsChunkCollision {
         return entityStore.getResource(PhysicsChunkCollisionStreamingResource.getResourceType());
     }
 
-    private static int clearSpaceRows(@Nonnull World world,
+    private static int clearSpaceChunkCollisionRows(@Nonnull World world,
         @Nonnull Store<PhysicsStore> store,
         @Nonnull UUID spaceUuid) {
         int removed = 0;

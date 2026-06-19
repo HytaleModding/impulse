@@ -25,12 +25,12 @@ import dev.hytalemodding.impulse.examples.utils.ExamplePhysicsUtils;
 import org.joml.Vector3d;
 
 /**
- * Debug commands for manually building/clearing PhysicsChunk collision collision.
+ * Debug commands for manually building/clearing PhysicsChunk collision.
  */
 public class PhysicsChunkExampleCommand extends AbstractCommandCollection {
 
     public PhysicsChunkExampleCommand() {
-        super("physicschunk", "Build PhysicsChunk collision collision from nearby world blocks");
+        super("physicschunk", "Build PhysicsChunk collision from nearby world blocks");
         addSubCommand(new BuildCommand());
         addSubCommand(new EnsureCommand());
         addSubCommand(new ClearCommand());
@@ -57,7 +57,7 @@ public class PhysicsChunkExampleCommand extends AbstractCommandCollection {
             ArgTypes.INTEGER);
 
         private BuildCommand() {
-            super("build", "Rebuild nearby PhysicsChunk collision collision");
+            super("build", "Rebuild nearby PhysicsChunk collision");
         }
 
         @Nonnull
@@ -82,7 +82,7 @@ public class PhysicsChunkExampleCommand extends AbstractCommandCollection {
                 playerPos,
                 radius);
 
-            ctx.sender().sendMessage(Message.raw("Built PhysicsChunk collision collision: scanned "
+            ctx.sender().sendMessage(Message.raw("Built PhysicsChunk collision: scanned "
                 + stats.scannedBlocks()
                 + " blocks, solid " + stats.solidBlocks()
                 + ", culled " + stats.culledInteriorBlocks()
@@ -113,7 +113,7 @@ public class PhysicsChunkExampleCommand extends AbstractCommandCollection {
             ArgTypes.INTEGER);
 
         private EnsureCommand() {
-            super("ensure", "Ensure nearby PhysicsChunk collision collision is available");
+            super("ensure", "Ensure nearby PhysicsChunk collision is available");
         }
 
         @Nonnull
@@ -139,7 +139,7 @@ public class PhysicsChunkExampleCommand extends AbstractCommandCollection {
                 radius,
                 Math.max(0L, world.getTick()));
 
-            ctx.sender().sendMessage(Message.raw("Ensured PhysicsChunk collision collision: targets "
+            ctx.sender().sendMessage(Message.raw("Ensured PhysicsChunk collision: targets "
                 + stats.sectionTargets()
                 + ", bodies "
                 + stats.buildStats().colliderBodies()
@@ -158,7 +158,7 @@ public class PhysicsChunkExampleCommand extends AbstractCommandCollection {
             ArgTypes.INTEGER);
 
         private ClearCommand() {
-            super("clear", "Remove generated PhysicsChunk collision collision");
+            super("clear", "Remove generated PhysicsChunk collision");
         }
 
         @Nonnull
@@ -184,7 +184,7 @@ public class PhysicsChunkExampleCommand extends AbstractCommandCollection {
     private static final class StatsCommand extends AbstractAsyncPlayerCommand {
 
         private StatsCommand() {
-            super("stats", "Show generated PhysicsChunk collision collision stats");
+            super("stats", "Show generated PhysicsChunk collision stats");
         }
 
         @Nonnull
@@ -195,7 +195,7 @@ public class PhysicsChunkExampleCommand extends AbstractCommandCollection {
             @Nonnull PlayerRef playerRef,
             @Nonnull World world) {
             PhysicsChunkCollisionStats stats = PhysicsChunkCollision.stats(world);
-            ctx.sender().sendMessage(Message.raw("PhysicsChunk collision collision: "
+            ctx.sender().sendMessage(Message.raw("PhysicsChunk collision: "
                 + stats.spaces() + " spaces, "
                 + stats.sections() + " sections, "
                 + stats.bodies() + " bodies, "
