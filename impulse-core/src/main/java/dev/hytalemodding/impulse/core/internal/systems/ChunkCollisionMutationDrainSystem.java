@@ -2,7 +2,6 @@ package dev.hytalemodding.impulse.core.internal.systems;
 
 import com.hypixel.hytale.component.AddReason;
 import com.hypixel.hytale.component.Ref;
-import com.hypixel.hytale.component.RemoveReason;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.component.dependency.Dependency;
 import com.hypixel.hytale.component.dependency.Order;
@@ -14,20 +13,17 @@ import dev.hytalemodding.impulse.api.PhysicsAxis;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntime;
-import dev.hytalemodding.impulse.core.internal.modules.control.PhysicsControlRuntimeStates;
-import dev.hytalemodding.impulse.core.internal.resources.BackendBodyHandle;
 import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsBodyRegistrationResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsIdentityIndexResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRestoreStatusResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResource;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsSnapshotResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkCollisionMutationQueueResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkCollisionPayloadResource;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.ChunkCollisionMutation;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.ChunkCollisionPayload;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.ChunkCollisionPayload.BoxPayload;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkCollisionDefaults;
+import dev.hytalemodding.impulse.core.internal.physicsstore.PhysicsStoreRowCleanup;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.components.BodyComponent;
@@ -107,7 +103,7 @@ public final class ChunkCollisionMutationDrainSystem extends TickingSystem<Physi
         @Nonnull List<ChunkCollisionMutation> mutations) {
         for (ChunkCollisionMutation mutation : mutations) {
             if (mutation.remove()) {
-                removeGeneratedRows(store, runtime, identity, chunkCollisionPayloads, mutation);
+                removeGeneratedRows(store, runtime, identity, mutation);
                 removePayload(chunkCollisionPayloads, mutation.payloadResourceKey());
             }
         }
@@ -154,7 +150,7 @@ public final class ChunkCollisionMutationDrainSystem extends TickingSystem<Physi
             && backendRuntime.supportsVoxelTerrain(spaceHandle.value());
         MaterialComponent material = material(store, spaceRef);
         CollisionFilterComponent filter = filter(store, spaceRef);
-        removeGeneratedRows(store, runtime, identity, chunkCollisionPayloads, mutation);
+        removeGeneratedRows(store, runtime, identity, mutation);
         removePayload(chunkCollisionPayloads, mutation.payloadResourceKey());
         if (nativeVoxel) {
             chunkCollisionPayloads.put(mutation.payloadResourceKey(), voxelPayload(payload));
@@ -328,24 +324,14 @@ public final class ChunkCollisionMutationDrainSystem extends TickingSystem<Physi
     private static void removeGeneratedRows(@Nonnull Store<PhysicsStore> store,
         @Nonnull PhysicsRuntimeResource runtime,
         @Nonnull PhysicsIdentityIndexResource identity,
-        @Nonnull PhysicsChunkCollisionPayloadResource chunkCollisionPayloads,
         @Nonnull ChunkCollisionMutation mutation) {
         List<GeneratedRow> rows = collectGeneratedRows(store, mutation);
-        PhysicsSnapshotResource snapshots = store.getResource(PhysicsSnapshotResource.getResourceType());
-        PhysicsBodyRegistrationResource registrations = store.getResource(
-            PhysicsBodyRegistrationResource.getResourceType());
         for (GeneratedRow row : rows) {
-            removeRuntimeBody(runtime, identity, row);
-            PhysicsControlRuntimeStates.clearControlled(row.ref());
-            snapshots.removeBody(row.uuid());
-            registrations.removeBody(row.uuid());
-            removePayload(chunkCollisionPayloads, row.payloadResourceKey());
-            identity.removeUuid(row.uuid(), row.ref());
-            if (row.ref().isValid()) {
-                store.removeEntity(row.ref(),
-                    store.getRegistry().newHolder(),
-                    RemoveReason.REMOVE);
-            }
+            PhysicsStoreRowCleanup.removeRuntimeBody(runtime, identity, row.uuid(), row.ref());
+            PhysicsStoreRowCleanup.removeBodyEntity(store,
+                row.uuid(),
+                row.ref(),
+                row.payloadResourceKey());
         }
     }
 
@@ -377,21 +363,6 @@ public final class ChunkCollisionMutationDrainSystem extends TickingSystem<Physi
         @Nonnull ChunkCollisionSourceComponent source) {
         return mutation.spaceUuid().equals(body.getSpaceUuid())
             && mutation.sourceKey().equals(source.getSourceKey());
-    }
-
-    private static void removeRuntimeBody(@Nonnull PhysicsRuntimeResource runtime,
-        @Nonnull PhysicsIdentityIndexResource identity,
-        @Nonnull GeneratedRow row) {
-        BackendBodyHandle bodyHandle = runtime.getBodyHandle(row.ref());
-        BackendSpaceHandle spaceHandle = runtime.getBodySpaceHandle(row.ref());
-        if (bodyHandle != null && spaceHandle != null) {
-            PhysicsBackendRuntime backendRuntime = runtime.runtimeForBodyRef(row.ref());
-            if (backendRuntime != null) {
-                backendRuntime.removeBody(spaceHandle.value(), bodyHandle.value());
-            }
-            identity.removeBodyHandle(bodyHandle);
-        }
-        runtime.removeBodyHandle(row.uuid(), row.ref());
     }
 
     private static void removePayload(@Nonnull PhysicsChunkCollisionPayloadResource chunkCollisionPayloads,

@@ -2,10 +2,8 @@ package dev.hytalemodding.impulse.core.internal.physicsstore;
 
 import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.component.Ref;
-import com.hypixel.hytale.component.RemoveReason;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
-import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntime;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsBodyRegistrationResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsEventResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsIdentityIndexResource;
@@ -14,9 +12,6 @@ import dev.hytalemodding.impulse.core.internal.resources.PhysicsSnapshotResource
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceCompatibilityIndexResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkCollisionMutationQueueResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkCollisionPayloadResource;
-import dev.hytalemodding.impulse.core.internal.resources.BackendBodyHandle;
-import dev.hytalemodding.impulse.core.internal.resources.BackendJointHandle;
-import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResetResult;
 import dev.hytalemodding.impulse.core.internal.modules.control.PhysicsControlRuntimeStates;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
@@ -129,37 +124,19 @@ public final class PhysicsStoreTopologyMutations {
     private static boolean removeRuntimeJoint(@Nonnull PhysicsRuntimeResource runtime,
         @Nonnull PhysicsIdentityIndexResource identity,
         @Nonnull RowRemoval removal) {
-        BackendJointHandle jointHandle = runtime.getJointHandle(removal.ref());
-        BackendSpaceHandle spaceHandle = runtime.getJointSpaceHandle(removal.ref());
-        if (jointHandle == null) {
-            runtime.removeJointHandle(removal.rowUuid(), removal.ref());
-            return false;
-        }
-        PhysicsBackendRuntime backendRuntime = runtime.runtimeForJointRef(removal.ref());
-        if (spaceHandle != null && backendRuntime != null) {
-            backendRuntime.removeJoint(spaceHandle.value(), jointHandle.value());
-        }
-        identity.removeJointHandle(jointHandle);
-        runtime.removeJointHandle(removal.rowUuid(), removal.ref());
-        return true;
+        return PhysicsStoreRowCleanup.removeRuntimeJoint(runtime,
+            identity,
+            removal.rowUuid(),
+            removal.ref());
     }
 
     private static boolean removeRuntimeBody(@Nonnull PhysicsRuntimeResource runtime,
         @Nonnull PhysicsIdentityIndexResource identity,
         @Nonnull RowRemoval removal) {
-        BackendBodyHandle bodyHandle = runtime.getBodyHandle(removal.ref());
-        BackendSpaceHandle spaceHandle = runtime.getBodySpaceHandle(removal.ref());
-        if (bodyHandle == null) {
-            runtime.removeBodyHandle(removal.rowUuid(), removal.ref());
-            return false;
-        }
-        PhysicsBackendRuntime backendRuntime = runtime.runtimeForBodyRef(removal.ref());
-        if (spaceHandle != null && backendRuntime != null) {
-            backendRuntime.removeBody(spaceHandle.value(), bodyHandle.value());
-        }
-        identity.removeBodyHandle(bodyHandle);
-        runtime.removeBodyHandle(removal.rowUuid(), removal.ref());
-        return true;
+        return PhysicsStoreRowCleanup.removeRuntimeBody(runtime,
+            identity,
+            removal.rowUuid(),
+            removal.ref());
     }
 
     @Nonnull
@@ -295,30 +272,20 @@ public final class PhysicsStoreTopologyMutations {
 
     private static void removeRows(@Nonnull Store<PhysicsStore> store,
         @Nonnull List<RowRemoval> removals) {
-        PhysicsIdentityIndexResource identity =
-            store.getResource(PhysicsIdentityIndexResource.getResourceType());
-        PhysicsChunkCollisionPayloadResource chunkCollisionPayloads =
-            store.getResource(PhysicsChunkCollisionPayloadResource.getResourceType());
-        PhysicsSnapshotResource snapshots = store.getResource(PhysicsSnapshotResource.getResourceType());
-        PhysicsBodyRegistrationResource registrations =
-            store.getResource(PhysicsBodyRegistrationResource.getResourceType());
         for (RowRemoval removal : removals) {
             if (!removal.ref().isValid()) {
                 continue;
             }
-            identity.removeUuid(removal.rowUuid(), removal.ref());
-            if (removal.payloadResourceKey() != null
-                && !removal.payloadResourceKey().isBlank()) {
-                chunkCollisionPayloads.remove(removal.payloadResourceKey());
-            }
             if (removal.kind() == RowKind.BODY) {
-                PhysicsControlRuntimeStates.clearControlled(removal.ref());
-                snapshots.removeBody(removal.rowUuid());
-                registrations.removeBody(removal.rowUuid());
+                PhysicsStoreRowCleanup.removeBodyEntity(store,
+                    removal.rowUuid(),
+                    removal.ref(),
+                    removal.payloadResourceKey());
+            } else {
+                PhysicsStoreRowCleanup.removeJointEntity(store,
+                    removal.rowUuid(),
+                    removal.ref());
             }
-            store.removeEntity(removal.ref(),
-                store.getRegistry().newHolder(),
-                RemoveReason.REMOVE);
         }
     }
 

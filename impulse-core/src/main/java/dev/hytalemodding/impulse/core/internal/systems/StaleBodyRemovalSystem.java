@@ -1,7 +1,6 @@
 package dev.hytalemodding.impulse.core.internal.systems;
 
 import com.hypixel.hytale.component.Ref;
-import com.hypixel.hytale.component.RemoveReason;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.component.dependency.Dependency;
 import com.hypixel.hytale.component.dependency.Order;
@@ -9,15 +8,11 @@ import com.hypixel.hytale.component.dependency.SystemDependency;
 import com.hypixel.hytale.component.system.tick.TickingSystem;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntime;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsBodyRegistrationResource;
+import dev.hytalemodding.impulse.core.internal.physicsstore.PhysicsStoreRowCleanup;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsIdentityIndexResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRestoreStatusResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResource.BodySnapshotMetadata;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsSnapshotResource;
-import dev.hytalemodding.impulse.core.internal.resources.BackendBodyHandle;
-import dev.hytalemodding.impulse.core.internal.resources.BackendJointHandle;
-import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
 import dev.hytalemodding.impulse.core.plugin.components.BodyComponent;
 import dev.hytalemodding.impulse.core.plugin.components.JointComponent;
 import dev.hytalemodding.impulse.core.plugin.components.UuidComponent;
@@ -62,7 +57,6 @@ public final class StaleBodyRemovalSystem extends TickingSystem<PhysicsStore> {
                     runtime,
                     restore,
                     staleBodies,
-                    spaceHandle,
                     backendRuntime,
                     bodyId)));
         if (restore.isFailed()) {
@@ -73,22 +67,19 @@ public final class StaleBodyRemovalSystem extends TickingSystem<PhysicsStore> {
         if (!removeDependentJoints(store, runtime, identity, restore, staleBodyUuids)) {
             return;
         }
-        PhysicsSnapshotResource snapshots = store.getResource(PhysicsSnapshotResource.getResourceType());
-        PhysicsBodyRegistrationResource registrations =
-            store.getResource(PhysicsBodyRegistrationResource.getResourceType());
         for (BoundBody body : staleBodies) {
             try {
-                body.backendRuntime().removeBody(body.spaceHandle().value(), body.bodyHandle().value());
+                PhysicsStoreRowCleanup.removeRuntimeBody(runtime,
+                    identity,
+                    body.bodyUuid(),
+                    body.bodyRef(),
+                    body.backendRuntime());
             } catch (RuntimeException exception) {
                 restore.markFailed("PhysicsStore body " + body.bodyUuid()
                     + " failed backend removal: " + exception.getMessage());
                 return;
             }
-            identity.removeBodyHandle(body.bodyHandle());
-            identity.removeUuid(body.bodyUuid(), body.bodyRef());
-            snapshots.removeBody(body.bodyUuid());
-            registrations.removeBody(body.bodyUuid());
-            runtime.removeBodyHandle(body.bodyUuid(), body.bodyRef());
+            PhysicsStoreRowCleanup.removeBodyEntity(store, body.bodyUuid(), body.bodyRef(), null);
         }
     }
 
@@ -101,27 +92,18 @@ public final class StaleBodyRemovalSystem extends TickingSystem<PhysicsStore> {
             return true;
         }
         for (BoundJoint joint : collectDependentJoints(store, identity, staleBodyUuids)) {
-            BackendJointHandle jointHandle = runtime.getJointHandle(joint.ref());
-            if (jointHandle != null) {
-                BackendSpaceHandle spaceHandle = runtime.getJointSpaceHandle(joint.ref());
-                PhysicsBackendRuntime backendRuntime = runtime.runtimeForJointRef(joint.ref());
-                if (spaceHandle != null && backendRuntime != null) {
-                    try {
-                        backendRuntime.removeJoint(spaceHandle.value(), jointHandle.value());
-                    } catch (RuntimeException exception) {
-                        restore.markFailed("PhysicsStore joint " + joint.jointUuid()
-                            + " failed backend removal: " + exception.getMessage());
-                        return false;
-                    }
-                }
-                identity.removeJointHandle(jointHandle);
+            try {
+                PhysicsStoreRowCleanup.removeRuntimeJoint(runtime,
+                    identity,
+                    joint.jointUuid(),
+                    joint.ref());
+            } catch (RuntimeException exception) {
+                restore.markFailed("PhysicsStore joint " + joint.jointUuid()
+                    + " failed backend removal: " + exception.getMessage());
+                return false;
             }
-            runtime.removeJointHandle(joint.jointUuid(), joint.ref());
             if (joint.removeRow() && joint.ref().isValid()) {
-                identity.removeUuid(joint.jointUuid(), joint.ref());
-                store.removeEntity(joint.ref(),
-                    store.getRegistry().newHolder(),
-                    RemoveReason.REMOVE);
+                PhysicsStoreRowCleanup.removeJointEntity(store, joint.jointUuid(), joint.ref());
             }
         }
         return true;
@@ -170,7 +152,6 @@ public final class StaleBodyRemovalSystem extends TickingSystem<PhysicsStore> {
         @Nonnull PhysicsRuntimeResource runtime,
         @Nonnull PhysicsRestoreStatusResource restore,
         @Nonnull List<BoundBody> staleBodies,
-        @Nonnull BackendSpaceHandle spaceHandle,
         @Nonnull PhysicsBackendRuntime backendRuntime,
         long bodyId) {
         BodySnapshotMetadata metadata = runtime.getBodySnapshotMetadata(bodyId);
@@ -187,8 +168,6 @@ public final class StaleBodyRemovalSystem extends TickingSystem<PhysicsStore> {
         }
         staleBodies.add(new BoundBody(metadata.bodyUuid(),
             metadata.bodyRef(),
-            spaceHandle,
-            new BackendBodyHandle(bodyId),
             backendRuntime));
     }
 
@@ -200,8 +179,6 @@ public final class StaleBodyRemovalSystem extends TickingSystem<PhysicsStore> {
 
     private record BoundBody(@Nonnull UUID bodyUuid,
                              @Nonnull Ref<PhysicsStore> bodyRef,
-                             @Nonnull BackendSpaceHandle spaceHandle,
-                             @Nonnull BackendBodyHandle bodyHandle,
                              @Nonnull PhysicsBackendRuntime backendRuntime) {
     }
 
