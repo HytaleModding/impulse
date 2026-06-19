@@ -8,12 +8,16 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import javax.annotation.Nonnull;
 
 public final class PhysicsStoreHooks {
 
     @Nonnull
     private static final Set<Consumer<PhysicsStore>> SHUTDOWN_HOOKS =
+        new CopyOnWriteArraySet<>();
+    @Nonnull
+    private static final Set<Function<PhysicsStore, CompletableFuture<Void>>> SAVE_HOOKS =
         new CopyOnWriteArraySet<>();
     @Nonnull
     private static final Set<TickGate> TICK_GATES = new CopyOnWriteArraySet<>();
@@ -27,6 +31,16 @@ public final class PhysicsStoreHooks {
 
     public static void unregisterShutdownHook(@Nonnull Consumer<PhysicsStore> hook) {
         SHUTDOWN_HOOKS.remove(Objects.requireNonNull(hook, "hook"));
+    }
+
+    public static void registerSaveHook(
+        @Nonnull Function<PhysicsStore, CompletableFuture<Void>> hook) {
+        SAVE_HOOKS.add(Objects.requireNonNull(hook, "hook"));
+    }
+
+    public static void unregisterSaveHook(
+        @Nonnull Function<PhysicsStore, CompletableFuture<Void>> hook) {
+        SAVE_HOOKS.remove(Objects.requireNonNull(hook, "hook"));
     }
 
     public static void registerTickGate(@Nonnull TickGate gate) {
@@ -61,7 +75,19 @@ public final class PhysicsStoreHooks {
 
     @Nonnull
     public static CompletableFuture<Void> saveResources(@Nonnull PhysicsStore physicsStore) {
-        return Objects.requireNonNull(physicsStore, "physicsStore").getStore().saveAllResources();
+        PhysicsStore checked = Objects.requireNonNull(physicsStore, "physicsStore");
+        CompletableFuture<?>[] futures = new CompletableFuture[SAVE_HOOKS.size() + 1];
+        int index = 0;
+        for (Function<PhysicsStore, CompletableFuture<Void>> hook : SAVE_HOOKS) {
+            try {
+                futures[index++] = Objects.requireNonNull(hook.apply(checked),
+                    "save hook future");
+            } catch (RuntimeException exception) {
+                futures[index++] = CompletableFuture.failedFuture(exception);
+            }
+        }
+        futures[index++] = checked.getStore().saveAllResources();
+        return CompletableFuture.allOf(futures);
     }
 
     public static void shutdown(@Nonnull PhysicsStore physicsStore) {

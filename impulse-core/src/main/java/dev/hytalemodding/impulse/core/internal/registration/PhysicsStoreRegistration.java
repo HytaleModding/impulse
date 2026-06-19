@@ -10,6 +10,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.early.PhysicsStoreHooks;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkStoreTypes;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsStoreResource;
+import dev.hytalemodding.impulse.core.internal.persistence.PhysicsStoreHolderStorage;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsBodyRegistrationResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsEventResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsIdentityIndexResource;
@@ -40,7 +41,9 @@ import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntim
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -54,6 +57,9 @@ public final class PhysicsStoreRegistration {
     private static final Consumer<PhysicsStore> SHUTDOWN_CLEANUP =
         PhysicsStoreRegistration::clearRuntimeStateBeforeShutdown;
     @Nonnull
+    private static final Function<PhysicsStore, CompletableFuture<Void>> HOLDER_SAVE_HOOK =
+        PhysicsStoreHolderStorage::save;
+    @Nonnull
     private static final PhysicsStoreHooks.TickGate STEP_TICK_GATE =
         PhysicsStoreRegistration::shouldTickPhysicsStore;
 
@@ -62,6 +68,7 @@ public final class PhysicsStoreRegistration {
 
     public static void register(@Nonnull ComponentRegistryProxy<PhysicsStore> registry) {
         PhysicsStoreHooks.registerShutdownHook(SHUTDOWN_CLEANUP);
+        PhysicsStoreHooks.registerSaveHook(HOLDER_SAVE_HOOK);
         PhysicsStoreHooks.registerTickGate(STEP_TICK_GATE);
 
         PhysicsResourceTypes.registerResourceTypes(registry);
@@ -90,6 +97,8 @@ public final class PhysicsStoreRegistration {
             return;
         }
         RuntimeException failure = null;
+        failure = runShutdownCleanup(failure,
+            () -> PhysicsStoreHolderStorage.save(physicsStore).join());
         failure = runShutdownCleanup(failure,
             () -> ensurePersistentResourcePresent(store));
         failure = runShutdownCleanup(failure,
