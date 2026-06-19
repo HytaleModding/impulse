@@ -1069,7 +1069,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
             removed = authoritativePhysicsChunkCollisionStreaming().clearSpace(spaceUuid, queue);
         }
         int directlyRemoved =
-            PhysicsStoreTopologyMutations.clearTerrainForSpace(store, spaceUuid);
+            PhysicsStoreTopologyMutations.clearChunkCollisionRowsForSpace(store, spaceUuid);
         return removed != 0 ? removed : directlyRemoved;
     }
 

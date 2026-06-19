@@ -316,7 +316,7 @@ public final class PhysicsChunkCollision {
             removed = streaming(world).clearSpace(spaceUuid, stampedQueue(store));
         }
         int directlyRemoved =
-            PhysicsStoreTopologyMutations.clearTerrainForSpace(store, spaceUuid);
+            PhysicsStoreTopologyMutations.clearChunkCollisionRowsForSpace(store, spaceUuid);
         return removed != 0 ? removed : directlyRemoved;
     }
 

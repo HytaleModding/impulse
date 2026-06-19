@@ -86,15 +86,15 @@ public final class PhysicsStoreTopologyMutations {
         PhysicsStoreSpaceMutations.removeEmptySpace(store, spaceUuid);
     }
 
-    public static int clearTerrainForSpace(@Nonnull Store<PhysicsStore> store,
+    public static int clearChunkCollisionRowsForSpace(@Nonnull Store<PhysicsStore> store,
         @Nonnull UUID spaceUuid) {
-        PhysicsThreading.requireBackendIdle(store, "clear PhysicsStore terrain rows");
+        PhysicsThreading.requireBackendIdle(store, "clear PhysicsStore chunk-collision rows");
         PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
         PhysicsIdentityIndexResource identity =
             store.getResource(PhysicsIdentityIndexResource.getResourceType());
         int removedBodies = 0;
         Ref<PhysicsStore> spaceRef = identity.getByUuid(spaceUuid);
-        List<RowRemoval> removals = collectTerrainRows(store, spaceUuid, spaceRef);
+        List<RowRemoval> removals = collectChunkCollisionRows(store, spaceUuid, spaceRef);
         for (RowRemoval removal : removals) {
             if (removeRuntimeBody(runtime, identity, removal)) {
                 removedBodies++;
@@ -183,7 +183,7 @@ public final class PhysicsStoreTopologyMutations {
     }
 
     @Nonnull
-    private static List<RowRemoval> collectTerrainRows(@Nonnull Store<PhysicsStore> store,
+    private static List<RowRemoval> collectChunkCollisionRows(@Nonnull Store<PhysicsStore> store,
         @Nonnull UUID spaceUuid,
         @Nullable Ref<PhysicsStore> spaceRef) {
         ComponentType<PhysicsStore, UuidComponent> uuidType = UuidComponent.getComponentType();

@@ -11,15 +11,11 @@ import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.Bo
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.GeneratedVisualProxyComponent;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
 /**
  * Public EntityStore type handles for the PhysicsEntity subplugin.
  */
 public final class PhysicsEntityTypes {
-
-    @Nullable
-    private static ComponentType<EntityStore, BodyAttachmentComponent> bodyAttachmentComponentType;
 
     private PhysicsEntityTypes() {
     }
@@ -29,8 +25,7 @@ public final class PhysicsEntityTypes {
     }
 
     public static boolean isBodyAttachmentComponentTypeRegistered() {
-        return bodyAttachmentComponentType != null
-            || PhysicsEntityTypeRegistry.isBodyAttachmentComponentTypeRegistered();
+        return PhysicsEntityTypeRegistry.isBodyAttachmentComponentTypeRegistered();
     }
 
     public static boolean isGeneratedVisualProxyComponentTypeRegistered() {
@@ -39,11 +34,6 @@ public final class PhysicsEntityTypes {
 
     @Nonnull
     public static ComponentType<EntityStore, BodyAttachmentComponent> bodyAttachmentComponentType() {
-        ComponentType<EntityStore, BodyAttachmentComponent> compatibilityType =
-            bodyAttachmentComponentType;
-        if (compatibilityType != null) {
-            return compatibilityType;
-        }
         return PhysicsEntityTypeRegistry.bodyAttachmentComponentType();
     }
 
