@@ -4,7 +4,7 @@ import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRuntime
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsVisualRuntime.BodyVisualInterestState;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.settings.PhysicsVisualSyncSettings;
-import dev.hytalemodding.impulse.core.plugin.settings.VisualOcclusionMode;
+import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.settings.VisualOcclusionMode;
 import java.util.List;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;

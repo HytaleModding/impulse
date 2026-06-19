@@ -1,7 +1,7 @@
 package dev.hytalemodding.impulse.core.plugin.modules.physicschunk.settings;
 
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkCollisionMode;
-import dev.hytalemodding.impulse.core.plugin.settings.EntityChunkBoundaryMode;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.settings.EntityChunkBoundaryMode;
 import lombok.Getter;
 import lombok.Setter;
 import java.util.Objects;

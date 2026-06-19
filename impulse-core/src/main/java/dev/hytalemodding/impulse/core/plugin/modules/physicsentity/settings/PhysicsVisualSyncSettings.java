@@ -1,6 +1,6 @@
 package dev.hytalemodding.impulse.core.plugin.modules.physicsentity.settings;
 
-import dev.hytalemodding.impulse.core.plugin.settings.VisualOcclusionMode;
+import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.settings.VisualOcclusionMode;
 import javax.annotation.Nonnull;
 import lombok.Getter;
 import lombok.Setter;

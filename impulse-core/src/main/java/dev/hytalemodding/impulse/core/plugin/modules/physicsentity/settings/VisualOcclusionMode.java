@@ -1,4 +1,4 @@
-package dev.hytalemodding.impulse.core.plugin.settings;
+package dev.hytalemodding.impulse.core.plugin.modules.physicsentity.settings;
 
 
 public enum VisualOcclusionMode {
