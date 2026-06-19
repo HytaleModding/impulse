@@ -19,6 +19,7 @@ import dev.hytalemodding.impulse.core.internal.physicsstore.PhysicsStoreSpaceMut
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodySnapshots;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.BodyEntityDescriptor;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsBodies;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsBodyEntities;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsDiagnostics;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsEntities;
@@ -28,7 +29,6 @@ import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
 import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsBackendExtensionId;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.settings.VisualOcclusionMode;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkTerrainMode;
 import java.util.UUID;
@@ -234,9 +234,9 @@ final class ImpulseApiCrucibleTests {
                     state.world(),
                     "check Crucible body cleanup",
                     _ -> {
-                        PhysicsWorldResource resource = physicsResource(state.world());
                         boolean spaceEmpty = bodyCount == 0;
-                        boolean noRegistrations = resource.getBodyRegistrationViews().isEmpty();
+                        boolean noRegistrations =
+                            PhysicsBodies.registrationViews(state.store()).isEmpty();
                         boolean removedSpace = true;
                         if (checkSpaceRemoval || spaceEmpty) {
                             PhysicsStoreSpaceMutations.removeEmptySpace(
@@ -402,11 +402,6 @@ final class ImpulseApiCrucibleTests {
         settings.getVisualMaterializationSettings().setDetachedVisualMaxMaterialized(444);
         settings.getVisualMaterializationSettings().setDetachedVisualBlockType("Rock_Stone");
         return settings;
-    }
-
-    private static PhysicsWorldResource physicsResource(@Nonnull World world) {
-        Store<EntityStore> store = world.getEntityStore().getStore();
-        return store.getResource(PhysicsWorldResource.getResourceType());
     }
 
     private static Store<PhysicsStore> physicsStore(@Nonnull World world) {

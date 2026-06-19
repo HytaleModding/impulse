@@ -15,11 +15,14 @@ import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.PhysicsEntity
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.BodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.BodyAttachmentComponent.AttachmentLifecycle;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.GeneratedVisualProxyComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsBodies;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
 import java.util.WeakHashMap;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * Cleans EntityStore projections whose authoritative PhysicsStore row is gone.
@@ -60,11 +63,13 @@ public class PhysicsProjectionCleanupSystem extends TickingSystem<EntityStore> {
         ComponentType<EntityStore, BodyAttachmentComponent> attachmentType =
             BodyAttachmentComponent.getComponentType();
         PhysicsWorldRuntimeResource resource = PhysicsWorldRuntimeResource.require(store);
+        Store<PhysicsStore> physicsStore = PhysicsThreading.storeOrNull(
+            store.getExternalData().getWorld());
         store.forEachEntityParallel(attachmentType,
             (index, archetypeChunk, commandBuffer) -> {
                 BodyAttachmentComponent attachment = archetypeChunk.getComponent(index,
                     attachmentType);
-                if (attachment == null || !hasMissingBody(attachment, resource)) {
+                if (attachment == null || !hasMissingBody(resource, physicsStore, attachment)) {
                     return;
                 }
                 GeneratedProxyLifecycle.clearMissingAttachment(archetypeChunk.getReferenceTo(index),
@@ -79,14 +84,19 @@ public class PhysicsProjectionCleanupSystem extends TickingSystem<EntityStore> {
         return bodyRef != null && !bodyRef.isValid();
     }
 
-    private static boolean hasMissingBody(@Nonnull BodyAttachmentComponent attachment,
-        @Nonnull PhysicsWorldRuntimeResource resource) {
+    private static boolean hasMissingBody(@Nonnull PhysicsWorldRuntimeResource resource,
+        @Nullable Store<PhysicsStore> store,
+        @Nonnull BodyAttachmentComponent attachment) {
         if (hasDestroyedBodyRef(attachment)) {
             return true;
         }
-        return attachment.getBodyRef() == null
-            && attachment.getLifecycle() == AttachmentLifecycle.GENERATED_PROXY
-            && resource.getBodyRegistrationView(attachment.getBodyUuid()) == null;
+        if (attachment.getBodyRef() != null
+            || attachment.getLifecycle() != AttachmentLifecycle.GENERATED_PROXY) {
+            return false;
+        }
+        return store != null
+            ? PhysicsBodies.registrationView(store, attachment.getBodyUuid()) == null
+            : !resource.hasPublishedBodyRegistration(attachment.getBodyUuid());
     }
 
     private static void removeOrphanGeneratedVisualProxyMarkers(@Nonnull Store<EntityStore> store) {

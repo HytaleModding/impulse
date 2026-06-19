@@ -18,11 +18,13 @@ import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.SpaceId;
+import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.PhysicsEntityAttachments;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.BodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.BodyAttachmentComponent.AttachmentLifecycle;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsDebugResource;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsBodies;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.SectionCollisionGeometry.BoxCollider;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
@@ -130,6 +132,7 @@ public class PhysicsDebugSystem extends TickingSystem<EntityStore> {
             if (overlayDue && (debugShapes || debugMotion)) {
                 int renderedBodies = renderEntityBodies(target,
                     store,
+                    physicsStore,
                     resource,
                     viewerPosition,
                     debug.getViewRadius(),
@@ -138,6 +141,7 @@ public class PhysicsDebugSystem extends TickingSystem<EntityStore> {
                     debug.getMaxBodies(),
                     overlayLifetime);
                 renderDetachedBodies(target,
+                    store,
                     resource,
                     viewerPosition,
                     debug.getViewRadius(),
@@ -215,6 +219,7 @@ public class PhysicsDebugSystem extends TickingSystem<EntityStore> {
 
     private int renderEntityBodies(@Nonnull Collection<PlayerRef> viewers,
         @Nonnull Store<EntityStore> store,
+        @Nonnull Store<PhysicsStore> physicsStore,
         @Nonnull PhysicsWorldRuntimeResource resource,
         @Nonnull Vector3d viewerPosition,
         double viewRadius,
@@ -227,8 +232,10 @@ public class PhysicsDebugSystem extends TickingSystem<EntityStore> {
             return 0;
         }
         double maxDistanceSquared = viewRadius * viewRadius;
-        for (PhysicsBodyRegistrationView registration : resource.getBodyRegistrationViews(PhysicsBodyKind.BODY)) {
-            Collection<Ref<EntityStore>> attachments = resource.getBodyAttachments(registration.bodyUuid(),
+        for (PhysicsBodyRegistrationView registration : PhysicsBodies.registrationViews(physicsStore,
+            PhysicsBodyKind.BODY)) {
+            Collection<Ref<EntityStore>> attachments = PhysicsEntityAttachments.attachments(store,
+                registration.bodyUuid(),
                 null);
             if (attachments.isEmpty()) {
                 continue;
@@ -279,6 +286,7 @@ public class PhysicsDebugSystem extends TickingSystem<EntityStore> {
     }
 
     private static int renderDetachedBodies(@Nonnull Collection<PlayerRef> viewers,
+        @Nonnull Store<EntityStore> store,
         @Nonnull PhysicsWorldRuntimeResource resource,
         @Nonnull Vector3d viewerPosition,
         double viewRadius,
@@ -299,7 +307,7 @@ public class PhysicsDebugSystem extends TickingSystem<EntityStore> {
                 }
 
                 if (kind != PhysicsBodyKind.BODY
-                    || resource.hasBodyAttachments(bodyUuid, null)) {
+                    || PhysicsEntityAttachments.hasAttachments(store, bodyUuid, null)) {
                     return;
                 }
 

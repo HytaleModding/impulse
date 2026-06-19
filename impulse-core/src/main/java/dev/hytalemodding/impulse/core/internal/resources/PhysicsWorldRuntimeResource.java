@@ -33,7 +33,6 @@ import dev.hytalemodding.impulse.core.internal.resources.PhysicsVisualRuntime.Vi
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkLifecycle;
 import dev.hytalemodding.impulse.core.internal.PhysicsStoreEarlyPluginProbe;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRegistration;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsEventFrame;
@@ -562,7 +561,6 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         return spaceRuntime.getSpaceCount();
     }
 
-    @Override
     public int refreshBodySnapshots() {
         if (isAuthoritativePhysicsStoreActive()) {
             return authoritativePhysicsStore("refresh copied physics body snapshots")
@@ -582,7 +580,6 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     @Nonnull
-    @Override
     public dev.hytalemodding.impulse.api.PhysicsBodySnapshot getBodySnapshot(@Nonnull UUID bodyUuid) {
         Objects.requireNonNull(bodyUuid, "bodyUuid");
         if (isAuthoritativePhysicsStoreActive()) {
@@ -635,6 +632,16 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         PhysicsBodySnapshot snapshot = store.getResource(PhysicsSnapshotResource.getResourceType())
             .getBody(bodyRef);
         return snapshot != null ? toPublicBodySnapshot(store, snapshot) : null;
+    }
+
+    public boolean hasPublishedBodyRegistration(@Nonnull UUID bodyUuid) {
+        Objects.requireNonNull(bodyUuid, "bodyUuid");
+        if (hasAttachedAuthoritativePhysicsStore()) {
+            return authoritativePhysicsStore("check copied physics body registration")
+                .getResource(PhysicsBodyRegistrationResource.getResourceType())
+                .getBodyRegistrationView(bodyUuid) != null;
+        }
+        return bodyRegistry.getPublishedRegistrationView(bodyUuid) != null;
     }
 
     @Nonnull
@@ -1017,7 +1024,6 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         return lifecycleState.applyPublishedSnapshotFrame(frame, bodyRegistry, 0L);
     }
 
-    @Override
     public int getBodySnapshotCount() {
         if (isAuthoritativePhysicsStoreActive()) {
             return authoritativePhysicsStore("count copied physics body snapshots")
@@ -1029,7 +1035,6 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         return lifecycleState.bodySnapshotCount();
     }
 
-    @Override
     public int getBodySnapshotCount(@Nonnull SpaceId spaceId) {
         if (isAuthoritativePhysicsStoreActive()) {
             return countAuthoritativeBodySnapshots(
@@ -1039,7 +1044,6 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         return lifecycleState.bodySnapshotCount(spaceId);
     }
 
-    @Override
     public int getBodySnapshotCellCount() {
         if (isAuthoritativePhysicsStoreActive()) {
             return 0;
@@ -1115,7 +1119,6 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         }
     }
 
-    @Override
     public void forEachBodySnapshot(@Nonnull SpaceId spaceId,
         @Nonnull Consumer<PhysicsBodySnapshotEntry> consumer) {
         if (isAuthoritativePhysicsStoreActive()) {
@@ -1140,7 +1143,6 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         lifecycleState.forEachIndexedBodySnapshot(spaceId, visitor);
     }
 
-    @Override
     public int forEachBodySnapshotNear(@Nonnull SpaceId spaceId,
         @Nonnull Vector3f center,
         float radius,
@@ -1471,116 +1473,6 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
 
     private void destroyBodyDirect(@Nonnull UUID bodyUuid, boolean removeFromSpace) {
         bodyRuntime.destroyBody(bodyUuid, removeFromSpace);
-    }
-
-    @Nullable
-    @Override
-    public PhysicsBodyRegistrationView getBodyRegistrationView(@Nonnull UUID bodyUuid) {
-        if (hasAttachedAuthoritativePhysicsStore()) {
-            return authoritativePhysicsStore("read physics body registration view")
-                .getResource(PhysicsBodyRegistrationResource.getResourceType())
-                .getBodyRegistrationView(bodyUuid);
-        }
-        return bodyRegistry.getPublishedRegistrationView(bodyUuid);
-    }
-
-    @Nullable
-    @Override
-    public PhysicsBodyRegistrationView getBodyRegistrationView(@Nonnull Ref<PhysicsStore> bodyRef) {
-        if (hasAttachedAuthoritativePhysicsStore()) {
-            return authoritativePhysicsStore("read physics body registration view")
-                .getResource(PhysicsBodyRegistrationResource.getResourceType())
-                .getBodyRegistrationView(bodyRef);
-        }
-        return null;
-    }
-
-    @Nonnull
-    @Override
-    public Collection<PhysicsBodyRegistrationView> getBodyRegistrationViews() {
-        if (hasAttachedAuthoritativePhysicsStore()) {
-            return authoritativePhysicsStore("read physics body registration views")
-                .getResource(PhysicsBodyRegistrationResource.getResourceType())
-                .getBodyRegistrationViews();
-        }
-        return bodyRegistry.getPublishedRegistrationViews();
-    }
-
-    @Override
-    public int getBodyRegistrationCount() {
-        if (hasAttachedAuthoritativePhysicsStore()) {
-            return authoritativePhysicsStore("read physics body registration count")
-                .getResource(PhysicsBodyRegistrationResource.getResourceType())
-                .getBodyRegistrationCount();
-        }
-        return bodyRegistry.getPublishedRegistrationCount();
-    }
-
-    @Override
-    public int getBodyRegistrationCount(@Nonnull PhysicsBodyPersistenceMode persistenceMode) {
-        if (hasAttachedAuthoritativePhysicsStore()) {
-            return authoritativePhysicsStore("read physics body registration count")
-                .getResource(PhysicsBodyRegistrationResource.getResourceType())
-                .getBodyRegistrationCount(persistenceMode);
-        }
-        return bodyRegistry.getPublishedRegistrationCount(persistenceMode);
-    }
-
-    @Nonnull
-    @Override
-    public Collection<PhysicsBodyRegistrationView> getBodyRegistrationViews(@Nonnull PhysicsBodyKind kind) {
-        if (hasAttachedAuthoritativePhysicsStore()) {
-            return authoritativePhysicsStore("read physics body registration views")
-                .getResource(PhysicsBodyRegistrationResource.getResourceType())
-                .getBodyRegistrationViews(kind);
-        }
-        return bodyRegistry.getPublishedRegistrationViews(kind);
-    }
-
-    @Nonnull
-    @Override
-    public Collection<Ref<EntityStore>> getBodyAttachments(@Nonnull Ref<PhysicsStore> bodyRef) {
-        if (hasAttachedAuthoritativePhysicsStore()) {
-            return authoritativeProjectionIndex("read physics body attachments")
-                .getAttachments(bodyRef);
-        }
-        return visualRuntime.getAttachments(bodyRef);
-    }
-
-    @Nonnull
-    @Override
-    public Collection<Ref<EntityStore>> getBodyAttachments(@Nonnull UUID bodyUuid,
-        @Nullable Ref<PhysicsStore> bodyRef) {
-        if (hasAttachedAuthoritativePhysicsStore()) {
-            PhysicsProjectionIndexResource projection =
-                authoritativeProjectionIndex("read physics body attachments");
-            return bodyRef != null && bodyRef.isValid()
-                ? projection.getAttachments(bodyRef)
-                : projection.getAttachments(bodyUuid);
-        }
-        return visualRuntime.getAttachments(bodyUuid, bodyRef);
-    }
-
-    @Override
-    public boolean hasBodyAttachments(@Nonnull Ref<PhysicsStore> bodyRef) {
-        if (hasAttachedAuthoritativePhysicsStore()) {
-            return authoritativeProjectionIndex("check physics body attachments")
-                .hasAttachments(bodyRef);
-        }
-        return visualRuntime.hasAttachments(bodyRef);
-    }
-
-    @Override
-    public boolean hasBodyAttachments(@Nonnull UUID bodyUuid,
-        @Nullable Ref<PhysicsStore> bodyRef) {
-        if (hasAttachedAuthoritativePhysicsStore()) {
-            PhysicsProjectionIndexResource projection =
-                authoritativeProjectionIndex("check physics body attachments");
-            return bodyRef != null && bodyRef.isValid()
-                ? projection.hasAttachments(bodyRef)
-                : projection.hasAttachments(bodyUuid);
-        }
-        return visualRuntime.hasAttachments(bodyUuid, bodyRef);
     }
 
     public void unregisterBodyAttachment(@Nonnull UUID bodyUuid,
