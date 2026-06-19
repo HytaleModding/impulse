@@ -6,6 +6,7 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.SpaceId;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkCollisionDefaults;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkLifecycle;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkTerrainStreamingResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.PhysicsStoreSpaceMutations;
@@ -13,11 +14,9 @@ import dev.hytalemodding.impulse.core.internal.physicsstore.PhysicsStoreTopology
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkSettingsIndexResource.PhysicsChunkSpaceSettings;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsIdentityIndexResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkCollisionMutationQueueResource;
-import dev.hytalemodding.impulse.api.PhysicsCollisionFilters;
 import dev.hytalemodding.impulse.core.plugin.components.CollisionFilterComponent;
 import dev.hytalemodding.impulse.core.plugin.components.MaterialComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.ChunkCollisionSettingsComponent;
-import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.settings.PhysicsChunkTerrainSettings;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
 import java.util.List;
 import java.util.Objects;
@@ -182,16 +181,16 @@ public final class PhysicsChunkTerrain {
             settings.getTtlTicks(),
             material != null
                 ? material.getFriction()
-                : PhysicsChunkTerrainSettings.DEFAULT_CHUNK_COLLISION_FRICTION,
+                : PhysicsChunkCollisionDefaults.FRICTION,
             material != null
                 ? material.getRestitution()
-                : PhysicsChunkTerrainSettings.DEFAULT_CHUNK_COLLISION_RESTITUTION,
+                : PhysicsChunkCollisionDefaults.RESTITUTION,
             filter != null
                 ? filter.getCollisionGroup()
-                : PhysicsCollisionFilters.TERRAIN,
+                : PhysicsChunkCollisionDefaults.COLLISION_GROUP,
             filter != null
                 ? filter.getCollisionMask()
-                : PhysicsCollisionFilters.ALL);
+                : PhysicsChunkCollisionDefaults.COLLISION_MASK);
     }
 
     @Nonnull

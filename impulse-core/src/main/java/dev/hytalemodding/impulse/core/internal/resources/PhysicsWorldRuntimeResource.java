@@ -267,17 +267,6 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         if (chunkCollisionSettings != null) {
             chunkCollisionSettings.copyTo(settings);
         }
-        MaterialComponent material = store.getComponent(ref, MaterialComponent.getComponentType());
-        if (material != null) {
-            settings.getPhysicsChunkTerrainSettings()
-                .setChunkCollisionMaterial(material.getFriction(), material.getRestitution());
-        }
-        CollisionFilterComponent filter = store.getComponent(ref,
-            CollisionFilterComponent.getComponentType());
-        if (filter != null) {
-            settings.getPhysicsChunkTerrainSettings()
-                .setChunkCollisionFilter(filter.getCollisionGroup(), filter.getCollisionMask());
-        }
         if (solverSettings != null) {
             solverSettings.copyTo(settings);
         }

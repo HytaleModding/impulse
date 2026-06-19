@@ -12,12 +12,11 @@ import com.hypixel.hytale.component.system.tick.TickingSystem;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkSettingsIndexResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkSettingsIndexResource.PhysicsChunkSpaceSettings;
-import dev.hytalemodding.impulse.api.PhysicsCollisionFilters;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkCollisionDefaults;
 import dev.hytalemodding.impulse.core.plugin.components.CollisionFilterComponent;
 import dev.hytalemodding.impulse.core.plugin.components.MaterialComponent;
 import dev.hytalemodding.impulse.core.plugin.components.SpaceComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.ChunkCollisionSettingsComponent;
-import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.settings.PhysicsChunkTerrainSettings;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import java.util.Map;
 import java.util.Set;
@@ -76,16 +75,16 @@ public final class PhysicsChunkSettingsIndexSystem extends TickingSystem<Physics
                 settings.getTtlTicks(),
                 material != null
                     ? material.getFriction()
-                    : PhysicsChunkTerrainSettings.DEFAULT_CHUNK_COLLISION_FRICTION,
+                    : PhysicsChunkCollisionDefaults.FRICTION,
                 material != null
                     ? material.getRestitution()
-                    : PhysicsChunkTerrainSettings.DEFAULT_CHUNK_COLLISION_RESTITUTION,
+                    : PhysicsChunkCollisionDefaults.RESTITUTION,
                 filter != null
                     ? filter.getCollisionGroup()
-                    : PhysicsCollisionFilters.TERRAIN,
+                    : PhysicsChunkCollisionDefaults.COLLISION_GROUP,
                 filter != null
                     ? filter.getCollisionMask()
-                    : PhysicsCollisionFilters.ALL));
+                    : PhysicsChunkCollisionDefaults.COLLISION_MASK));
         }
     }
 

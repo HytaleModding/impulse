@@ -15,9 +15,7 @@ import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsIdentityIndexResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceCompatibilityIndexResource;
-import dev.hytalemodding.impulse.core.plugin.components.CollisionFilterComponent;
 import dev.hytalemodding.impulse.core.plugin.components.ExtensionSettingsComponent;
-import dev.hytalemodding.impulse.core.plugin.components.MaterialComponent;
 import dev.hytalemodding.impulse.core.plugin.components.SolverSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.components.SpaceComponent;
 import dev.hytalemodding.impulse.core.plugin.components.UuidComponent;
@@ -25,7 +23,6 @@ import dev.hytalemodding.impulse.core.plugin.components.VisualMaterializationSet
 import dev.hytalemodding.impulse.core.plugin.components.VisualSyncSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.ChunkCollisionSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.CollisionLodSettingsComponent;
-import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.settings.PhysicsChunkTerrainSettings;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsEntities;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
@@ -156,16 +153,6 @@ public final class PhysicsStoreSpaceMutations {
             ChunkCollisionSettingsComponent.getComponentType(),
             chunkCollision,
             chunkCollision.isDefault());
-        MaterialComponent material = chunkMaterial(settings.getPhysicsChunkTerrainSettings());
-        addIfNonDefault(holder,
-            MaterialComponent.getComponentType(),
-            material,
-            isDefaultChunkMaterial(material));
-        CollisionFilterComponent filter = chunkFilter(settings.getPhysicsChunkTerrainSettings());
-        addIfNonDefault(holder,
-            CollisionFilterComponent.getComponentType(),
-            filter,
-            isDefaultChunkFilter(filter));
         SolverSettingsComponent solver = new SolverSettingsComponent(settings.getSolverSettings());
         addIfNonDefault(holder,
             SolverSettingsComponent.getComponentType(),
@@ -218,18 +205,6 @@ public final class PhysicsStoreSpaceMutations {
             ChunkCollisionSettingsComponent.getComponentType(),
             chunkCollision,
             chunkCollision.isDefault());
-        MaterialComponent material = chunkMaterial(settings.getPhysicsChunkTerrainSettings());
-        putOrRemoveDefault(store,
-            ref,
-            MaterialComponent.getComponentType(),
-            material,
-            isDefaultChunkMaterial(material));
-        CollisionFilterComponent filter = chunkFilter(settings.getPhysicsChunkTerrainSettings());
-        putOrRemoveDefault(store,
-            ref,
-            CollisionFilterComponent.getComponentType(),
-            filter,
-            isDefaultChunkFilter(filter));
         SolverSettingsComponent solver = new SolverSettingsComponent(settings.getSolverSettings());
         putOrRemoveDefault(store,
             ref,
@@ -265,34 +240,6 @@ public final class PhysicsStoreSpaceMutations {
             ExtensionSettingsComponent.getComponentType(),
             extension,
             extension.isDefault());
-    }
-
-    @Nonnull
-    private static MaterialComponent chunkMaterial(
-        @Nonnull PhysicsChunkTerrainSettings settings) {
-        return new MaterialComponent(settings.getChunkCollisionFriction(),
-            settings.getChunkCollisionRestitution());
-    }
-
-    private static boolean isDefaultChunkMaterial(@Nonnull MaterialComponent material) {
-        return Float.compare(material.getFriction(),
-            PhysicsChunkTerrainSettings.DEFAULT_CHUNK_COLLISION_FRICTION) == 0
-            && Float.compare(material.getRestitution(),
-                PhysicsChunkTerrainSettings.DEFAULT_CHUNK_COLLISION_RESTITUTION) == 0;
-    }
-
-    @Nonnull
-    private static CollisionFilterComponent chunkFilter(
-        @Nonnull PhysicsChunkTerrainSettings settings) {
-        return new CollisionFilterComponent(settings.getChunkCollisionGroup(),
-            settings.getChunkCollisionMask());
-    }
-
-    private static boolean isDefaultChunkFilter(@Nonnull CollisionFilterComponent filter) {
-        return filter.getCollisionGroup()
-            == PhysicsChunkTerrainSettings.DEFAULT_CHUNK_COLLISION_GROUP
-            && filter.getCollisionMask()
-                == PhysicsChunkTerrainSettings.DEFAULT_CHUNK_COLLISION_MASK;
     }
 
     private static <T extends Component<PhysicsStore>> void putOrRemoveDefault(

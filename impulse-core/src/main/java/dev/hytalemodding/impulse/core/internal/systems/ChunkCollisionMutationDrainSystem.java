@@ -12,7 +12,6 @@ import com.hypixel.hytale.math.util.ChunkUtil;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.PhysicsAxis;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
-import dev.hytalemodding.impulse.api.PhysicsCollisionFilters;
 import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntime;
 import dev.hytalemodding.impulse.core.internal.modules.control.PhysicsControlRuntimeStates;
@@ -28,6 +27,7 @@ import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkCollisionPa
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.ChunkCollisionMutation;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.ChunkCollisionPayload;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.ChunkCollisionPayload.BoxPayload;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkCollisionDefaults;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.components.BodyComponent;
@@ -40,7 +40,6 @@ import dev.hytalemodding.impulse.core.plugin.components.TargetComponent;
 import dev.hytalemodding.impulse.core.plugin.components.UuidComponent;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.components.ChunkCollisionSourceComponent;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.components.ChunkCollisionSourceComponent.PartKind;
-import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.settings.PhysicsChunkTerrainSettings;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsEntities;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -311,8 +310,8 @@ public final class ChunkCollisionMutationDrainSystem extends TickingSystem<Physi
             store.getComponent(spaceRef, MaterialComponent.getComponentType());
         return material != null
             ? material.clone()
-            : new MaterialComponent(PhysicsChunkTerrainSettings.DEFAULT_CHUNK_COLLISION_FRICTION,
-                PhysicsChunkTerrainSettings.DEFAULT_CHUNK_COLLISION_RESTITUTION);
+            : new MaterialComponent(PhysicsChunkCollisionDefaults.FRICTION,
+                PhysicsChunkCollisionDefaults.RESTITUTION);
     }
 
     @Nonnull
@@ -322,8 +321,8 @@ public final class ChunkCollisionMutationDrainSystem extends TickingSystem<Physi
             store.getComponent(spaceRef, CollisionFilterComponent.getComponentType());
         return filter != null
             ? filter.clone()
-            : new CollisionFilterComponent(PhysicsCollisionFilters.TERRAIN,
-                PhysicsCollisionFilters.ALL);
+            : new CollisionFilterComponent(PhysicsChunkCollisionDefaults.COLLISION_GROUP,
+                PhysicsChunkCollisionDefaults.COLLISION_MASK);
     }
 
     private static void removeGeneratedRows(@Nonnull Store<PhysicsStore> store,

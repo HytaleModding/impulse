@@ -10,7 +10,7 @@ import com.hypixel.hytale.component.query.Query;
 import com.hypixel.hytale.component.system.QuerySystem;
 import com.hypixel.hytale.component.system.tick.TickingSystem;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
-import dev.hytalemodding.impulse.api.PhysicsCollisionFilters;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkCollisionDefaults;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentBodyDto;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentBodyRuntimeStateDto;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentColliderDto;
@@ -37,7 +37,6 @@ import dev.hytalemodding.impulse.core.plugin.components.TargetComponent;
 import dev.hytalemodding.impulse.core.plugin.components.VisualMaterializationSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.components.VisualSyncSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.ChunkCollisionSettingsComponent;
-import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.settings.PhysicsChunkTerrainSettings;
 import dev.hytalemodding.impulse.core.plugin.snapshots.PhysicsBodySnapshot;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
@@ -197,12 +196,12 @@ public final class PersistenceCaptureSystem extends TickingSystem<PhysicsStore>
                 : new ChunkCollisionSettingsComponent();
             MaterialComponent material = row.material() != null
                 ? row.material()
-                : new MaterialComponent(PhysicsChunkTerrainSettings.DEFAULT_CHUNK_COLLISION_FRICTION,
-                    PhysicsChunkTerrainSettings.DEFAULT_CHUNK_COLLISION_RESTITUTION);
+                : new MaterialComponent(PhysicsChunkCollisionDefaults.FRICTION,
+                    PhysicsChunkCollisionDefaults.RESTITUTION);
             CollisionFilterComponent filter = row.filter() != null
                 ? row.filter()
-                : new CollisionFilterComponent(PhysicsCollisionFilters.TERRAIN,
-                    PhysicsCollisionFilters.ALL);
+                : new CollisionFilterComponent(PhysicsChunkCollisionDefaults.COLLISION_GROUP,
+                    PhysicsChunkCollisionDefaults.COLLISION_MASK);
             return new PersistentSpaceDto(row.uuid(),
                 row.space().getBackendIdValue(),
                 row.space().getGravity(),

@@ -6,7 +6,7 @@ import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.codec.codecs.EnumCodec;
 import com.hypixel.hytale.codec.validation.Validators;
 import com.hypixel.hytale.math.vector.Vector3fUtil;
-import dev.hytalemodding.impulse.api.PhysicsCollisionFilters;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkCollisionDefaults;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkTerrainMode;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.CollisionLodSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.components.CollisionFilterComponent;
@@ -87,13 +87,13 @@ public final class PersistentSpaceDto {
             .append(new KeyedCodec<>("ChunkCollisionFriction", Codec.FLOAT, false),
                 (dto, value) -> dto.chunkCollisionFriction = value != null
                     ? value
-                    : PhysicsChunkTerrainSettings.DEFAULT_CHUNK_COLLISION_FRICTION,
+                    : PhysicsChunkCollisionDefaults.FRICTION,
                 PersistentSpaceDto::getChunkCollisionFriction)
             .add()
             .append(new KeyedCodec<>("ChunkCollisionRestitution", Codec.FLOAT, false),
                 (dto, value) -> dto.chunkCollisionRestitution = value != null
                     ? value
-                    : PhysicsChunkTerrainSettings.DEFAULT_CHUNK_COLLISION_RESTITUTION,
+                    : PhysicsChunkCollisionDefaults.RESTITUTION,
                 PersistentSpaceDto::getChunkCollisionRestitution)
             .add()
             .append(new KeyedCodec<>("ChunkCollisionFilter",
@@ -161,9 +161,9 @@ public final class PersistentSpaceDto {
         PhysicsChunkTerrainSettings.DEFAULT_BODY_TERRAIN_RADIUS;
     private int terrainTtlTicks =
         PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_TTL_TICKS;
-    private float chunkCollisionFriction = PhysicsChunkTerrainSettings.DEFAULT_CHUNK_COLLISION_FRICTION;
+    private float chunkCollisionFriction = PhysicsChunkCollisionDefaults.FRICTION;
     private float chunkCollisionRestitution =
-        PhysicsChunkTerrainSettings.DEFAULT_CHUNK_COLLISION_RESTITUTION;
+        PhysicsChunkCollisionDefaults.RESTITUTION;
     @Nonnull
     private CollisionFilterComponent chunkCollisionFilter = defaultChunkCollisionFilter();
     @Nonnull
@@ -194,10 +194,10 @@ public final class PersistentSpaceDto {
             PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_RADIUS,
             PhysicsChunkTerrainSettings.DEFAULT_BODY_TERRAIN_RADIUS,
             PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_TTL_TICKS,
-            PhysicsChunkTerrainSettings.DEFAULT_CHUNK_COLLISION_FRICTION,
-            PhysicsChunkTerrainSettings.DEFAULT_CHUNK_COLLISION_RESTITUTION,
-            PhysicsCollisionFilters.TERRAIN,
-            PhysicsCollisionFilters.ALL,
+            PhysicsChunkCollisionDefaults.FRICTION,
+            PhysicsChunkCollisionDefaults.RESTITUTION,
+            PhysicsChunkCollisionDefaults.COLLISION_GROUP,
+            PhysicsChunkCollisionDefaults.COLLISION_MASK,
             new SolverSettingsComponent(),
             new VisualSyncSettingsComponent(),
             new VisualMaterializationSettingsComponent(),
@@ -226,8 +226,8 @@ public final class PersistentSpaceDto {
             terrainTtlTicks,
             chunkCollisionFriction,
             chunkCollisionRestitution,
-            PhysicsCollisionFilters.TERRAIN,
-            PhysicsCollisionFilters.ALL,
+            PhysicsChunkCollisionDefaults.COLLISION_GROUP,
+            PhysicsChunkCollisionDefaults.COLLISION_MASK,
             new SolverSettingsComponent(),
             new VisualSyncSettingsComponent(),
             new VisualMaterializationSettingsComponent(),
@@ -262,8 +262,8 @@ public final class PersistentSpaceDto {
             terrainTtlTicks,
             chunkCollisionFriction,
             chunkCollisionRestitution,
-            PhysicsCollisionFilters.TERRAIN,
-            PhysicsCollisionFilters.ALL,
+            PhysicsChunkCollisionDefaults.COLLISION_GROUP,
+            PhysicsChunkCollisionDefaults.COLLISION_MASK,
             solverSettings,
             visualSyncSettings,
             visualMaterializationSettings,
@@ -388,9 +388,9 @@ public final class PersistentSpaceDto {
 
     public boolean isDefaultChunkCollisionMaterial() {
         return Float.compare(chunkCollisionFriction,
-            PhysicsChunkTerrainSettings.DEFAULT_CHUNK_COLLISION_FRICTION) == 0
+            PhysicsChunkCollisionDefaults.FRICTION) == 0
             && Float.compare(chunkCollisionRestitution,
-                PhysicsChunkTerrainSettings.DEFAULT_CHUNK_COLLISION_RESTITUTION) == 0;
+                PhysicsChunkCollisionDefaults.RESTITUTION) == 0;
     }
 
     @Nonnull
@@ -399,8 +399,8 @@ public final class PersistentSpaceDto {
     }
 
     public boolean isDefaultChunkCollisionFilter() {
-        return getChunkCollisionGroup() == PhysicsCollisionFilters.TERRAIN
-            && getChunkCollisionMask() == PhysicsCollisionFilters.ALL;
+        return getChunkCollisionGroup() == PhysicsChunkCollisionDefaults.COLLISION_GROUP
+            && getChunkCollisionMask() == PhysicsChunkCollisionDefaults.COLLISION_MASK;
     }
 
     @Nonnull
@@ -432,10 +432,6 @@ public final class PersistentSpaceDto {
     public PhysicsSpaceSettings toSettings() {
         PhysicsSpaceSettings settings = PhysicsSpaceSettings.defaults();
         getChunkCollisionSettings().copyTo(settings);
-        settings.getPhysicsChunkTerrainSettings()
-            .setChunkCollisionMaterial(chunkCollisionFriction, chunkCollisionRestitution);
-        settings.getPhysicsChunkTerrainSettings()
-            .setChunkCollisionFilter(getChunkCollisionGroup(), getChunkCollisionMask());
         solverSettings.copyTo(settings);
         visualSyncSettings.copyTo(settings);
         visualMaterializationSettings.copyTo(settings);
@@ -468,7 +464,7 @@ public final class PersistentSpaceDto {
 
     @Nonnull
     private static CollisionFilterComponent defaultChunkCollisionFilter() {
-        return new CollisionFilterComponent(PhysicsCollisionFilters.TERRAIN,
-            PhysicsCollisionFilters.ALL);
+        return new CollisionFilterComponent(PhysicsChunkCollisionDefaults.COLLISION_GROUP,
+            PhysicsChunkCollisionDefaults.COLLISION_MASK);
     }
 }
