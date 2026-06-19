@@ -19,8 +19,8 @@ import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import com.hypixel.hytale.server.core.util.TargetUtil;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.SpaceId;
-import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkTerrain;
-import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkTerrainPrewarmStats;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkCollision;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkCollisionPrewarmStats;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsAsync;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsBodies;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsRaycasts;
@@ -282,7 +282,7 @@ final class PhysicsStoreExampleCommands {
             ArgTypes.STRING);
         private final OptionalArg<Integer> radiusArg = withOptionalArg(
             "radius",
-            "Block radius fragmented when the explosive block hits PhysicsChunk terrain",
+            "Block radius fragmented when the explosive block hits PhysicsChunk collision",
             ArgTypes.INTEGER);
         private final OptionalArg<Integer> maxFragmentsArg = withOptionalArg(
             "maxFragments",
@@ -344,7 +344,7 @@ final class PhysicsStoreExampleCommands {
                     + " is not bound yet."));
                 return CompletableFuture.completedFuture(null);
             }
-            PhysicsChunkTerrainPrewarmStats stats = PhysicsChunkTerrain.ensureAround(world,
+            PhysicsChunkCollisionPrewarmStats stats = PhysicsChunkCollision.ensureAround(world,
                 physicsStore,
                 spaceId,
                 List.of(spawn),

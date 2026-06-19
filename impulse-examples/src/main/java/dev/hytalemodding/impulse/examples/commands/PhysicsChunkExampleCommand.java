@@ -13,10 +13,10 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.SpaceId;
-import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkTerrain;
-import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkTerrainBuildStats;
-import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkTerrainPrewarmStats;
-import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkTerrainStats;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkCollision;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkCollisionBuildStats;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkCollisionPrewarmStats;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkCollisionStats;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -26,12 +26,12 @@ import dev.hytalemodding.impulse.examples.utils.ExamplePhysicsUtils;
 import org.joml.Vector3d;
 
 /**
- * Debug commands for manually building/clearing PhysicsChunk terrain collision.
+ * Debug commands for manually building/clearing PhysicsChunk collision collision.
  */
 public class PhysicsChunkExampleCommand extends AbstractCommandCollection {
 
     public PhysicsChunkExampleCommand() {
-        super("physicschunk", "Build PhysicsChunk terrain collision from nearby world blocks");
+        super("physicschunk", "Build PhysicsChunk collision collision from nearby world blocks");
         addSubCommand(new BuildCommand());
         addSubCommand(new EnsureCommand());
         addSubCommand(new ClearCommand());
@@ -58,7 +58,7 @@ public class PhysicsChunkExampleCommand extends AbstractCommandCollection {
             ArgTypes.INTEGER);
 
         private BuildCommand() {
-            super("build", "Rebuild nearby PhysicsChunk terrain collision");
+            super("build", "Rebuild nearby PhysicsChunk collision collision");
         }
 
         @Nonnull
@@ -76,13 +76,13 @@ public class PhysicsChunkExampleCommand extends AbstractCommandCollection {
                 return CompletableFuture.completedFuture(null);
             }
             Store<PhysicsStore> physicsStore = physicsStore(world);
-            PhysicsChunkTerrainBuildStats stats = PhysicsChunkTerrain.rebuildAround(world,
+            PhysicsChunkCollisionBuildStats stats = PhysicsChunkCollision.rebuildAround(world,
                 physicsStore,
                 spaceId,
                 playerPos,
                 radius);
 
-            ctx.sender().sendMessage(Message.raw("Built PhysicsChunk terrain collision: scanned "
+            ctx.sender().sendMessage(Message.raw("Built PhysicsChunk collision collision: scanned "
                 + stats.scannedBlocks()
                 + " blocks, solid " + stats.solidBlocks()
                 + ", culled " + stats.culledInteriorBlocks()
@@ -113,7 +113,7 @@ public class PhysicsChunkExampleCommand extends AbstractCommandCollection {
             ArgTypes.INTEGER);
 
         private EnsureCommand() {
-            super("ensure", "Ensure nearby PhysicsChunk terrain collision is available");
+            super("ensure", "Ensure nearby PhysicsChunk collision collision is available");
         }
 
         @Nonnull
@@ -131,14 +131,14 @@ public class PhysicsChunkExampleCommand extends AbstractCommandCollection {
             }
 
             Store<PhysicsStore> physicsStore = physicsStore(world);
-            PhysicsChunkTerrainPrewarmStats stats = PhysicsChunkTerrain.ensureAround(world,
+            PhysicsChunkCollisionPrewarmStats stats = PhysicsChunkCollision.ensureAround(world,
                 physicsStore,
                 spaceId,
                 List.of(playerPos),
                 radius,
                 Math.max(0L, world.getTick()));
 
-            ctx.sender().sendMessage(Message.raw("Ensured PhysicsChunk terrain collision: targets "
+            ctx.sender().sendMessage(Message.raw("Ensured PhysicsChunk collision collision: targets "
                 + stats.sectionTargets()
                 + ", bodies "
                 + stats.buildStats().colliderBodies()
@@ -157,7 +157,7 @@ public class PhysicsChunkExampleCommand extends AbstractCommandCollection {
             ArgTypes.INTEGER);
 
         private ClearCommand() {
-            super("clear", "Remove generated PhysicsChunk terrain collision");
+            super("clear", "Remove generated PhysicsChunk collision collision");
         }
 
         @Nonnull
@@ -172,9 +172,9 @@ public class PhysicsChunkExampleCommand extends AbstractCommandCollection {
                 return CompletableFuture.completedFuture(null);
             }
             Store<PhysicsStore> physicsStore = physicsStore(world);
-            int removed = PhysicsChunkTerrain.clearSpace(world, physicsStore, spaceId);
+            int removed = PhysicsChunkCollision.clearSpace(world, physicsStore, spaceId);
             ctx.sender().sendMessage(Message.raw("Removed " + removed
-                + " PhysicsChunk terrain bodies."));
+                + " PhysicsChunk collision bodies."));
             return CompletableFuture.completedFuture(null);
         }
     }
@@ -182,7 +182,7 @@ public class PhysicsChunkExampleCommand extends AbstractCommandCollection {
     private static final class StatsCommand extends AbstractAsyncPlayerCommand {
 
         private StatsCommand() {
-            super("stats", "Show generated PhysicsChunk terrain collision stats");
+            super("stats", "Show generated PhysicsChunk collision collision stats");
         }
 
         @Nonnull
@@ -192,8 +192,8 @@ public class PhysicsChunkExampleCommand extends AbstractCommandCollection {
             @Nonnull Ref<EntityStore> ref,
             @Nonnull PlayerRef playerRef,
             @Nonnull World world) {
-            PhysicsChunkTerrainStats stats = PhysicsChunkTerrain.stats(world);
-            ctx.sender().sendMessage(Message.raw("PhysicsChunk terrain collision: "
+            PhysicsChunkCollisionStats stats = PhysicsChunkCollision.stats(world);
+            ctx.sender().sendMessage(Message.raw("PhysicsChunk collision collision: "
                 + stats.spaces() + " spaces, "
                 + stats.sections() + " sections, "
                 + stats.bodies() + " bodies, "

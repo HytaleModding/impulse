@@ -7,7 +7,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /**
- * Copied chunk collision mutation emitted from PhysicsChunk terrain code.
+ * Copied chunk collision mutation emitted from PhysicsChunk collision code.
  */
 public record ChunkCollisionMutation(@Nonnull UUID spaceUuid,
                                        @Nonnull String sourceKey,

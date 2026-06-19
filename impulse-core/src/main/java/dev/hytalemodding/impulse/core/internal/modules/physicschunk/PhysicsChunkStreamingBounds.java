@@ -5,7 +5,7 @@ import javax.annotation.Nonnull;
 import org.joml.Vector3f;
 
 /**
- * Chunk/section neighborhood covered by a streamed PhysicsChunk terrain target.
+ * Chunk/section neighborhood covered by a streamed PhysicsChunk collision target.
  *
  * <p>Two body targets with the same bounds would trigger the same section
  * collision requests, so the streaming system can deduplicate them.</p>

@@ -18,7 +18,7 @@ import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource.StepSnapshot;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource.SyncSnapshot;
-import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkTerrainStreamingResource;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkCollisionStreamingResource;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkBuildOptions;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.profiling.PhysicsChunkProfilingResource;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.profiling.PhysicsChunkProfilingResource.Snapshot;
@@ -28,7 +28,7 @@ import dev.hytalemodding.impulse.core.internal.resources.PhysicsProfilingResourc
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
-import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkTerrainPrewarmStats;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkCollisionPrewarmStats;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsBackendExtensionId;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepMode;
@@ -55,7 +55,7 @@ import org.joml.Vector3d;
 import org.joml.Vector3f;
 
 /**
- * Benchmark-oriented Crucible scenario for detached bodies using streamed PhysicsChunk terrain.
+ * Benchmark-oriented Crucible scenario for detached bodies using streamed PhysicsChunk collision.
  */
 @SuppressWarnings("SameParameterValue")
 final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
@@ -143,8 +143,8 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
         private final Store<PhysicsStore> physicsStore;
         private final PhysicsProfilingResource physicsStoreProfiling;
         private final PhysicsRuntimeProfilingResource runtimeProfiling;
-        private final PhysicsChunkProfilingResource terrainProfiling;
-        private final PhysicsChunkTerrainStreamingResource terrainStreaming;
+        private final PhysicsChunkProfilingResource collisionProfiling;
+        private final PhysicsChunkCollisionStreamingResource collisionStreaming;
         private final PhysicsWorldSettings previousWorldSettings;
         private final boolean previousPhysicsStoreProfilingEnabled;
         private final List<WorldChunk> retainedChunks = new ArrayList<>();
@@ -160,10 +160,10 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
             this.physicsStoreProfiling = physicsStore.getResource(
                 PhysicsProfilingResource.getResourceType());
             this.runtimeProfiling = store.getResource(PhysicsRuntimeProfilingResource.getResourceType());
-            this.terrainProfiling = store.getResource(
+            this.collisionProfiling = store.getResource(
                 PhysicsChunkProfilingResource.getResourceType());
-            this.terrainStreaming = store.getResource(
-                PhysicsChunkTerrainStreamingResource.getResourceType());
+            this.collisionStreaming = store.getResource(
+                PhysicsChunkCollisionStreamingResource.getResourceType());
             this.previousWorldSettings = physics.getWorldSettings();
             this.previousPhysicsStoreProfilingEnabled = physicsStoreProfiling.isEnabled();
         }
@@ -193,10 +193,10 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
                 .thenCompose(started -> contextWait(plan.warmupTicks()).thenCompose(_ -> {
                     physicsStoreProfiling.reset();
                     runtimeProfiling.reset();
-                    terrainProfiling.reset();
+                    collisionProfiling.reset();
                     physicsStoreProfiling.setEnabled(true);
                     runtimeProfiling.setEnabled(true);
-                    terrainProfiling.setEnabled(true);
+                    collisionProfiling.setEnabled(true);
                     long startedNanos = System.nanoTime();
                     return contextWait(plan.sampleTicks()).thenApply(
                         _ -> finishStage(count, started, startedNanos));
@@ -259,14 +259,14 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
             SpaceId spaceId = physics.createSpace(CrucibleBackends.requireBackendId(),
                 world.getName(),
                 settings);
-            PrewarmStats prewarm = prewarmPhysicsChunkTerrain(spaceId, count);
+            PrewarmStats prewarm = prewarmPhysicsChunkCollision(spaceId, count);
             spawnDetachedBodies(spaceId, count);
             physicsStoreProfiling.reset();
             runtimeProfiling.reset();
-            terrainProfiling.reset();
+            collisionProfiling.reset();
             physicsStoreProfiling.setEnabled(true);
             runtimeProfiling.setEnabled(true);
-            terrainProfiling.setEnabled(true);
+            collisionProfiling.setEnabled(true);
             return CompletableFuture.completedFuture(
                 StartedStage.started(spaceId, chunks, retained, prewarm));
         }
@@ -284,19 +284,19 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
 
             StepSnapshot step = runtimeProfiling.getCumulativeStep();
             SyncSnapshot sync = runtimeProfiling.getCumulativeSync();
-            Snapshot terrainProfilingSnapshot = terrainProfiling.getCumulativeSnapshot();
+            Snapshot collisionProfilingSnapshot = collisionProfiling.getCumulativeSnapshot();
             double elapsedSeconds = Math.max(0.001,
                 (System.nanoTime() - startedNanos) / 1_000_000_000.0);
             double observedTickRate = step.getTickSamples() / elapsedSeconds;
-            SpaceStats stats = SpaceStats.collect(physicsStore, terrainStreaming, spaceId);
+            SpaceStats stats = SpaceStats.collect(physicsStore, collisionStreaming, spaceId);
             double avgStepMs = averageMillis(step.getTickNanos(), step.getTickSamples());
             double avgSnapshotMs = averageMillis(step.getSnapshotNanos(), step.getTickSamples());
             double avgRegistrationPublicationMs = averageMillis(
                 step.getRegistrationPublicationNanos(),
                 step.getTickSamples());
             double avgSyncMs = averageMillis(sync.getTickNanos(), sync.getTickSamples());
-            double avgTerrainMs = averageMillis(terrainProfilingSnapshot.getTickNanos(),
-                terrainProfilingSnapshot.getTickSamples());
+            double avgTerrainMs = averageMillis(collisionProfilingSnapshot.getTickNanos(),
+                collisionProfilingSnapshot.getTickSamples());
             double totalMs = avgStepMs
                 + avgSnapshotMs
                 + avgRegistrationPublicationMs
@@ -305,7 +305,7 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
             StageHealth health = assessHealth(count,
                 observedTickRate,
                 stats,
-                terrainProfilingSnapshot.getMissingChunks());
+                collisionProfilingSnapshot.getMissingChunks());
 
             assert started.chunks() != null;
             assert started.prewarm() != null;
@@ -331,17 +331,17 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
                 stats.terrainBaselineBodies,
                 stats.missingTerrainBaselineBodies,
                 stats.minTerrainBottomClearance(),
-                terrainProfilingSnapshot.getTickSamples(),
-                terrainProfilingSnapshot.getEnsureCalls(),
-                terrainProfilingSnapshot.getSectionRequests(),
-                terrainProfilingSnapshot.getSectionCacheHits(),
-                terrainProfilingSnapshot.getSectionsBuilt(),
-                terrainProfilingSnapshot.getMissingChunks(),
-                terrainProfilingSnapshot.getMissingBlockChunks(),
-                terrainProfilingSnapshot.getMissingBlockSections(),
-                terrainProfilingSnapshot.getUniqueMissingSections(),
-                terrainProfilingSnapshot.getMissingOutsideRetainedEnvelope(),
-                terrainProfilingSnapshot.getBodyStreamingTargets(),
+                collisionProfilingSnapshot.getTickSamples(),
+                collisionProfilingSnapshot.getEnsureCalls(),
+                collisionProfilingSnapshot.getSectionRequests(),
+                collisionProfilingSnapshot.getSectionCacheHits(),
+                collisionProfilingSnapshot.getSectionsBuilt(),
+                collisionProfilingSnapshot.getMissingChunks(),
+                collisionProfilingSnapshot.getMissingBlockChunks(),
+                collisionProfilingSnapshot.getMissingBlockSections(),
+                collisionProfilingSnapshot.getUniqueMissingSections(),
+                collisionProfilingSnapshot.getMissingOutsideRetainedEnvelope(),
+                collisionProfilingSnapshot.getBodyStreamingTargets(),
                 health);
         }
 
@@ -358,8 +358,8 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
             PhysicsStoreCrucibleSupport.clearAll(physicsStore);
             physicsStoreProfiling.reset();
             runtimeProfiling.reset();
-            terrainProfiling.reset();
-            terrainProfiling.clearDiagnosticRetainedSections();
+            collisionProfiling.reset();
+            collisionProfiling.clearDiagnosticRetainedSections();
         }
 
         private void restoreStepSettings() {
@@ -367,14 +367,14 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
             physicsStoreProfiling.setEnabled(previousPhysicsStoreProfilingEnabled);
         }
 
-        private PrewarmStats prewarmPhysicsChunkTerrain(@Nonnull SpaceId spaceId, int count) {
+        private PrewarmStats prewarmPhysicsChunkCollision(@Nonnull SpaceId spaceId, int count) {
             BenchmarkLayout layout = BenchmarkLayout.flatGrid(count);
             UUID spaceUuid = PhysicsStoreSpaceMutations.requireSpaceUuid(physicsStore, spaceId);
             PhysicsChunkCollisionMutationQueueResource queue = physicsStore.getResource(
                 PhysicsChunkCollisionMutationQueueResource.getResourceType());
             PhysicsChunkBuildOptions buildOptions = PhysicsChunkBuildOptions.fromSettings(
                 physics.getSpaceSettings(spaceId).getPhysicsChunkCollisionSettings());
-            PhysicsChunkTerrainPrewarmStats stats = terrainStreaming.ensureAround(world,
+            PhysicsChunkCollisionPrewarmStats stats = collisionStreaming.ensureAround(world,
                 spaceUuid,
                 queue,
                 prewarmCenters(layout, count),
@@ -439,7 +439,7 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
                     section.y(),
                     section.z()));
             }
-            terrainProfiling.setDiagnosticRetainedSections(sectionKeys);
+            collisionProfiling.setDiagnosticRetainedSections(sectionKeys);
         }
 
         private void spawnDetachedBodies(@Nonnull SpaceId spaceId, int count) {
@@ -951,11 +951,11 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
         private double minTerrainBottomClearance = Double.POSITIVE_INFINITY;
 
         private static SpaceStats collect(@Nonnull Store<PhysicsStore> physicsStore,
-            @Nonnull PhysicsChunkTerrainStreamingResource terrainStreaming,
+            @Nonnull PhysicsChunkCollisionStreamingResource collisionStreaming,
             @Nonnull SpaceId spaceId) {
             BenchmarkSpaceStatsView view = PhysicsStoreBenchmarkQueries.benchmarkSpaceStats(
                 physicsStore,
-                terrainStreaming,
+                collisionStreaming,
                 new PhysicsStoreBenchmarkQueries.BenchmarkSpaceStatsRequest(spaceId,
                     GROUND_Y,
                     BELOW_PLANE_TOLERANCE,

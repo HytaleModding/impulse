@@ -14,7 +14,7 @@ import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.PhysicsRuntim
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.PhysicsRuntimeProfiling.StepSnapshotView;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.PhysicsRuntimeProfiling.SyncSnapshotView;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.PhysicsRuntimeProfiling.VisualSnapshotView;
-import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkTerrainProfiling;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkCollisionProfiling;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsDiagnostics;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsAsync;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsWorlds;
@@ -56,8 +56,8 @@ public class PhysicsChunkPerfReportCommand extends AbstractAsyncWorldCommand {
         VisualSnapshotView cumulativeVisual = runtimeProfiling.cumulativeVisual();
         VisualSnapshotView latestVisual = runtimeProfiling.latestVisual();
         VisualSnapshotView worstVisual = runtimeProfiling.worstVisual();
-        PhysicsChunkTerrainProfiling.Snapshots profiling =
-            PhysicsChunkTerrainProfiling.snapshots(store);
+        PhysicsChunkCollisionProfiling.Snapshots profiling =
+            PhysicsChunkCollisionProfiling.snapshots(store);
         var cumulative = profiling.cumulative();
         var latest = profiling.latest();
         var worst = profiling.worst();
@@ -261,8 +261,8 @@ public class PhysicsChunkPerfReportCommand extends AbstractAsyncWorldCommand {
             + "/" + cumulative.getBodySpatialIndexCandidates()
             + "/" + cumulative.getBodyStreamingTargets()
             + " spaces=" + cumulative.getStreamingSpaces()
-            + " terrainApply queued/skipped=" + cumulative.getTerrainApplyQueued()
-            + "/" + cumulative.getTerrainApplySkippedPending()
+            + " collisionApply queued/skipped=" + cumulative.getCollisionApplyQueued()
+            + "/" + cumulative.getCollisionApplySkippedPending()
             + " sectionTargets player/body=" + cumulative.getPlayerSectionTargets()
             + "/" + cumulative.getBodySectionTargets()
             + " ensureCalls=" + cumulative.getEnsureCalls()
@@ -296,8 +296,8 @@ public class PhysicsChunkPerfReportCommand extends AbstractAsyncWorldCommand {
             + cumulative.getMissingInsideRetainedEnvelope()
             + "/" + cumulative.getMissingOutsideRetainedEnvelope()
             + "/" + cumulative.getMissingUnconfiguredRetainedEnvelope()));
-        List<PhysicsChunkTerrainProfiling.MissingSectionSampleView> missingSectionSamples =
-            PhysicsChunkTerrainProfiling.missingSectionSamples(cumulative);
+        List<PhysicsChunkCollisionProfiling.MissingSectionSampleView> missingSectionSamples =
+            PhysicsChunkCollisionProfiling.missingSectionSamples(cumulative);
         if (!missingSectionSamples.isEmpty()) {
             ctx.sender().sendMessage(Message.raw("Missing section samples: "
                 + formatMissingSectionSamples(missingSectionSamples)));
@@ -327,8 +327,8 @@ public class PhysicsChunkPerfReportCommand extends AbstractAsyncWorldCommand {
             + "/" + latest.getBodySpatialIndexCandidates()
             + "/" + latest.getBodyStreamingTargets()
             + " spaces=" + latest.getStreamingSpaces()
-            + " terrainApply queued/skipped=" + latest.getTerrainApplyQueued()
-            + "/" + latest.getTerrainApplySkippedPending()
+            + " collisionApply queued/skipped=" + latest.getCollisionApplyQueued()
+            + "/" + latest.getCollisionApplySkippedPending()
             + " sectionTargets player/body=" + latest.getPlayerSectionTargets()
             + "/" + latest.getBodySectionTargets()
             + " ensure=" + latest.getEnsureCalls()
@@ -350,8 +350,8 @@ public class PhysicsChunkPerfReportCommand extends AbstractAsyncWorldCommand {
             + "/" + worst.getBodySpatialIndexCandidates()
             + "/" + worst.getBodyStreamingTargets()
             + " spaces=" + worst.getStreamingSpaces()
-            + " terrainApply queued/skipped=" + worst.getTerrainApplyQueued()
-            + "/" + worst.getTerrainApplySkippedPending()
+            + " collisionApply queued/skipped=" + worst.getCollisionApplyQueued()
+            + "/" + worst.getCollisionApplySkippedPending()
             + " sectionTargets player/body=" + worst.getPlayerSectionTargets()
             + "/" + worst.getBodySectionTargets()
             + " ensure=" + worst.getEnsureCalls()
@@ -371,10 +371,10 @@ public class PhysicsChunkPerfReportCommand extends AbstractAsyncWorldCommand {
 
     @Nonnull
     private static String formatMissingSectionSamples(
-        @Nonnull List<PhysicsChunkTerrainProfiling.MissingSectionSampleView> samples) {
+        @Nonnull List<PhysicsChunkCollisionProfiling.MissingSectionSampleView> samples) {
         StringBuilder builder = new StringBuilder();
         int emitted = 0;
-        for (PhysicsChunkTerrainProfiling.MissingSectionSampleView sample : samples) {
+        for (PhysicsChunkCollisionProfiling.MissingSectionSampleView sample : samples) {
             if (emitted > 0) {
                 builder.append(" | ");
             }

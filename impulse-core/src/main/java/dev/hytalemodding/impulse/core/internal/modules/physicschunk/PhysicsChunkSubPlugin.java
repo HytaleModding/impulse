@@ -10,7 +10,7 @@ import java.util.logging.Level;
 import javax.annotation.Nonnull;
 
 /**
- * Bundled subplugin that enables Impulse PhysicsChunk terrain integration.
+ * Bundled subplugin that enables Impulse PhysicsChunk collision integration.
  */
 public final class PhysicsChunkSubPlugin extends JavaPlugin {
 
@@ -27,7 +27,7 @@ public final class PhysicsChunkSubPlugin extends JavaPlugin {
         PhysicsChunkTypes.registerEntityStoreSystems(entityRegistry);
         PhysicsChunkCommandContributions.register();
         PhysicsChunkLifecycle.enable();
-        LOGGER.at(Level.INFO).log("Impulse PhysicsChunk terrain producer enabled.");
+        LOGGER.at(Level.INFO).log("Impulse PhysicsChunk collision producer enabled.");
     }
 
     @Override

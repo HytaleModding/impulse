@@ -49,7 +49,7 @@ public class PhysicsDebugResource implements Resource<EntityStore> {
     @Setter
     private boolean debugJointsEnabled = true;
     @Setter
-    private boolean debugPhysicsChunkTerrainEnabled;
+    private boolean debugPhysicsChunkCollisionEnabled;
 
     private float overlayRefreshSeconds = DEFAULT_OVERLAY_REFRESH_SECONDS;
     private float physicsChunkRefreshSeconds = DEFAULT_PHYSICS_CHUNK_REFRESH_SECONDS;
@@ -154,7 +154,7 @@ public class PhysicsDebugResource implements Resource<EntityStore> {
         copy.debugMotionEnabled = debugMotionEnabled;
         copy.debugContactsEnabled = debugContactsEnabled;
         copy.debugJointsEnabled = debugJointsEnabled;
-        copy.debugPhysicsChunkTerrainEnabled = debugPhysicsChunkTerrainEnabled;
+        copy.debugPhysicsChunkCollisionEnabled = debugPhysicsChunkCollisionEnabled;
         copy.overlayRefreshSeconds = overlayRefreshSeconds;
         copy.physicsChunkRefreshSeconds = physicsChunkRefreshSeconds;
         copy.overlayTimeUntilRefresh = overlayTimeUntilRefresh;

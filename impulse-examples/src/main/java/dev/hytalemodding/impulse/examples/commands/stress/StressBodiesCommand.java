@@ -16,8 +16,8 @@ import dev.hytalemodding.impulse.api.PhysicsCollisionFilters;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
-import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkTerrain;
-import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkTerrainPrewarmStats;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkCollision;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkCollisionPrewarmStats;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkCollisionMode;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsSpaces;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsWorlds;
@@ -355,7 +355,7 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
             return 0;
         }
 
-        PhysicsChunkTerrainPrewarmStats stats = PhysicsChunkTerrain.ensureAround(world,
+        PhysicsChunkCollisionPrewarmStats stats = PhysicsChunkCollision.ensureAround(world,
             PhysicsThreading.store(world),
             spaceId,
             layout.positions(count),

@@ -17,22 +17,22 @@ import javax.annotation.Nullable;
 /**
  * Public PhysicsChunk profiling helpers for command and diagnostics surfaces.
  */
-public final class PhysicsChunkTerrainProfiling {
+public final class PhysicsChunkCollisionProfiling {
 
-    private PhysicsChunkTerrainProfiling() {
+    private PhysicsChunkCollisionProfiling() {
     }
 
     public static boolean isRuntimeProfilingEnabled(@Nonnull Store<EntityStore> store) {
         PhysicsRuntimeProfilingResource runtimeProfiling = runtimeProfiling(store);
-        PhysicsChunkProfilingResource terrainProfiling = terrainProfiling(store);
-        return runtimeProfiling.isEnabled() && terrainProfiling.isEnabled();
+        PhysicsChunkProfilingResource collisionProfiling = collisionProfiling(store);
+        return runtimeProfiling.isEnabled() && collisionProfiling.isEnabled();
     }
 
     public static void setRuntimeProfilingEnabled(@Nonnull World world,
         @Nonnull Store<EntityStore> store,
         boolean enabled) {
         runtimeProfiling(store).setEnabled(enabled);
-        terrainProfiling(store).setEnabled(enabled);
+        collisionProfiling(store).setEnabled(enabled);
         Store<PhysicsStore> physicsStore = physicsStoreOrNull(world);
         if (physicsStore != null) {
             physicsStore.getResource(PhysicsProfilingResource.getResourceType())
@@ -43,7 +43,7 @@ public final class PhysicsChunkTerrainProfiling {
     public static void resetRuntimeProfiling(@Nonnull World world,
         @Nonnull Store<EntityStore> store) {
         runtimeProfiling(store).reset();
-        terrainProfiling(store).reset();
+        collisionProfiling(store).reset();
         Store<PhysicsStore> physicsStore = physicsStoreOrNull(world);
         if (physicsStore != null) {
             physicsStore.getResource(PhysicsProfilingResource.getResourceType()).reset();
@@ -52,7 +52,7 @@ public final class PhysicsChunkTerrainProfiling {
 
     @Nonnull
     public static Snapshots snapshots(@Nonnull Store<EntityStore> store) {
-        PhysicsChunkProfilingResource profiling = terrainProfiling(store);
+        PhysicsChunkProfilingResource profiling = collisionProfiling(store);
         return new Snapshots(profiling.getCumulativeSnapshot(),
             profiling.getLatestTickSnapshot(),
             profiling.getWorstTickSnapshot(),
@@ -64,7 +64,7 @@ public final class PhysicsChunkTerrainProfiling {
         @Nonnull SnapshotView snapshot) {
         return snapshot.snapshot.getMissingSectionSamples()
             .stream()
-            .map(PhysicsChunkTerrainProfiling::view)
+            .map(PhysicsChunkCollisionProfiling::view)
             .toList();
     }
 
@@ -91,7 +91,7 @@ public final class PhysicsChunkTerrainProfiling {
     }
 
     @Nonnull
-    private static PhysicsChunkProfilingResource terrainProfiling(
+    private static PhysicsChunkProfilingResource collisionProfiling(
         @Nonnull Store<EntityStore> store) {
         return store.getResource(PhysicsChunkProfilingResource.getResourceType());
     }
@@ -197,12 +197,12 @@ public final class PhysicsChunkTerrainProfiling {
             return snapshot.getStreamingSpaces();
         }
 
-        public int getTerrainApplyQueued() {
-            return snapshot.getTerrainApplyQueued();
+        public int getCollisionApplyQueued() {
+            return snapshot.getCollisionApplyQueued();
         }
 
-        public int getTerrainApplySkippedPending() {
-            return snapshot.getTerrainApplySkippedPending();
+        public int getCollisionApplySkippedPending() {
+            return snapshot.getCollisionApplySkippedPending();
         }
 
         public int getEnsureCalls() {

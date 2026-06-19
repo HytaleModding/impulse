@@ -22,7 +22,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.components.BodyCommandComponent;
-import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkTerrain;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkCollision;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
 import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
@@ -135,12 +135,12 @@ public final class ExplosiveBlockRuntime {
 
         List<FragmentGroup> groups = groupFragments(fragments, center, settings.getRadius());
         Store<PhysicsStore> physicsStore = PhysicsThreading.store(world);
-        PhysicsChunkTerrain.refreshAround(world,
+        PhysicsChunkCollision.refreshAround(world,
             physicsStore,
             spaceId,
             center,
             Math.max(8, settings.getRadius() + 4));
-        PhysicsChunkTerrain.ensureAround(world,
+        PhysicsChunkCollision.ensureAround(world,
             physicsStore,
             spaceId,
             groupCenters(groups),

@@ -228,7 +228,7 @@ final class PhysicsDebugRenderer {
         renderArrow(viewers, start, direction, color, time);
     }
 
-    static void renderPhysicsChunkTerrainSection(@Nonnull Collection<PlayerRef> viewers,
+    static void renderPhysicsChunkCollisionSection(@Nonnull Collection<PlayerRef> viewers,
         int chunkX,
         int sectionY,
         int chunkZ,
@@ -246,7 +246,7 @@ final class PhysicsDebugRenderer {
             TERRAIN_EDGE_PADDING);
     }
 
-    static void renderPhysicsChunkTerrainBox(@Nonnull Collection<PlayerRef> viewers,
+    static void renderPhysicsChunkCollisionBox(@Nonnull Collection<PlayerRef> viewers,
         @Nonnull BoxCollider box,
         @Nonnull Vector3f color,
         float time) {

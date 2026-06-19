@@ -10,9 +10,9 @@ import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunk
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.profiling.PhysicsChunkProfilingResource.Snapshot;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.profiling.PhysicsChunkProfilingResource.StreamingTargetDiagnostic;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkCollisionMutationQueueResource;
-import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkTerrainBuildStats;
-import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkTerrainPrewarmStats;
-import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkTerrainStats;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkCollisionBuildStats;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkCollisionPrewarmStats;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkCollisionStats;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSet;
 import java.util.Objects;
@@ -25,20 +25,20 @@ import org.joml.Vector3d;
 /**
  * Shared EntityStore-side producer state for copied PhysicsStore chunk collision mutations.
  */
-public final class PhysicsChunkTerrainStreamingResource implements Resource<EntityStore> {
+public final class PhysicsChunkCollisionStreamingResource implements Resource<EntityStore> {
 
     @Nonnull
     private final PhysicsChunkMutationCache cache = new PhysicsChunkMutationCache();
     private long tick;
 
     @Nullable
-    private static ResourceType<EntityStore, PhysicsChunkTerrainStreamingResource> resourceType;
+    private static ResourceType<EntityStore, PhysicsChunkCollisionStreamingResource> resourceType;
 
-    public PhysicsChunkTerrainStreamingResource() {
+    public PhysicsChunkCollisionStreamingResource() {
     }
 
     public static void setResourceType(
-        @Nonnull ResourceType<EntityStore, PhysicsChunkTerrainStreamingResource> type) {
+        @Nonnull ResourceType<EntityStore, PhysicsChunkCollisionStreamingResource> type) {
         resourceType = Objects.requireNonNull(type, "type");
     }
 
@@ -47,9 +47,9 @@ public final class PhysicsChunkTerrainStreamingResource implements Resource<Enti
     }
 
     @Nonnull
-    public static ResourceType<EntityStore, PhysicsChunkTerrainStreamingResource> getResourceType() {
+    public static ResourceType<EntityStore, PhysicsChunkCollisionStreamingResource> getResourceType() {
         if (resourceType == null) {
-            throw new IllegalStateException("PhysicsStore PhysicsChunk terrain streaming resource is not registered");
+            throw new IllegalStateException("PhysicsStore PhysicsChunk collision streaming resource is not registered");
         }
         return resourceType;
     }
@@ -64,7 +64,7 @@ public final class PhysicsChunkTerrainStreamingResource implements Resource<Enti
     }
 
     @Nonnull
-    public synchronized PhysicsChunkTerrainPrewarmStats ensureAround(@Nonnull World world,
+    public synchronized PhysicsChunkCollisionPrewarmStats ensureAround(@Nonnull World world,
         @Nonnull UUID spaceUuid,
         @Nonnull PhysicsChunkCollisionMutationQueueResource queue,
         @Nonnull Iterable<Vector3d> centers,
@@ -88,11 +88,11 @@ public final class PhysicsChunkTerrainStreamingResource implements Resource<Enti
                 accessCache,
                 buildOptions));
         }
-        return new PhysicsChunkTerrainPrewarmStats(visitedSections.size(), terrainStats(total));
+        return new PhysicsChunkCollisionPrewarmStats(visitedSections.size(), collisionStats(total));
     }
 
     @Nonnull
-    public synchronized PhysicsChunkTerrainBuildStats refreshAround(@Nonnull World world,
+    public synchronized PhysicsChunkCollisionBuildStats refreshAround(@Nonnull World world,
         @Nonnull UUID spaceUuid,
         @Nonnull PhysicsChunkCollisionMutationQueueResource queue,
         @Nonnull Vector3d center,
@@ -113,7 +113,7 @@ public final class PhysicsChunkTerrainStreamingResource implements Resource<Enti
             null,
             accessCache,
             buildOptions);
-        return terrainStats(withRemovedBodies(stats, stats.removedBodies() + removed));
+        return collisionStats(withRemovedBodies(stats, stats.removedBodies() + removed));
     }
 
     @Nonnull
@@ -231,8 +231,8 @@ public final class PhysicsChunkTerrainStreamingResource implements Resource<Enti
     }
 
     @Nonnull
-    public synchronized PhysicsChunkTerrainStats stats() {
-        return new PhysicsChunkTerrainStats(cache.spaceCount(),
+    public synchronized PhysicsChunkCollisionStats stats() {
+        return new PhysicsChunkCollisionStats(cache.spaceCount(),
             cache.sectionCount(),
             cache.bodyCount(),
             cache.shapeTemplateCount());
@@ -244,16 +244,16 @@ public final class PhysicsChunkTerrainStreamingResource implements Resource<Enti
 
     @Nonnull
     @Override
-    public synchronized PhysicsChunkTerrainStreamingResource clone() {
-        PhysicsChunkTerrainStreamingResource copy =
-            new PhysicsChunkTerrainStreamingResource();
+    public synchronized PhysicsChunkCollisionStreamingResource clone() {
+        PhysicsChunkCollisionStreamingResource copy =
+            new PhysicsChunkCollisionStreamingResource();
         copy.tick = tick;
         return copy;
     }
 
     @Nonnull
-    private static PhysicsChunkTerrainBuildStats terrainStats(@Nonnull PhysicsChunkBuildStats stats) {
-        return new PhysicsChunkTerrainBuildStats(stats.scannedBlocks(),
+    private static PhysicsChunkCollisionBuildStats collisionStats(@Nonnull PhysicsChunkBuildStats stats) {
+        return new PhysicsChunkCollisionBuildStats(stats.scannedBlocks(),
             stats.solidBlocks(),
             stats.culledInteriorBlocks(),
             stats.fullCubeRuns(),

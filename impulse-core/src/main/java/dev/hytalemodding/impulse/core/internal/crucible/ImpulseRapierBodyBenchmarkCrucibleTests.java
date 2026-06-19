@@ -143,7 +143,7 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
         private final Store<PhysicsStore> physicsStore;
         private final PhysicsProfilingResource physicsStoreProfiling;
         private final PhysicsRuntimeProfilingResource runtimeProfiling;
-        private final PhysicsChunkProfilingResource terrainProfiling;
+        private final PhysicsChunkProfilingResource collisionProfiling;
         private final PhysicsWorldSettings previousWorldSettings;
         private final boolean previousPhysicsStoreProfilingEnabled;
         private final boolean previousRuntimeProfilingEnabled;
@@ -160,12 +160,12 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
             this.physicsStoreProfiling = physicsStore.getResource(
                 PhysicsProfilingResource.getResourceType());
             this.runtimeProfiling = store.getResource(PhysicsRuntimeProfilingResource.getResourceType());
-            this.terrainProfiling = store.getResource(
+            this.collisionProfiling = store.getResource(
                 PhysicsChunkProfilingResource.getResourceType());
             this.previousWorldSettings = physics.getWorldSettings();
             this.previousPhysicsStoreProfilingEnabled = physicsStoreProfiling.isEnabled();
             this.previousRuntimeProfilingEnabled = runtimeProfiling.isEnabled();
-            this.previousTerrainProfilingEnabled = terrainProfiling.isEnabled();
+            this.previousTerrainProfilingEnabled = collisionProfiling.isEnabled();
         }
 
         private CompletionStage<CrucibleTestCase.TestOutcome> run() {
@@ -197,10 +197,10 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
                     .thenCompose(_ -> {
                         physicsStoreProfiling.reset();
                         runtimeProfiling.reset();
-                        terrainProfiling.reset();
+                        collisionProfiling.reset();
                         physicsStoreProfiling.setEnabled(true);
                         runtimeProfiling.setEnabled(true);
-                        terrainProfiling.setEnabled(true);
+                        collisionProfiling.setEnabled(true);
                         long startedNanos = System.nanoTime();
                         return contextWait(plan.sampleTicks()).thenApply(
                             _ -> finishCase(matrixCase, started, startedNanos));
@@ -304,7 +304,7 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
 
             StepSnapshot step = runtimeProfiling.getCumulativeStep();
             SyncSnapshot sync = runtimeProfiling.getCumulativeSync();
-            Snapshot terrainProfilingSnapshot = terrainProfiling.getCumulativeSnapshot();
+            Snapshot collisionProfilingSnapshot = collisionProfiling.getCumulativeSnapshot();
             double elapsedSeconds = Math.max(0.001,
                 (System.nanoTime() - startedNanos) / 1_000_000_000.0);
             double observedTickRate = step.getTickSamples() / elapsedSeconds;
@@ -315,8 +315,8 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
                 step.getRegistrationPublicationNanos(),
                 step.getTickSamples());
             double avgSyncMs = averageMillis(sync.getTickNanos(), sync.getTickSamples());
-            double avgTerrainMs = averageMillis(terrainProfilingSnapshot.getTickNanos(),
-                terrainProfilingSnapshot.getTickSamples());
+            double avgTerrainMs = averageMillis(collisionProfilingSnapshot.getTickNanos(),
+                collisionProfilingSnapshot.getTickSamples());
             double totalMs = avgStepMs
                 + avgSnapshotMs
                 + avgRegistrationPublicationMs
@@ -325,7 +325,7 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
             MatrixHealth health = assessHealth(matrixCase,
                 observedTickRate,
                 step,
-                terrainProfilingSnapshot,
+                collisionProfilingSnapshot,
                 stats);
 
             return new MatrixReport(matrixCase,
@@ -343,12 +343,12 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
                 sync.getTickSamples(),
                 sync.getBodiesInspected(),
                 sync.getBodiesSynced(),
-                terrainProfilingSnapshot.getTickSamples(),
-                terrainProfilingSnapshot.getStreamingSpaces(),
-                terrainProfilingSnapshot.getEnsureCalls(),
-                terrainProfilingSnapshot.getSectionRequests(),
-                terrainProfilingSnapshot.getSectionsBuilt(),
-                terrainProfilingSnapshot.getBodyStreamingTargets(),
+                collisionProfilingSnapshot.getTickSamples(),
+                collisionProfilingSnapshot.getStreamingSpaces(),
+                collisionProfilingSnapshot.getEnsureCalls(),
+                collisionProfilingSnapshot.getSectionRequests(),
+                collisionProfilingSnapshot.getSectionsBuilt(),
+                collisionProfilingSnapshot.getBodyStreamingTargets(),
                 stats.bodies,
                 stats.dynamicBodies,
                 stats.detachedBodies,
@@ -383,15 +383,15 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
             PhysicsStoreCrucibleSupport.clearAll(physicsStore);
             physicsStoreProfiling.reset();
             runtimeProfiling.reset();
-            terrainProfiling.reset();
-            terrainProfiling.clearDiagnosticRetainedSections();
+            collisionProfiling.reset();
+            collisionProfiling.clearDiagnosticRetainedSections();
         }
 
         private void restoreSettings() {
             physics.setWorldSettings(previousWorldSettings);
             physicsStoreProfiling.setEnabled(previousPhysicsStoreProfilingEnabled);
             runtimeProfiling.setEnabled(previousRuntimeProfilingEnabled);
-            terrainProfiling.setEnabled(previousTerrainProfilingEnabled);
+            collisionProfiling.setEnabled(previousTerrainProfilingEnabled);
         }
 
         private void removeBenchmarkEntities() {
@@ -425,14 +425,14 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
     private static MatrixHealth assessHealth(@Nonnull MatrixCase matrixCase,
         double observedTickRate,
         @Nonnull StepSnapshot step,
-        @Nonnull Snapshot terrainProfilingSnapshot,
+        @Nonnull Snapshot collisionProfilingSnapshot,
         @Nonnull SpaceStats stats) {
         List<String> stops = new ArrayList<>();
         List<String> warnings = new ArrayList<>();
         if (step.getTickSamples() <= 0) {
             stops.add("stepSamples=0");
         }
-        if (terrainProfilingSnapshot.getTickSamples() <= 0) {
+        if (collisionProfilingSnapshot.getTickSamples() <= 0) {
             stops.add("terrainSamples=0");
         }
         if (stats.dynamicBodies != matrixCase.count()) {
@@ -453,17 +453,17 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
         if (step.getTickSamples() > 0 && step.getBodySnapshots() != expectedSnapshots) {
             stops.add("bodySnapshots=" + step.getBodySnapshots() + "!=" + expectedSnapshots);
         }
-        if (terrainProfilingSnapshot.getStreamingSpaces() > 0) {
-            stops.add("terrainStreamingSpaces=" + terrainProfilingSnapshot.getStreamingSpaces());
+        if (collisionProfilingSnapshot.getStreamingSpaces() > 0) {
+            stops.add("collisionStreamingSpaces=" + collisionProfilingSnapshot.getStreamingSpaces());
         }
-        if (terrainProfilingSnapshot.getEnsureCalls() > 0) {
-            stops.add("terrainEnsureCalls=" + terrainProfilingSnapshot.getEnsureCalls());
+        if (collisionProfilingSnapshot.getEnsureCalls() > 0) {
+            stops.add("terrainEnsureCalls=" + collisionProfilingSnapshot.getEnsureCalls());
         }
-        if (terrainProfilingSnapshot.getSectionsBuilt() > 0) {
-            stops.add("terrainSectionsBuilt=" + terrainProfilingSnapshot.getSectionsBuilt());
+        if (collisionProfilingSnapshot.getSectionsBuilt() > 0) {
+            stops.add("terrainSectionsBuilt=" + collisionProfilingSnapshot.getSectionsBuilt());
         }
-        if (terrainProfilingSnapshot.getBodyStreamingTargets() > 0) {
-            stops.add("terrainBodyTargets=" + terrainProfilingSnapshot.getBodyStreamingTargets());
+        if (collisionProfilingSnapshot.getBodyStreamingTargets() > 0) {
+            stops.add("terrainBodyTargets=" + collisionProfilingSnapshot.getBodyStreamingTargets());
         }
         if (stats.terrainBodies > 0) {
             stops.add("terrainBodies=" + stats.terrainBodies);
@@ -507,7 +507,7 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
         MatrixReport second = reports.get(1);
         LOGGER.at(Level.INFO).log("Crucible Rapier body matrix comparison: %sx=%sms "
                 + "%sx=%sms stepRatio=%s snapshotRatio=%s registrationRatio=%s "
-                + "totalRatio=%s terrainCounters=%s/%s",
+                + "totalRatio=%s collisionCounters=%s/%s",
             first.matrixCase().fixedSubsteps(),
             format(first.avgStepMs()),
             second.matrixCase().fixedSubsteps(),
@@ -638,7 +638,7 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
                                 int syncInspected,
                                 int syncSynced,
                                 int terrainSamples,
-                                int terrainStreamingSpaces,
+                                int collisionStreamingSpaces,
                                 int terrainEnsureCalls,
                                 int terrainSectionRequests,
                                 int terrainSectionsBuilt,
@@ -717,7 +717,7 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
                 + "/" + syncSynced
                 + " terrain samples/streaming/ensure/req/build/bodyTargets="
                 + terrainSamples
-                + "/" + terrainStreamingSpaces
+                + "/" + collisionStreamingSpaces
                 + "/" + terrainEnsureCalls
                 + "/" + terrainSectionRequests
                 + "/" + terrainSectionsBuilt
@@ -738,7 +738,7 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
 
         private String terrainCounterSummary() {
             return terrainSamples
-                + "/" + terrainStreamingSpaces
+                + "/" + collisionStreamingSpaces
                 + "/" + terrainEnsureCalls
                 + "/" + terrainSectionsBuilt
                 + "/" + terrainBodyTargets;

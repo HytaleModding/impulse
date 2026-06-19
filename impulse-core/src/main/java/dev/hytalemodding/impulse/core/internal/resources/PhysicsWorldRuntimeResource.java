@@ -26,7 +26,7 @@ import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRuntime
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodySnapshots;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodySnapshotRefVisitor;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodySnapshotVisitor;
-import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkTerrainStreamingResource;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkCollisionStreamingResource;
 import dev.hytalemodding.impulse.core.internal.resources.joint.PhysicsJointRegistry;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsVisualRuntime.BodyVisualInterestState;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsVisualRuntime.VisualInterest;
@@ -1041,32 +1041,32 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     @Nonnull
-    private PhysicsChunkTerrainStreamingResource authoritativePhysicsChunkTerrainStreaming() {
+    private PhysicsChunkCollisionStreamingResource authoritativePhysicsChunkCollisionStreaming() {
         Store<EntityStore> entityStore = owningStore;
         if (entityStore == null) {
-            throw new IllegalStateException("Cannot access PhysicsStore PhysicsChunk terrain streaming "
+            throw new IllegalStateException("Cannot access PhysicsStore PhysicsChunk collision streaming "
                 + "before this resource is attached to an EntityStore");
         }
-        return entityStore.getResource(PhysicsChunkTerrainStreamingResource.getResourceType());
+        return entityStore.getResource(PhysicsChunkCollisionStreamingResource.getResourceType());
     }
 
-    private void clearAuthoritativePhysicsChunkTerrainStreaming(@Nonnull Store<PhysicsStore> store) {
+    private void clearAuthoritativePhysicsChunkCollisionStreaming(@Nonnull Store<PhysicsStore> store) {
         if (!PhysicsChunkLifecycle.isEnabled() || owningStore == null) {
             return;
         }
         PhysicsChunkCollisionMutationQueueResource queue =
             store.getResource(PhysicsChunkCollisionMutationQueueResource.getResourceType());
-        authoritativePhysicsChunkTerrainStreaming().retainSpaces(Set.of(), queue);
+        authoritativePhysicsChunkCollisionStreaming().retainSpaces(Set.of(), queue);
         queue.clear();
     }
 
-    private int clearAuthoritativePhysicsChunkTerrainSpace(@Nonnull Store<PhysicsStore> store,
+    private int clearAuthoritativePhysicsChunkCollisionSpace(@Nonnull Store<PhysicsStore> store,
         @Nonnull UUID spaceUuid) {
         int removed = 0;
         if (PhysicsChunkLifecycle.isEnabled() && owningStore != null) {
             PhysicsChunkCollisionMutationQueueResource queue =
                 store.getResource(PhysicsChunkCollisionMutationQueueResource.getResourceType());
-            removed = authoritativePhysicsChunkTerrainStreaming().clearSpace(spaceUuid, queue);
+            removed = authoritativePhysicsChunkCollisionStreaming().clearSpace(spaceUuid, queue);
         }
         int directlyRemoved =
             PhysicsStoreTopologyMutations.clearTerrainForSpace(store, spaceUuid);
@@ -1189,7 +1189,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         if (isAuthoritativePhysicsStoreActive()) {
             Store<PhysicsStore> store = authoritativePhysicsStore("remove physics space");
             UUID spaceUuid = requireSpaceUuid(store, spaceId);
-            clearAuthoritativePhysicsChunkTerrainSpace(store, spaceUuid);
+            clearAuthoritativePhysicsChunkCollisionSpace(store, spaceUuid);
             PhysicsStoreTopologyMutations.removeSpaceWithContents(store, spaceUuid);
             return;
         }
@@ -1205,7 +1205,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
                 spaceId,
                 store -> {
                     UUID spaceUuid = requireSpaceUuid(store, spaceId);
-                    clearAuthoritativePhysicsChunkTerrainSpace(store, spaceUuid);
+                    clearAuthoritativePhysicsChunkCollisionSpace(store, spaceUuid);
                     PhysicsStoreTopologyMutations.removeSpaceWithContents(store, spaceUuid);
                 });
         }
@@ -1242,7 +1242,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     public void clearAllSpaces(@Nonnull String worldName) {
         if (isAuthoritativePhysicsStoreActive()) {
             Store<PhysicsStore> store = authoritativePhysicsStore("clear physics spaces");
-            clearAuthoritativePhysicsChunkTerrainStreaming(store);
+            clearAuthoritativePhysicsChunkCollisionStreaming(store);
             PhysicsStoreRuntimeCleaner.clearAll(store);
             return;
         }
@@ -1256,7 +1256,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
             return enqueueAuthoritativePhysicsStoreMutation("clear physics spaces",
                 null,
                 store -> {
-                    clearAuthoritativePhysicsChunkTerrainStreaming(store);
+                    clearAuthoritativePhysicsChunkCollisionStreaming(store);
                     PhysicsStoreRuntimeCleaner.clearAll(store);
                 });
         }
@@ -1297,7 +1297,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     public PhysicsRuntimeResetResult resetRuntimeStateKeepingSpaces(@Nonnull String worldName) {
         if (isAuthoritativePhysicsStoreActive()) {
             Store<PhysicsStore> store = authoritativePhysicsStore("reset physics runtime state");
-            clearAuthoritativePhysicsChunkTerrainStreaming(store);
+            clearAuthoritativePhysicsChunkCollisionStreaming(store);
             return PhysicsStoreTopologyMutations.clearBodiesKeepingSpaces(store);
         }
         requireLegacyMutationAllowed("reset physics runtime state");
@@ -1314,7 +1314,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
             return PhysicsThreading.callWhenBackendIdleOnWorldThread(world,
                 "reset physics runtime state",
                 store -> {
-                    clearAuthoritativePhysicsChunkTerrainStreaming(store);
+                    clearAuthoritativePhysicsChunkCollisionStreaming(store);
                     return PhysicsStoreTopologyMutations.clearBodiesKeepingSpaces(store);
                 });
         }

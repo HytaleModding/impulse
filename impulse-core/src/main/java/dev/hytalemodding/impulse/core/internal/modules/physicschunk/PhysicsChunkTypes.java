@@ -2,9 +2,9 @@ package dev.hytalemodding.impulse.core.internal.modules.physicschunk;
 
 import com.hypixel.hytale.component.ComponentRegistryProxy;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkTerrainStreamingResource;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkCollisionStreamingResource;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.profiling.PhysicsChunkProfilingResource;
-import dev.hytalemodding.impulse.core.internal.modules.physicschunk.systems.PhysicsChunkTerrainProducerSystem;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.systems.PhysicsChunkCollisionProducerSystem;
 import javax.annotation.Nonnull;
 
 /**
@@ -20,18 +20,18 @@ final class PhysicsChunkTypes {
         PhysicsChunkProfilingResource.setResourceType(registry.registerResource(
             PhysicsChunkProfilingResource.class,
             PhysicsChunkProfilingResource::new));
-        PhysicsChunkTerrainStreamingResource.setResourceType(registry.registerResource(
-            PhysicsChunkTerrainStreamingResource.class,
-            PhysicsChunkTerrainStreamingResource::new));
+        PhysicsChunkCollisionStreamingResource.setResourceType(registry.registerResource(
+            PhysicsChunkCollisionStreamingResource.class,
+            PhysicsChunkCollisionStreamingResource::new));
     }
 
     public static void registerEntityStoreSystems(
         @Nonnull ComponentRegistryProxy<EntityStore> registry) {
-        registry.registerSystem(new PhysicsChunkTerrainProducerSystem());
+        registry.registerSystem(new PhysicsChunkCollisionProducerSystem());
     }
 
     public static void clearEntityStoreResourceTypes() {
         PhysicsChunkProfilingResource.clearResourceType();
-        PhysicsChunkTerrainStreamingResource.clearResourceType();
+        PhysicsChunkCollisionStreamingResource.clearResourceType();
     }
 }

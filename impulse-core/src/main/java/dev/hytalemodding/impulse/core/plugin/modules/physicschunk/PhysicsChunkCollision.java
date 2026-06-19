@@ -7,7 +7,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkLifecycle;
-import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkTerrainStreamingResource;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkCollisionStreamingResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.PhysicsStoreSpaceMutations;
 import dev.hytalemodding.impulse.core.internal.physicsstore.PhysicsStoreTopologyMutations;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkSettingsIndexResource.PhysicsChunkSpaceSettings;
@@ -23,11 +23,11 @@ import javax.annotation.Nonnull;
 import org.joml.Vector3d;
 
 /**
- * Public PhysicsChunk operations for terrain-backed collision.
+ * Public PhysicsChunk operations for chunk-backed collision.
  */
-public final class PhysicsChunkTerrain {
+public final class PhysicsChunkCollision {
 
-    private PhysicsChunkTerrain() {
+    private PhysicsChunkCollision() {
     }
 
     public static boolean isSubPluginEnabled() {
@@ -35,7 +35,7 @@ public final class PhysicsChunkTerrain {
     }
 
     @Nonnull
-    public static PhysicsChunkTerrainBuildStats rebuildAround(@Nonnull World world,
+    public static PhysicsChunkCollisionBuildStats rebuildAround(@Nonnull World world,
         @Nonnull Store<PhysicsStore> store,
         @Nonnull SpaceId spaceId,
         @Nonnull Vector3d center,
@@ -43,12 +43,12 @@ public final class PhysicsChunkTerrain {
         requireEnabled();
         Store<PhysicsStore> checkedStore = requireMatchingWorldThread(world,
             store,
-            "rebuild PhysicsChunk terrain");
+            "rebuild PhysicsChunk collision");
         PhysicsChunkSpaceSettings settings = requireSettings(checkedStore, spaceId);
         PhysicsChunkCollisionMutationQueueResource queue = checkedStore.getResource(
             PhysicsChunkCollisionMutationQueueResource.getResourceType());
         int removed = clearSpaceRows(world, checkedStore, settings.spaceUuid());
-        PhysicsChunkTerrainPrewarmStats stats = streaming(world).ensureAround(world,
+        PhysicsChunkCollisionPrewarmStats stats = streaming(world).ensureAround(world,
             settings.spaceUuid(),
             queue,
             List.of(Objects.requireNonNull(center, "center")),
@@ -61,7 +61,7 @@ public final class PhysicsChunkTerrain {
     }
 
     @Nonnull
-    public static PhysicsChunkTerrainBuildStats refreshAround(@Nonnull World world,
+    public static PhysicsChunkCollisionBuildStats refreshAround(@Nonnull World world,
         @Nonnull Store<PhysicsStore> store,
         @Nonnull SpaceId spaceId,
         @Nonnull Vector3d center,
@@ -69,7 +69,7 @@ public final class PhysicsChunkTerrain {
         requireEnabled();
         Store<PhysicsStore> checkedStore = requireMatchingWorldThread(world,
             store,
-            "refresh PhysicsChunk terrain");
+            "refresh PhysicsChunk collision");
         PhysicsChunkSpaceSettings settings = requireSettings(checkedStore, spaceId);
         return streaming(world).refreshAround(world,
             settings.spaceUuid(),
@@ -82,7 +82,7 @@ public final class PhysicsChunkTerrain {
     }
 
     @Nonnull
-    public static PhysicsChunkTerrainPrewarmStats ensureAround(@Nonnull World world,
+    public static PhysicsChunkCollisionPrewarmStats ensureAround(@Nonnull World world,
         @Nonnull Store<PhysicsStore> store,
         @Nonnull SpaceId spaceId,
         @Nonnull Iterable<Vector3d> centers,
@@ -91,7 +91,7 @@ public final class PhysicsChunkTerrain {
         requireEnabled();
         Store<PhysicsStore> checkedStore = requireMatchingWorldThread(world,
             store,
-            "ensure PhysicsChunk terrain");
+            "ensure PhysicsChunk collision");
         PhysicsChunkSpaceSettings settings = requireSettings(checkedStore, spaceId);
         return streaming(world).ensureAround(world,
             settings.spaceUuid(),
@@ -108,22 +108,22 @@ public final class PhysicsChunkTerrain {
         @Nonnull SpaceId spaceId) {
         Store<PhysicsStore> checkedStore = requireMatchingWorldThread(world,
             store,
-            "clear PhysicsChunk terrain");
+            "clear PhysicsChunk collision");
         UUID spaceUuid = PhysicsStoreSpaceMutations.requireSpaceUuid(checkedStore,
             Objects.requireNonNull(spaceId, "spaceId"));
         return clearSpaceRows(world, checkedStore, spaceUuid);
     }
 
     @Nonnull
-    public static PhysicsChunkTerrainStats stats(@Nonnull World world) {
+    public static PhysicsChunkCollisionStats stats(@Nonnull World world) {
         Objects.requireNonNull(world, "world");
         if (!world.isInThread()) {
-            throw new IllegalStateException("Cannot read PhysicsChunk terrain stats "
+            throw new IllegalStateException("Cannot read PhysicsChunk collision stats "
                 + "outside the owning world thread");
         }
         return isSubPluginEnabled()
             ? streaming(world).stats()
-            : new PhysicsChunkTerrainStats(0, 0, 0, 0);
+            : new PhysicsChunkCollisionStats(0, 0, 0, 0);
     }
 
     private static void requireEnabled() {
@@ -162,7 +162,7 @@ public final class PhysicsChunkTerrain {
         ChunkCollisionSettingsComponent settings =
             component != null ? component : new ChunkCollisionSettingsComponent();
         if (settings.getMode() == PhysicsChunkCollisionMode.NONE) {
-            throw new IllegalStateException("PhysicsChunk terrain is disabled for space "
+            throw new IllegalStateException("PhysicsChunk collision is disabled for space "
                 + spaceId);
         }
         return new PhysicsChunkSpaceSettings(spaceUuid,
@@ -175,11 +175,11 @@ public final class PhysicsChunkTerrain {
     }
 
     @Nonnull
-    private static PhysicsChunkTerrainStreamingResource streaming(@Nonnull World world) {
+    private static PhysicsChunkCollisionStreamingResource streaming(@Nonnull World world) {
         Store<EntityStore> entityStore = Objects.requireNonNull(world, "world")
             .getEntityStore()
             .getStore();
-        return entityStore.getResource(PhysicsChunkTerrainStreamingResource.getResourceType());
+        return entityStore.getResource(PhysicsChunkCollisionStreamingResource.getResourceType());
     }
 
     private static int clearSpaceRows(@Nonnull World world,
@@ -196,10 +196,10 @@ public final class PhysicsChunkTerrain {
     }
 
     @Nonnull
-    private static PhysicsChunkTerrainBuildStats withRemovedBodies(
-        @Nonnull PhysicsChunkTerrainBuildStats stats,
+    private static PhysicsChunkCollisionBuildStats withRemovedBodies(
+        @Nonnull PhysicsChunkCollisionBuildStats stats,
         int removedBodies) {
-        return new PhysicsChunkTerrainBuildStats(stats.scannedBlocks(),
+        return new PhysicsChunkCollisionBuildStats(stats.scannedBlocks(),
             stats.solidBlocks(),
             stats.culledInteriorBlocks(),
             stats.fullCubeRuns(),

@@ -111,9 +111,9 @@ public class PhysicsDebugSystem extends TickingSystem<EntityStore> {
         boolean debugMotion = debug.isDebugMotionEnabled();
         boolean debugContacts = debug.isDebugContactsEnabled();
         boolean debugJoints = debug.isDebugJointsEnabled();
-        boolean debugTerrain = debug.isDebugPhysicsChunkTerrainEnabled();
+        boolean debugCollision = debug.isDebugPhysicsChunkCollisionEnabled();
         if (!debugShapes && !debugMotion && !debugContacts && !debugJoints
-            && !debugTerrain) {
+            && !debugCollision) {
             return;
         }
 
@@ -177,8 +177,8 @@ public class PhysicsDebugSystem extends TickingSystem<EntityStore> {
                         debug.getMaxJoints(),
                         overlayLifetime);
                 }
-                if (terrainDue && debugTerrain) {
-                    renderPhysicsChunkTerrain(target,
+                if (terrainDue && debugCollision) {
+                    renderPhysicsChunkCollision(target,
                         physicsStore,
                         spaceId,
                         viewerUuid,
@@ -425,7 +425,7 @@ public class PhysicsDebugSystem extends TickingSystem<EntityStore> {
         }
     }
 
-    private static void renderPhysicsChunkTerrain(@Nonnull Collection<PlayerRef> viewers,
+    private static void renderPhysicsChunkCollision(@Nonnull Collection<PlayerRef> viewers,
         @Nonnull Store<PhysicsStore> physicsStore,
         @Nonnull SpaceId spaceId,
         @Nonnull UUID viewerUuid,
@@ -456,7 +456,7 @@ public class PhysicsDebugSystem extends TickingSystem<EntityStore> {
         int sectionLimit = Math.min(maxSections, visibleSections.size());
         for (int i = 0; i < sectionLimit; i++) {
             PhysicsChunkDebugSectionView section = visibleSections.get(i).section();
-            PhysicsDebugRenderer.renderPhysicsChunkTerrainSection(viewers,
+            PhysicsDebugRenderer.renderPhysicsChunkCollisionSection(viewers,
                 section.chunkX(),
                 section.sectionY(),
                 section.chunkZ(),
@@ -471,7 +471,7 @@ public class PhysicsDebugSystem extends TickingSystem<EntityStore> {
         int boxLimit = Math.min(maxBoxes, visibleBoxes.size());
         for (int i = 0; i < boxLimit; i++) {
             VisibleDebugBox visibleBox = visibleBoxes.get(i);
-            PhysicsDebugRenderer.renderPhysicsChunkTerrainBox(viewers,
+            PhysicsDebugRenderer.renderPhysicsChunkCollisionBox(viewers,
                 visibleBox.box(),
                 visibleBox.color(),
                 time);

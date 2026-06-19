@@ -3,7 +3,7 @@ package dev.hytalemodding.impulse.core.internal.modules.physicschunk;
 import javax.annotation.Nonnull;
 
 /**
- * Aggregate statistics from a PhysicsChunk terrain build or rebuild operation.
+ * Aggregate statistics from a PhysicsChunk collision build or rebuild operation.
  */
 public record PhysicsChunkBuildStats(int scannedBlocks,
                                      int solidBlocks,

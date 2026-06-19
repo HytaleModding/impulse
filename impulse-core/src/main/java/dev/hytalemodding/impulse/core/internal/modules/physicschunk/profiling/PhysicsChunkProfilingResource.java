@@ -20,7 +20,7 @@ import org.joml.Vector3d;
 import org.joml.Vector3f;
 
 /**
- * Runtime-only profiling state for PhysicsChunk terrain streaming.
+ * Runtime-only profiling state for PhysicsChunk collision streaming.
  *
  * <p>This resource collects targeted metrics for the streamed voxel-collision
  * path so performance work can be driven by section/build/prune behavior rather
@@ -155,8 +155,8 @@ public class PhysicsChunkProfilingResource implements Resource<EntityStore> {
         private int playerSectionTargets;
         private int bodySectionTargets;
         private int streamingSpaces;
-        private int terrainApplyQueued;
-        private int terrainApplySkippedPending;
+        private int collisionApplyQueued;
+        private int collisionApplySkippedPending;
         private int ensureCalls;
         private int sectionRequests;
         private int sectionCacheHits;
@@ -207,12 +207,12 @@ public class PhysicsChunkProfilingResource implements Resource<EntityStore> {
             streamingSpaces++;
         }
 
-        public void incrementTerrainApplyQueued() {
-            terrainApplyQueued++;
+        public void incrementCollisionApplyQueued() {
+            collisionApplyQueued++;
         }
 
-        public void incrementTerrainApplySkippedPending() {
-            terrainApplySkippedPending++;
+        public void incrementCollisionApplySkippedPending() {
+            collisionApplySkippedPending++;
         }
 
         public void addBodyStreamingCandidates(int count) {
@@ -400,8 +400,8 @@ public class PhysicsChunkProfilingResource implements Resource<EntityStore> {
             playerSectionTargets = other.playerSectionTargets;
             bodySectionTargets = other.bodySectionTargets;
             streamingSpaces = other.streamingSpaces;
-            terrainApplyQueued = other.terrainApplyQueued;
-            terrainApplySkippedPending = other.terrainApplySkippedPending;
+            collisionApplyQueued = other.collisionApplyQueued;
+            collisionApplySkippedPending = other.collisionApplySkippedPending;
             ensureCalls = other.ensureCalls;
             sectionRequests = other.sectionRequests;
             sectionCacheHits = other.sectionCacheHits;
@@ -459,8 +459,8 @@ public class PhysicsChunkProfilingResource implements Resource<EntityStore> {
             playerSectionTargets += other.playerSectionTargets;
             bodySectionTargets += other.bodySectionTargets;
             streamingSpaces += other.streamingSpaces;
-            terrainApplyQueued += other.terrainApplyQueued;
-            terrainApplySkippedPending += other.terrainApplySkippedPending;
+            collisionApplyQueued += other.collisionApplyQueued;
+            collisionApplySkippedPending += other.collisionApplySkippedPending;
             ensureCalls += other.ensureCalls;
             sectionRequests += other.sectionRequests;
             sectionCacheHits += other.sectionCacheHits;
@@ -516,8 +516,8 @@ public class PhysicsChunkProfilingResource implements Resource<EntityStore> {
             playerSectionTargets = 0;
             bodySectionTargets = 0;
             streamingSpaces = 0;
-            terrainApplyQueued = 0;
-            terrainApplySkippedPending = 0;
+            collisionApplyQueued = 0;
+            collisionApplySkippedPending = 0;
             ensureCalls = 0;
             sectionRequests = 0;
             sectionCacheHits = 0;

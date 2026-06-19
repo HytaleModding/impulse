@@ -19,7 +19,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkMutationCache.TargetRefreshDecision;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkSectionAccessCache;
-import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkTerrainStreamingResource;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkCollisionStreamingResource;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkLifecycle;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkStreamingBounds;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.profiling.PhysicsChunkProfilingResource;
@@ -51,7 +51,7 @@ import org.joml.Vector3f;
 /**
  * Produces copied PhysicsStore chunk collision mutations from EntityStore and ChunkStore state.
  */
-public final class PhysicsChunkTerrainProducerSystem extends TickingSystem<EntityStore>
+public final class PhysicsChunkCollisionProducerSystem extends TickingSystem<EntityStore>
     implements QuerySystem<EntityStore> {
 
     @Nullable
@@ -86,8 +86,8 @@ public final class PhysicsChunkTerrainProducerSystem extends TickingSystem<Entit
                 PhysicsChunkSettingsIndexResource.getResourceType());
             PhysicsSnapshotResource snapshotResource = physics.getResource(
                 PhysicsSnapshotResource.getResourceType());
-            PhysicsChunkTerrainStreamingResource streaming = store.getResource(
-                PhysicsChunkTerrainStreamingResource.getResourceType());
+            PhysicsChunkCollisionStreamingResource streaming = store.getResource(
+                PhysicsChunkCollisionStreamingResource.getResourceType());
 
             List<PhysicsChunkSpaceSettings> spaces =
                 chunkCollisionSettingsIndex.streamingSpaces();
@@ -130,7 +130,7 @@ public final class PhysicsChunkTerrainProducerSystem extends TickingSystem<Entit
     }
 
     private static void processSpace(@Nonnull World world,
-        @Nonnull PhysicsChunkTerrainStreamingResource streaming,
+        @Nonnull PhysicsChunkCollisionStreamingResource streaming,
         @Nonnull PhysicsChunkCollisionMutationQueueResource queue,
         @Nonnull PhysicsChunkSpaceSettings settings,
         @Nonnull List<Vector3d> playerPositions,
@@ -196,7 +196,7 @@ public final class PhysicsChunkTerrainProducerSystem extends TickingSystem<Entit
 
     @Nonnull
     private static List<BodyStreamingTarget> collectDynamicBodyTargets(
-        @Nonnull PhysicsChunkTerrainStreamingResource streaming,
+        @Nonnull PhysicsChunkCollisionStreamingResource streaming,
         @Nonnull PhysicsChunkSpaceSettings settings,
         @Nonnull PhysicsSnapshotFrame physicsFrame,
         long currentTick,
@@ -292,7 +292,7 @@ public final class PhysicsChunkTerrainProducerSystem extends TickingSystem<Entit
         if (resolved != null) {
             return resolved;
         }
-        synchronized (PhysicsChunkTerrainProducerSystem.class) {
+        synchronized (PhysicsChunkCollisionProducerSystem.class) {
             resolved = query;
             if (resolved == null) {
                 resolved = Query.and(playerType(), transformType());
@@ -308,7 +308,7 @@ public final class PhysicsChunkTerrainProducerSystem extends TickingSystem<Entit
         if (resolved != null) {
             return resolved;
         }
-        synchronized (PhysicsChunkTerrainProducerSystem.class) {
+        synchronized (PhysicsChunkCollisionProducerSystem.class) {
             resolved = playerType;
             if (resolved == null) {
                 resolved = Player.getComponentType();
@@ -324,7 +324,7 @@ public final class PhysicsChunkTerrainProducerSystem extends TickingSystem<Entit
         if (resolved != null) {
             return resolved;
         }
-        synchronized (PhysicsChunkTerrainProducerSystem.class) {
+        synchronized (PhysicsChunkCollisionProducerSystem.class) {
             resolved = transformType;
             if (resolved == null) {
                 resolved = TransformComponent.getComponentType();

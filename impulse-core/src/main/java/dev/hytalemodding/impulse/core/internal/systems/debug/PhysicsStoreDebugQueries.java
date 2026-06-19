@@ -102,7 +102,7 @@ final class PhysicsStoreDebugQueries {
         double viewerY = viewerPosition.y;
         double viewerZ = viewerPosition.z;
         return PhysicsThreading.enqueueReadOnWorldThread(store,
-            "queue PhysicsStore PhysicsChunk terrain debug read",
+            "queue PhysicsStore PhysicsChunk collision debug read",
             physics -> physicsChunkSections(physics,
                 spaceId,
                 viewerX,
@@ -212,7 +212,7 @@ final class PhysicsStoreDebugQueries {
         double viewerZ,
         double viewRadius) {
         PhysicsThreading.requireWorldThread(store,
-            "read PhysicsStore PhysicsChunk terrain debug sections");
+            "read PhysicsStore PhysicsChunk collision debug sections");
         SpaceContext spaceContext = space(store, spaceId);
         if (spaceContext == null) {
             return List.of();
