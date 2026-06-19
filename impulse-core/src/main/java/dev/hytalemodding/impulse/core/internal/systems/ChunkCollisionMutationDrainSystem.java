@@ -326,12 +326,19 @@ public final class ChunkCollisionMutationDrainSystem extends TickingSystem<Physi
         @Nonnull PhysicsIdentityIndexResource identity,
         @Nonnull ChunkCollisionMutation mutation) {
         List<GeneratedRow> rows = collectGeneratedRows(store, mutation);
+        rows.sort((first, second) -> Integer.compare(second.ref().getIndex(),
+            first.ref().getIndex()));
+        boolean removedAny = false;
         for (GeneratedRow row : rows) {
             PhysicsStoreRowCleanup.removeRuntimeBody(runtime, identity, row.uuid(), row.ref());
             PhysicsStoreRowCleanup.removeBodyEntity(store,
                 row.uuid(),
                 row.ref(),
                 row.payloadResourceKey());
+            removedAny = true;
+        }
+        if (removedAny) {
+            PhysicsStoreRowCleanup.refreshIdentityAndRuntimeRefs(store);
         }
     }
 

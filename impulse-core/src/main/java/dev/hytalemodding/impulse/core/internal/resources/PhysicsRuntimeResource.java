@@ -87,6 +87,9 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
     private final Map<UUID, Ref<PhysicsStore>> jointRefsByUuid =
         new Object2ObjectOpenHashMap<>();
     @Nonnull
+    private final Map<UUID, BackendId> jointBackendIdsByUuid =
+        new Object2ObjectOpenHashMap<>();
+    @Nonnull
     private final Int2ObjectOpenHashMap<BackendJointHandle> jointHandlesByRowIndex =
         new Int2ObjectOpenHashMap<>();
     @Nonnull
@@ -367,6 +370,7 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
         jointHandlesByUuid.put(jointUuid, handle);
         jointSpaceHandlesByUuid.put(jointUuid, spaceHandle);
         jointRefsByUuid.put(jointUuid, checkedJointRef);
+        jointBackendIdsByUuid.put(jointUuid, backendId);
         jointHandlesByRowIndex.put(rowIndex, handle);
         jointSpaceHandlesByRowIndex.put(rowIndex, spaceHandle);
         jointRefsByRowIndex.put(rowIndex, checkedJointRef);
@@ -394,6 +398,7 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
     public void removeJointHandle(@Nonnull UUID jointUuid) {
         jointHandlesByUuid.remove(jointUuid);
         jointSpaceHandlesByUuid.remove(jointUuid);
+        jointBackendIdsByUuid.remove(jointUuid);
         Ref<PhysicsStore> jointRef = jointRefsByUuid.remove(jointUuid);
         if (jointRef != null) {
             int rowIndex = jointRef.getIndex();
@@ -489,6 +494,7 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
         jointHandlesByUuid.clear();
         jointSpaceHandlesByUuid.clear();
         jointRefsByUuid.clear();
+        jointBackendIdsByUuid.clear();
         jointHandlesByRowIndex.clear();
         jointSpaceHandlesByRowIndex.clear();
         jointRefsByRowIndex.clear();
@@ -505,6 +511,90 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
 
     public void clearTransientBodyOperations() {
         pendingBodyOperations.clear();
+    }
+
+    public void refreshRowRefs(@Nonnull PhysicsIdentityIndexResource identity) {
+        PhysicsIdentityIndexResource checkedIdentity = Objects.requireNonNull(identity, "identity");
+        refreshSpaceRefs(checkedIdentity);
+        refreshBodyRefs(checkedIdentity);
+        refreshJointRefs(checkedIdentity);
+    }
+
+    private void refreshSpaceRefs(@Nonnull PhysicsIdentityIndexResource identity) {
+        spaceUuidsByRowIndex.clear();
+        spaceHandlesByRowIndex.clear();
+        backendIdsBySpaceRowIndex.clear();
+        for (UUID spaceUuid : new ArrayList<>(spaceHandlesByUuid.keySet())) {
+            Ref<PhysicsStore> spaceRef = identity.getByUuid(spaceUuid);
+            if (spaceRef == null) {
+                continue;
+            }
+            spaceRefsByUuid.put(spaceUuid, spaceRef);
+            BackendSpaceHandle spaceHandle = spaceHandlesByUuid.get(spaceUuid);
+            BackendId backendId = backendIdsBySpaceUuid.get(spaceUuid);
+            int rowIndex = spaceRef.getIndex();
+            spaceUuidsByRowIndex.put(rowIndex, spaceUuid);
+            if (spaceHandle != null) {
+                spaceHandlesByRowIndex.put(rowIndex, spaceHandle);
+            }
+            if (backendId != null) {
+                backendIdsBySpaceRowIndex.put(rowIndex, backendId);
+            }
+        }
+    }
+
+    private void refreshBodyRefs(@Nonnull PhysicsIdentityIndexResource identity) {
+        bodyRefsByRowIndex.clear();
+        bodyHandlesByRowIndex.clear();
+        bodySpaceHandlesByRowIndex.clear();
+        backendIdsByBodyRowIndex.clear();
+        bodySnapshotMetadataByHandle.replaceAll((bodyHandle, metadata) -> {
+            Ref<PhysicsStore> bodyRef = identity.getByUuid(metadata.bodyUuid());
+            if (bodyRef == null) {
+                return metadata;
+            }
+            BackendBodyHandle handle = bodyHandlesByUuid.get(metadata.bodyUuid());
+            BackendSpaceHandle spaceHandle = bodySpaceHandlesByUuid.get(metadata.bodyUuid());
+            int rowIndex = bodyRef.getIndex();
+            bodyRefsByRowIndex.put(rowIndex, bodyRef);
+            if (handle != null) {
+                bodyHandlesByRowIndex.put(rowIndex, handle);
+            }
+            if (spaceHandle != null) {
+                bodySpaceHandlesByRowIndex.put(rowIndex, spaceHandle);
+            }
+            BackendId backendId = backendIdsBySpaceUuid.get(metadata.spaceUuid());
+            if (backendId != null) {
+                backendIdsByBodyRowIndex.put(rowIndex, backendId);
+            }
+            return new BodySnapshotMetadata(metadata.bodyUuid(), bodyRef, metadata.spaceUuid());
+        });
+    }
+
+    private void refreshJointRefs(@Nonnull PhysicsIdentityIndexResource identity) {
+        jointHandlesByRowIndex.clear();
+        jointSpaceHandlesByRowIndex.clear();
+        jointRefsByRowIndex.clear();
+        backendIdsByJointRowIndex.clear();
+        for (Map.Entry<UUID, BackendJointHandle> entry : jointHandlesByUuid.entrySet()) {
+            UUID jointUuid = entry.getKey();
+            Ref<PhysicsStore> jointRef = identity.getByUuid(jointUuid);
+            if (jointRef == null) {
+                continue;
+            }
+            jointRefsByUuid.put(jointUuid, jointRef);
+            BackendSpaceHandle spaceHandle = jointSpaceHandlesByUuid.get(jointUuid);
+            BackendId backendId = jointBackendIdsByUuid.get(jointUuid);
+            int rowIndex = jointRef.getIndex();
+            jointHandlesByRowIndex.put(rowIndex, entry.getValue());
+            if (spaceHandle != null) {
+                jointSpaceHandlesByRowIndex.put(rowIndex, spaceHandle);
+            }
+            if (backendId != null) {
+                backendIdsByJointRowIndex.put(rowIndex, backendId);
+            }
+            jointRefsByRowIndex.put(rowIndex, jointRef);
+        }
     }
 
     private void removeBodyHandleIndexes(@Nullable BackendBodyHandle removed,
@@ -704,6 +794,7 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
         copy.jointHandlesByUuid.putAll(jointHandlesByUuid);
         copy.jointSpaceHandlesByUuid.putAll(jointSpaceHandlesByUuid);
         copy.jointRefsByUuid.putAll(jointRefsByUuid);
+        copy.jointBackendIdsByUuid.putAll(jointBackendIdsByUuid);
         copy.jointHandlesByRowIndex.putAll(jointHandlesByRowIndex);
         copy.jointSpaceHandlesByRowIndex.putAll(jointSpaceHandlesByRowIndex);
         copy.jointRefsByRowIndex.putAll(jointRefsByRowIndex);

@@ -54,6 +54,7 @@ public final class StaleBodyRemovalSystem extends TickingSystem<PhysicsStore> {
         runtime.forEachRuntimeSpaceBinding((_, _, spaceHandle, backendRuntime) ->
             runtime.forEachBodyHandle(spaceHandle,
                 bodyId -> collectStaleBody(store,
+                    identity,
                     runtime,
                     restore,
                     staleBodies,
@@ -67,7 +68,9 @@ public final class StaleBodyRemovalSystem extends TickingSystem<PhysicsStore> {
         if (!removeDependentJoints(store, runtime, identity, restore, staleBodyUuids)) {
             return;
         }
-        for (BoundBody body : staleBodies) {
+        List<BoundBody> orderedBodies = currentBodyRefs(identity, staleBodies);
+        boolean removedAny = false;
+        for (BoundBody body : orderedBodies) {
             try {
                 PhysicsStoreRowCleanup.removeRuntimeBody(runtime,
                     identity,
@@ -80,6 +83,10 @@ public final class StaleBodyRemovalSystem extends TickingSystem<PhysicsStore> {
                 return;
             }
             PhysicsStoreRowCleanup.removeBodyEntity(store, body.bodyUuid(), body.bodyRef(), null);
+            removedAny = true;
+        }
+        if (removedAny) {
+            PhysicsStoreRowCleanup.refreshIdentityAndRuntimeRefs(store);
         }
     }
 
@@ -91,7 +98,11 @@ public final class StaleBodyRemovalSystem extends TickingSystem<PhysicsStore> {
         if (staleBodyUuids.isEmpty()) {
             return true;
         }
-        for (BoundJoint joint : collectDependentJoints(store, identity, staleBodyUuids)) {
+        List<BoundJoint> joints = collectDependentJoints(store, identity, staleBodyUuids);
+        joints.sort((first, second) -> Integer.compare(second.ref().getIndex(),
+            first.ref().getIndex()));
+        boolean removedAny = false;
+        for (BoundJoint joint : joints) {
             try {
                 PhysicsStoreRowCleanup.removeRuntimeJoint(runtime,
                     identity,
@@ -104,9 +115,29 @@ public final class StaleBodyRemovalSystem extends TickingSystem<PhysicsStore> {
             }
             if (joint.removeRow() && joint.ref().isValid()) {
                 PhysicsStoreRowCleanup.removeJointEntity(store, joint.jointUuid(), joint.ref());
+                removedAny = true;
             }
         }
+        if (removedAny) {
+            PhysicsStoreRowCleanup.refreshIdentityAndRuntimeRefs(store);
+        }
         return true;
+    }
+
+    @Nonnull
+    private static List<BoundBody> currentBodyRefs(@Nonnull PhysicsIdentityIndexResource identity,
+        @Nonnull List<BoundBody> staleBodies) {
+        List<BoundBody> currentBodies = new ArrayList<>(staleBodies.size());
+        for (BoundBody body : staleBodies) {
+            Ref<PhysicsStore> bodyRef = PhysicsStoreSystemSupport.refForUuid(identity,
+                body.bodyUuid());
+            currentBodies.add(new BoundBody(body.bodyUuid(),
+                bodyRef != null ? bodyRef : body.bodyRef(),
+                body.backendRuntime()));
+        }
+        currentBodies.sort((first, second) -> Integer.compare(second.bodyRef().getIndex(),
+            first.bodyRef().getIndex()));
+        return currentBodies;
     }
 
     @Nonnull
@@ -149,6 +180,7 @@ public final class StaleBodyRemovalSystem extends TickingSystem<PhysicsStore> {
     }
 
     private static void collectStaleBody(@Nonnull Store<PhysicsStore> store,
+        @Nonnull PhysicsIdentityIndexResource identity,
         @Nonnull PhysicsRuntimeResource runtime,
         @Nonnull PhysicsRestoreStatusResource restore,
         @Nonnull List<BoundBody> staleBodies,
@@ -160,14 +192,20 @@ public final class StaleBodyRemovalSystem extends TickingSystem<PhysicsStore> {
                 + " has no runtime snapshot metadata");
             return;
         }
+        Ref<PhysicsStore> bodyRef = PhysicsStoreSystemSupport.resolvedRef(identity,
+            metadata.bodyUuid(),
+            metadata.bodyRef());
+        if (bodyRef == null) {
+            bodyRef = metadata.bodyRef();
+        }
         BodyComponent body = PhysicsStoreSystemSupport.component(store,
-            metadata.bodyRef(),
+            bodyRef,
             BodyComponent.getComponentType());
         if (body != null) {
             return;
         }
         staleBodies.add(new BoundBody(metadata.bodyUuid(),
-            metadata.bodyRef(),
+            bodyRef,
             backendRuntime));
     }
 

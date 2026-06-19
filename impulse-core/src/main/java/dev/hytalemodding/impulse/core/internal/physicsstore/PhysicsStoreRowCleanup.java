@@ -14,6 +14,7 @@ import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkCollisionPa
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsIdentityIndexResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSnapshotResource;
+import dev.hytalemodding.impulse.core.plugin.components.UuidComponent;
 import java.util.UUID;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -100,6 +101,24 @@ public final class PhysicsStoreRowCleanup {
         store.getResource(PhysicsIdentityIndexResource.getResourceType()).removeUuid(jointUuid,
             jointRef);
         removeEntityIfValid(store, jointRef);
+    }
+
+    public static void refreshIdentityAndRuntimeRefs(@Nonnull Store<PhysicsStore> store) {
+        PhysicsIdentityIndexResource identity =
+            store.getResource(PhysicsIdentityIndexResource.getResourceType());
+        PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
+        identity.clearUuidRefs();
+        store.getExternalData().clearUuidIndex();
+        store.forEachEntityParallel(UuidComponent.getComponentType(), (index, chunk, _) -> {
+            UuidComponent uuid = chunk.getComponent(index, UuidComponent.getComponentType());
+            if (uuid == null) {
+                return;
+            }
+            Ref<PhysicsStore> ref = chunk.getReferenceTo(index);
+            identity.putUuid(uuid.getUuid(), ref);
+            store.getExternalData().putRefForUUID(uuid.getUuid(), ref);
+        });
+        runtime.refreshRowRefs(identity);
     }
 
     private static void removePayload(@Nonnull Store<PhysicsStore> store,

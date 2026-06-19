@@ -272,7 +272,11 @@ public final class PhysicsStoreTopologyMutations {
 
     private static void removeRows(@Nonnull Store<PhysicsStore> store,
         @Nonnull List<RowRemoval> removals) {
-        for (RowRemoval removal : removals) {
+        boolean removedAny = false;
+        for (RowRemoval removal : removals.stream()
+            .sorted((first, second) -> Integer.compare(second.ref().getIndex(),
+                first.ref().getIndex()))
+            .toList()) {
             if (!removal.ref().isValid()) {
                 continue;
             }
@@ -286,6 +290,10 @@ public final class PhysicsStoreTopologyMutations {
                     removal.rowUuid(),
                     removal.ref());
             }
+            removedAny = true;
+        }
+        if (removedAny) {
+            PhysicsStoreRowCleanup.refreshIdentityAndRuntimeRefs(store);
         }
     }
 
