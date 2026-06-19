@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.hypixel.hytale.codec.ExtraInfo;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkCollisionDefaults;
 import dev.hytalemodding.impulse.core.plugin.components.ExtensionSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.components.SolverSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.components.VisualMaterializationSettingsComponent;
@@ -23,7 +24,6 @@ class PersistentSpaceDtoSettingsTest {
     void roundTripPreservesDetachedVisualCadenceSettingsAndPhysicsChunkKeys() {
         PhysicsSpaceSettings original = PhysicsSpaceSettings.defaults();
         original.getPhysicsChunkTerrainSettings().setNativeVoxelCollisionEnabled(true);
-        original.getPhysicsChunkTerrainSettings().setChunkCollisionMaterial(0.85f, 0.2f);
         original.getVisualMaterializationSettings().setDetachedVisualInterestRefreshIntervalTicks(7);
         original.getVisualMaterializationSettings().setDetachedVisualCandidateRefreshIntervalTicks(9);
         original.getVisualMaterializationSettings().setDetachedVisualVisibilityCheckIntervalTicks(11);
@@ -38,8 +38,8 @@ class PersistentSpaceDtoSettingsTest {
             terrain.getTerrainRadius(),
             terrain.getBodyTerrainRadius(),
             terrain.getTerrainTtlTicks(),
-            terrain.getChunkCollisionFriction(),
-            terrain.getChunkCollisionRestitution(),
+            0.85f,
+            0.2f,
             new SolverSettingsComponent(original.getSolverSettings()),
             new VisualSyncSettingsComponent(original.getVisualSyncSettings()),
             new VisualMaterializationSettingsComponent(original.getVisualMaterializationSettings()),
@@ -56,17 +56,21 @@ class PersistentSpaceDtoSettingsTest {
         assertTrue(encoded.containsKey("ChunkCollisionFriction"));
         assertTrue(encoded.containsKey("ChunkCollisionRestitution"));
         assertTrue(encoded.containsKey("VisualMaterializationSettings"));
-        PhysicsSpaceSettings decoded = Objects.requireNonNull(
-            PersistentSpaceDto.CODEC.decode(encoded, new ExtraInfo())).toSettings();
+        PersistentSpaceDto decodedState = Objects.requireNonNull(
+            PersistentSpaceDto.CODEC.decode(encoded, new ExtraInfo()));
+        assertEquals(0.85f, decodedState.getChunkCollisionFriction(), 0.0001f);
+        assertEquals(0.2f, decodedState.getChunkCollisionRestitution(), 0.0001f);
+
+        PhysicsSpaceSettings decoded = decodedState.toSettings();
         assertTrue(decoded.getPhysicsChunkTerrainSettings().isNativeVoxelCollisionEnabled());
-        assertEquals(0.85f, decoded.getPhysicsChunkTerrainSettings().getChunkCollisionFriction(), 0.0001f);
-        assertEquals(0.2f, decoded.getPhysicsChunkTerrainSettings().getChunkCollisionRestitution(), 0.0001f);
         assertDetachedVisualCadence(decoded, 7, 9, 11);
 
-        PhysicsSpaceSettings copied = state.copy().toSettings();
+        PersistentSpaceDto copiedState = state.copy();
+        assertEquals(0.85f, copiedState.getChunkCollisionFriction(), 0.0001f);
+        assertEquals(0.2f, copiedState.getChunkCollisionRestitution(), 0.0001f);
+
+        PhysicsSpaceSettings copied = copiedState.toSettings();
         assertTrue(copied.getPhysicsChunkTerrainSettings().isNativeVoxelCollisionEnabled());
-        assertEquals(0.85f, copied.getPhysicsChunkTerrainSettings().getChunkCollisionFriction(), 0.0001f);
-        assertEquals(0.2f, copied.getPhysicsChunkTerrainSettings().getChunkCollisionRestitution(), 0.0001f);
         assertDetachedVisualCadence(copied, 7, 9, 11);
     }
 
@@ -83,8 +87,8 @@ class PersistentSpaceDtoSettingsTest {
             PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_RADIUS,
             PhysicsChunkTerrainSettings.DEFAULT_BODY_TERRAIN_RADIUS,
             PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_TTL_TICKS,
-            PhysicsChunkTerrainSettings.DEFAULT_CHUNK_COLLISION_FRICTION,
-            PhysicsChunkTerrainSettings.DEFAULT_CHUNK_COLLISION_RESTITUTION,
+            PhysicsChunkCollisionDefaults.FRICTION,
+            PhysicsChunkCollisionDefaults.RESTITUTION,
             0x40,
             0x03,
             new SolverSettingsComponent(),
@@ -103,10 +107,8 @@ class PersistentSpaceDtoSettingsTest {
         assertEquals(0x40, state.copy().getChunkCollisionGroup());
         assertEquals(0x03, state.copy().getChunkCollisionMask());
         PhysicsSpaceSettings decodedSettings = decoded.toSettings();
-        assertEquals(0x40,
-            decodedSettings.getPhysicsChunkTerrainSettings().getChunkCollisionGroup());
-        assertEquals(0x03,
-            decodedSettings.getPhysicsChunkTerrainSettings().getChunkCollisionMask());
+        assertEquals(terrain.getEntityChunkBoundaryMode(),
+            decodedSettings.getPhysicsChunkTerrainSettings().getEntityChunkBoundaryMode());
     }
 
     private static void assertDetachedVisualCadence(PhysicsSpaceSettings settings,

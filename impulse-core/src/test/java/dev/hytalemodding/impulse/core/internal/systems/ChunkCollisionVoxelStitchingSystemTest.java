@@ -243,10 +243,6 @@ class ChunkCollisionVoxelStitchingSystemTest {
             List.of(),
             List.of(),
             true,
-            0.7f,
-            0.05f,
-            PhysicsCollisionFilters.TERRAIN,
-            PhysicsCollisionFilters.ALL,
             neighbors);
     }
 
