@@ -5,7 +5,9 @@ import com.hypixel.hytale.logger.HytaleLogger;
 import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import com.hypixel.hytale.server.core.plugin.JavaPluginInit;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.commands.PhysicsChunkCommandContributions;
+import dev.hytalemodding.impulse.core.internal.registration.PhysicsStoreRegistration;
 import java.util.logging.Level;
 import javax.annotation.Nonnull;
 
@@ -23,8 +25,14 @@ public final class PhysicsChunkSubPlugin extends JavaPlugin {
     @Override
     protected void setup() {
         ComponentRegistryProxy<EntityStore> entityRegistry = getEntityStoreRegistry();
+        ComponentRegistryProxy<PhysicsStore> physicsRegistry =
+            PhysicsStoreRegistration.physicsStoreRegistry(this);
         PhysicsChunkTypes.registerEntityStoreResourceTypes(entityRegistry);
         PhysicsChunkTypes.registerEntityStoreSystems(entityRegistry);
+        PhysicsChunkStoreTypes.registerPhysicsStoreResourceTypes(physicsRegistry);
+        PhysicsChunkStoreTypes.registerSpaceBindingSystems(physicsRegistry);
+        PhysicsChunkStoreTypes.registerPreBodyBindingSystems(physicsRegistry);
+        PhysicsChunkStoreTypes.registerPostBodyBindingSystems(physicsRegistry);
         PhysicsChunkCommandContributions.register();
         PhysicsChunkLifecycle.enable();
         LOGGER.at(Level.INFO).log("Impulse PhysicsChunk collision producer enabled.");

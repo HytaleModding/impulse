@@ -70,16 +70,12 @@ public final class PhysicsStoreRegistration {
         PhysicsStoreHooks.registerTickGate(STEP_TICK_GATE);
 
         PhysicsResourceTypes.registerResourceTypes(registry);
-        PhysicsChunkStoreTypes.registerPhysicsStoreResourceTypes(registry);
 
         registry.registerSystem(new PersistenceHydrationSystem());
         registry.registerSystem(new IdentityIndexSystem());
-        PhysicsChunkStoreTypes.registerPhysicsStoreSpaceBindingSystems(registry);
         registry.registerSystem(new SpaceBindingSystem());
         registry.registerSystem(new SpaceSettingsApplicationSystem());
-        PhysicsChunkStoreTypes.registerPhysicsStorePreBodyBindingSystems(registry);
         registry.registerSystem(new BodyBindingSystem());
-        PhysicsChunkStoreTypes.registerPhysicsStorePostBodyBindingSystems(registry);
         registry.registerSystem(new ColliderBindingSystem());
         registry.registerSystem(new JointBindingSystem());
         registry.registerSystem(new StaleBodyRemovalSystem());

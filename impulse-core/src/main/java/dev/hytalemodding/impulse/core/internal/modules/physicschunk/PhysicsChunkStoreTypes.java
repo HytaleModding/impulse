@@ -37,17 +37,17 @@ public final class PhysicsChunkStoreTypes {
             PhysicsChunkComponentSyncResource::new));
     }
 
-    public static void registerPhysicsStoreSpaceBindingSystems(
+    public static void registerSpaceBindingSystems(
         @Nonnull ComponentRegistryProxy<PhysicsStore> registry) {
         registry.registerSystem(new PhysicsChunkSettingsIndexSystem());
     }
 
-    public static void registerPhysicsStorePreBodyBindingSystems(
+    public static void registerPreBodyBindingSystems(
         @Nonnull ComponentRegistryProxy<PhysicsStore> registry) {
         registry.registerSystem(new ChunkCollisionMutationDrainSystem());
     }
 
-    public static void registerPhysicsStorePostBodyBindingSystems(
+    public static void registerPostBodyBindingSystems(
         @Nonnull ComponentRegistryProxy<PhysicsStore> registry) {
         registry.registerSystem(new ChunkCollisionComponentSyncSystem());
         registry.registerSystem(new ChunkCollisionVoxelStitchingSystem());
