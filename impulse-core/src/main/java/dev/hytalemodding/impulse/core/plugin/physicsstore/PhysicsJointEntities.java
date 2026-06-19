@@ -18,7 +18,30 @@ public final class PhysicsJointEntities {
     }
 
     @Nonnull
-    public static JointComponent joint(@Nonnull UUID spaceUuid,
+    public static JointComponent joint(@Nonnull Ref<PhysicsStore> spaceRef,
+        @Nonnull Ref<PhysicsStore> bodyARef,
+        @Nonnull Ref<PhysicsStore> bodyBRef,
+        @Nonnull JointType type,
+        @Nonnull Vector3f anchorA,
+        @Nonnull Vector3f anchorB,
+        @Nonnull Vector3f axis) {
+        PhysicsEntityRefs.requireSameStore(spaceRef, bodyARef, "bodyARef");
+        PhysicsEntityRefs.requireSameStore(spaceRef, bodyBRef, "bodyBRef");
+        JointComponent joint = jointWithUuids(PhysicsEntityRefs.entityUuid(spaceRef),
+            PhysicsEntityRefs.entityUuid(bodyARef),
+            PhysicsEntityRefs.entityUuid(bodyBRef),
+            type,
+            anchorA,
+            anchorB,
+            axis);
+        joint.setSpaceRef(spaceRef);
+        joint.setBodyARef(bodyARef);
+        joint.setBodyBRef(bodyBRef);
+        return joint;
+    }
+
+    @Nonnull
+    private static JointComponent jointWithUuids(@Nonnull UUID spaceUuid,
         @Nonnull UUID bodyAUuid,
         @Nonnull UUID bodyBUuid,
         @Nonnull JointType type,
@@ -34,29 +57,6 @@ public final class PhysicsJointEntities {
         joint.setAnchorB(anchorB);
         joint.setAxis(axis);
         joint.setEnabled(true);
-        return joint;
-    }
-
-    @Nonnull
-    public static JointComponent joint(@Nonnull Ref<PhysicsStore> spaceRef,
-        @Nonnull Ref<PhysicsStore> bodyARef,
-        @Nonnull Ref<PhysicsStore> bodyBRef,
-        @Nonnull JointType type,
-        @Nonnull Vector3f anchorA,
-        @Nonnull Vector3f anchorB,
-        @Nonnull Vector3f axis) {
-        PhysicsEntityRefs.requireSameStore(spaceRef, bodyARef, "bodyARef");
-        PhysicsEntityRefs.requireSameStore(spaceRef, bodyBRef, "bodyBRef");
-        JointComponent joint = joint(PhysicsEntityRefs.entityUuid(spaceRef),
-            PhysicsEntityRefs.entityUuid(bodyARef),
-            PhysicsEntityRefs.entityUuid(bodyBRef),
-            type,
-            anchorA,
-            anchorB,
-            axis);
-        joint.setSpaceRef(spaceRef);
-        joint.setBodyARef(bodyARef);
-        joint.setBodyBRef(bodyBRef);
         return joint;
     }
 }

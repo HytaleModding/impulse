@@ -140,8 +140,12 @@ final class ImpulseLiveCrucibleTests {
         UUID bodyUuid,
         Vector3d visualPosition) {
         PhysicsThreading.requireWorldThread(store, "add Crucible live PhysicsStore body entity");
+        Ref<PhysicsStore> spaceRef = PhysicsSpaces.resolveRef(store, spaceId);
+        if (spaceRef == null) {
+            throw new IllegalStateException("No PhysicsStore space ref for id=" + spaceId.value());
+        }
         BodyEntityDescriptor descriptor = PhysicsBodyEntities.dynamicBody(
-            PhysicsStoreSpaceMutations.requireSpaceUuid(store, spaceId),
+            spaceRef,
             bodyUuid,
             new Vector3f((float) visualPosition.x,
                 (float) visualPosition.y,

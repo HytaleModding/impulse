@@ -301,8 +301,11 @@ final class ImpulseApiCrucibleTests {
     private static Ref<PhysicsStore> addCrucibleBox(@Nonnull Store<PhysicsStore> store,
         @Nonnull SpaceId spaceId,
         @Nonnull UUID bodyUuid) {
-        UUID spaceUuid = PhysicsStoreSpaceMutations.requireSpaceUuid(store, spaceId);
-        BodyEntityDescriptor descriptor = PhysicsBodyEntities.dynamicBody(spaceUuid,
+        Ref<PhysicsStore> spaceRef = PhysicsSpaces.resolveRef(store, spaceId);
+        if (spaceRef == null) {
+            throw new IllegalStateException("No PhysicsStore space ref for id=" + spaceId.value());
+        }
+        BodyEntityDescriptor descriptor = PhysicsBodyEntities.dynamicBody(spaceRef,
             bodyUuid,
             new Vector3f(0.0f, 5.0f, 0.0f),
             PhysicsShapeSpec.box(0.5f, 0.5f, 0.5f),

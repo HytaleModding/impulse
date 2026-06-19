@@ -9,12 +9,12 @@ import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.internal.physicsstore.PhysicsStoreRuntimeCleaner;
-import dev.hytalemodding.impulse.core.internal.physicsstore.PhysicsStoreSpaceMutations;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.BodyEntityDescriptor;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsBodyEntities;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsEntities;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsSpaces;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
 import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
 import java.util.UUID;
@@ -52,8 +52,9 @@ final class PhysicsStoreCrucibleSupport {
         @Nonnull PhysicsBodyKind kind,
         @Nonnull PhysicsBodyPersistenceMode persistenceMode) {
         PhysicsThreading.requireWorldThread(store, "add Crucible PhysicsStore body entity");
+        Ref<PhysicsStore> spaceRef = requireSpaceRef(store, spaceId);
         BodyEntityDescriptor descriptor = PhysicsBodyEntities.body(
-            PhysicsStoreSpaceMutations.requireSpaceUuid(store, spaceId),
+            spaceRef,
             bodyUuid,
             bodyCenter,
             shape,
@@ -72,5 +73,15 @@ final class PhysicsStoreCrucibleSupport {
             descriptor.shape(),
             descriptor.material(),
             descriptor.filter()), AddReason.SPAWN);
+    }
+
+    @Nonnull
+    private static Ref<PhysicsStore> requireSpaceRef(@Nonnull Store<PhysicsStore> store,
+        @Nonnull SpaceId spaceId) {
+        Ref<PhysicsStore> spaceRef = PhysicsSpaces.resolveRef(store, spaceId);
+        if (spaceRef == null) {
+            throw new IllegalStateException("No PhysicsStore space ref for id=" + spaceId.value());
+        }
+        return spaceRef;
     }
 }

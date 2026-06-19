@@ -31,27 +31,6 @@ public final class PhysicsBodyEntities {
     }
 
     @Nonnull
-    public static BodyEntityDescriptor dynamicBody(@Nonnull UUID spaceUuid,
-        @Nonnull UUID bodyUuid,
-        @Nonnull Vector3f bodyCenter,
-        @Nonnull PhysicsShapeSpec shape,
-        float mass,
-        @Nonnull RigidBodySpawnSettings settings,
-        @Nullable Vector3f linearVelocity,
-        @Nonnull PhysicsBodyPersistenceMode persistenceMode) {
-        return body(spaceUuid,
-            bodyUuid,
-            bodyCenter,
-            shape,
-            PhysicsBodyType.DYNAMIC,
-            mass,
-            settings,
-            linearVelocity,
-            PhysicsBodyKind.BODY,
-            persistenceMode);
-    }
-
-    @Nonnull
     public static BodyEntityDescriptor dynamicBody(@Nonnull Ref<PhysicsStore> spaceRef,
         @Nonnull UUID bodyUuid,
         @Nonnull Vector3f bodyCenter,
@@ -73,7 +52,32 @@ public final class PhysicsBodyEntities {
     }
 
     @Nonnull
-    public static BodyEntityDescriptor body(@Nonnull UUID spaceUuid,
+    public static BodyEntityDescriptor body(@Nonnull Ref<PhysicsStore> spaceRef,
+        @Nonnull UUID bodyUuid,
+        @Nonnull Vector3f bodyCenter,
+        @Nonnull PhysicsShapeSpec shape,
+        @Nonnull PhysicsBodyType bodyType,
+        float mass,
+        @Nonnull RigidBodySpawnSettings settings,
+        @Nullable Vector3f linearVelocity,
+        @Nonnull PhysicsBodyKind kind,
+        @Nonnull PhysicsBodyPersistenceMode persistenceMode) {
+        BodyEntityDescriptor descriptor = bodyWithSpaceUuid(PhysicsEntityRefs.entityUuid(spaceRef),
+            bodyUuid,
+            bodyCenter,
+            shape,
+            bodyType,
+            mass,
+            settings,
+            linearVelocity,
+            kind,
+            persistenceMode);
+        descriptor.body().setSpaceRef(spaceRef);
+        return descriptor;
+    }
+
+    @Nonnull
+    private static BodyEntityDescriptor bodyWithSpaceUuid(@Nonnull UUID spaceUuid,
         @Nonnull UUID bodyUuid,
         @Nonnull Vector3f bodyCenter,
         @Nonnull PhysicsShapeSpec shape,
@@ -121,31 +125,6 @@ public final class PhysicsBodyEntities {
                 settings.hasRestitution() ? settings.restitution() : 0.0f),
             bodyUuid,
             collisionFilter(settings));
-    }
-
-    @Nonnull
-    public static BodyEntityDescriptor body(@Nonnull Ref<PhysicsStore> spaceRef,
-        @Nonnull UUID bodyUuid,
-        @Nonnull Vector3f bodyCenter,
-        @Nonnull PhysicsShapeSpec shape,
-        @Nonnull PhysicsBodyType bodyType,
-        float mass,
-        @Nonnull RigidBodySpawnSettings settings,
-        @Nullable Vector3f linearVelocity,
-        @Nonnull PhysicsBodyKind kind,
-        @Nonnull PhysicsBodyPersistenceMode persistenceMode) {
-        BodyEntityDescriptor descriptor = body(PhysicsEntityRefs.entityUuid(spaceRef),
-            bodyUuid,
-            bodyCenter,
-            shape,
-            bodyType,
-            mass,
-            settings,
-            linearVelocity,
-            kind,
-            persistenceMode);
-        descriptor.body().setSpaceRef(spaceRef);
-        return descriptor;
     }
 
     @Nonnull
