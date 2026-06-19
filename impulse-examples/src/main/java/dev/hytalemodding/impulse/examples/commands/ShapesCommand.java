@@ -1,5 +1,6 @@
 package dev.hytalemodding.impulse.examples.commands;
 
+import com.hypixel.hytale.component.AddReason;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.Message;
@@ -13,13 +14,17 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.PhysicsAxis;
-import dev.hytalemodding.impulse.api.SpaceId;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.BodyEntityDescriptor;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
 import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
 import dev.hytalemodding.impulse.examples.utils.ExamplePhysicsUtils;
+import org.joml.Quaternionf;
 import org.joml.Vector3d;
+import org.joml.Vector3f;
 
 public class ShapesCommand extends AbstractAsyncPlayerCommand {
 
@@ -48,17 +53,45 @@ public class ShapesCommand extends AbstractAsyncPlayerCommand {
             return CompletableFuture.completedFuture(null);
         }
         TimeResource time = store.getResource(TimeResource.getResourceType());
+        Store<PhysicsStore> physicsStore = PhysicsThreading.store(world);
+        PhysicsThreading.requireWorldThread(physicsStore,
+            "spawn example PhysicsStore body entities");
 
         Vector3d origin = new Vector3d(playerPos).add(-4.0, 3.0, 3.0);
-        spawn(store, time, space.spaceRef(), space.spaceId(), ShapeType.BOX, PhysicsAxis.Y,
+        spawn(store,
+            physicsStore,
+            time,
+            space.spaceRef(),
+            ShapeType.BOX,
+            PhysicsAxis.Y,
             origin, 0);
-        spawn(store, time, space.spaceRef(), space.spaceId(), ShapeType.SPHERE, PhysicsAxis.Y,
+        spawn(store,
+            physicsStore,
+            time,
+            space.spaceRef(),
+            ShapeType.SPHERE,
+            PhysicsAxis.Y,
             origin, 2);
-        spawn(store, time, space.spaceRef(), space.spaceId(), ShapeType.CAPSULE, PhysicsAxis.Y,
+        spawn(store,
+            physicsStore,
+            time,
+            space.spaceRef(),
+            ShapeType.CAPSULE,
+            PhysicsAxis.Y,
             origin, 4);
-        spawn(store, time, space.spaceRef(), space.spaceId(), ShapeType.CYLINDER, PhysicsAxis.Y,
+        spawn(store,
+            physicsStore,
+            time,
+            space.spaceRef(),
+            ShapeType.CYLINDER,
+            PhysicsAxis.Y,
             origin, 6);
-        spawn(store, time, space.spaceRef(), space.spaceId(), ShapeType.CONE, PhysicsAxis.Y,
+        spawn(store,
+            physicsStore,
+            time,
+            space.spaceRef(),
+            ShapeType.CONE,
+            PhysicsAxis.Y,
             origin, 8);
 
         ctx.sender().sendMessage(Message.raw("Spawned shape demo."));
@@ -66,23 +99,36 @@ public class ShapesCommand extends AbstractAsyncPlayerCommand {
     }
 
     private static void spawn(@Nonnull Store<EntityStore> store,
+        @Nonnull Store<PhysicsStore> physicsStore,
         @Nonnull TimeResource time,
         @Nonnull Ref<PhysicsStore> spaceRef,
-        @Nonnull SpaceId spaceId,
         @Nonnull ShapeType type,
         @Nonnull PhysicsAxis axis,
         @Nonnull Vector3d origin,
         int xOffset) {
-        ExamplePhysicsUtils.spawnBlockBody(store,
-            time,
-            spaceRef,
-            spaceId,
-            new Vector3d(origin).add(xOffset, 0.0, 0.0),
-            ExamplePhysicsUtils.DEFAULT_BLOCK_TYPE,
+        Vector3d position = new Vector3d(origin).add(xOffset, 0.0, 0.0);
+        UUID bodyUuid = UUID.randomUUID();
+        BodyEntityDescriptor descriptor = ExamplePhysicsUtils.bodyEntity(spaceRef,
+            bodyUuid,
+            ExamplePhysicsUtils.toVector3f(position),
             shape(type, axis),
             1.0f,
             RigidBodySpawnSettings.material(0.7f, 0.35f),
             null);
+        Ref<PhysicsStore> bodyRef = physicsStore.addEntity(
+            ExamplePhysicsUtils.bodyHolder(physicsStore, descriptor),
+            AddReason.SPAWN);
+        store.addEntity(ExamplePhysicsUtils.attachedPhysicsStoreBlockEntityHolder(
+            time,
+            bodyRef,
+            bodyUuid,
+            ExamplePhysicsUtils.DEFAULT_BLOCK_TYPE,
+            position,
+            new Vector3f(),
+            new Quaternionf(),
+            Float.NaN,
+            true),
+            AddReason.SPAWN);
     }
 
     @Nonnull

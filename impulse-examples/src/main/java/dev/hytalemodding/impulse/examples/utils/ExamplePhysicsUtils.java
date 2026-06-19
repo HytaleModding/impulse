@@ -175,6 +175,13 @@ public final class ExamplePhysicsUtils {
     }
 
     @Nonnull
+    public static Holder<PhysicsStore> bodyHolder(@Nonnull Store<PhysicsStore> store,
+        @Nonnull BodyEntityDescriptor descriptor) {
+        Objects.requireNonNull(descriptor, "descriptor");
+        return bodyHolder(store, descriptor, descriptor.dynamics(), descriptor.target());
+    }
+
+    @Nonnull
     private static Holder<PhysicsStore> bodyHolder(@Nonnull Store<PhysicsStore> store,
         @Nonnull BodyEntityDescriptor descriptor,
         @Nonnull DynamicsComponent dynamics,
@@ -234,32 +241,6 @@ public final class ExamplePhysicsUtils {
     @Nonnull
     public static SpawnedBlockBody spawnBlockBody(@Nonnull Store<EntityStore> store,
         @Nonnull TimeResource time,
-        @Nonnull SpaceId spaceId,
-        @Nonnull Vector3d visualPosition,
-        @Nullable String blockType,
-        @Nonnull PhysicsShapeSpec shape,
-        float mass,
-        @Nonnull RigidBodySpawnSettings settings,
-        @Nullable Vector3f linearVelocity) {
-        CreatedBlockBody physicsStoreBody = tryCreatePhysicsStoreBlockBody(store,
-            spaceId,
-            visualPosition,
-            blockType,
-            shape,
-            mass,
-            settings,
-            linearVelocity);
-        if (physicsStoreBody != null) {
-            return attachBlockBody(store, time, physicsStoreBody);
-        }
-
-        throw new IllegalStateException("Cannot spawn block body because the target space is not "
-            + "bound in PhysicsStore: " + spaceId.value());
-    }
-
-    @Nonnull
-    public static SpawnedBlockBody spawnBlockBody(@Nonnull Store<EntityStore> store,
-        @Nonnull TimeResource time,
         @Nonnull Ref<PhysicsStore> spaceRef,
         @Nonnull SpaceId spaceId,
         @Nonnull Vector3d visualPosition,
@@ -279,44 +260,6 @@ public final class ExamplePhysicsUtils {
                 mass,
                 settings,
                 linearVelocity));
-    }
-
-    @Nullable
-    private static CreatedBlockBody tryCreatePhysicsStoreBlockBody(@Nonnull Store<EntityStore> store,
-        @Nonnull SpaceId spaceId,
-        @Nonnull Vector3d visualPosition,
-        @Nullable String blockType,
-        @Nonnull PhysicsShapeSpec shape,
-        float mass,
-        @Nonnull RigidBodySpawnSettings settings,
-        @Nullable Vector3f linearVelocity) {
-
-        World world = store.getExternalData().getWorld();
-        Ref<PhysicsStore> spaceRef;
-        try {
-            spaceRef = resolveSpaceRef(world, spaceId);
-        } catch (IllegalStateException exception) {
-            return null;
-        }
-        if (spaceRef == null) {
-            return null;
-        }
-
-        UUID bodyUuid = UUID.randomUUID();
-        try {
-            return createPhysicsStoreBlockBody(world,
-                spaceRef,
-                spaceId,
-                visualPosition,
-                blockType,
-                shape,
-                mass,
-                settings,
-                linearVelocity,
-                bodyUuid);
-        } catch (IllegalStateException exception) {
-            return null;
-        }
     }
 
     @Nonnull

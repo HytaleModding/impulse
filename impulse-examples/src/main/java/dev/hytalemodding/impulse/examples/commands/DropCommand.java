@@ -1,5 +1,6 @@
 package dev.hytalemodding.impulse.examples.commands;
 
+import com.hypixel.hytale.component.AddReason;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.Message;
@@ -11,13 +12,19 @@ import com.hypixel.hytale.server.core.modules.time.TimeResource;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.BodyEntityDescriptor;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
 import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
 import dev.hytalemodding.impulse.examples.utils.ExampleBlockEntityVisuals;
 import dev.hytalemodding.impulse.examples.utils.ExamplePhysicsUtils;
+import org.joml.Quaternionf;
 import org.joml.Vector3d;
+import org.joml.Vector3f;
 
 /**
  * Spawn a PhysicsStore body row with an attached visible block entity.
@@ -48,6 +55,7 @@ public class DropCommand extends AbstractAsyncPlayerCommand {
         float spawnX = (float) playerPos.x();
         float spawnY = (float) playerPos.y() + 5f;
         float spawnZ = (float) playerPos.z();
+        Vector3d position = new Vector3d(spawnX, spawnY, spawnZ);
 
         ExamplePhysicsUtils.SpaceSelection space = ExamplePhysicsUtils.spaceSelection(ctx,
             world,
@@ -57,16 +65,31 @@ public class DropCommand extends AbstractAsyncPlayerCommand {
         }
 
         TimeResource time = store.getResource(TimeResource.getResourceType());
-        ExamplePhysicsUtils.spawnBlockBody(store,
-            time,
-            space.spaceRef(),
-            space.spaceId(),
-            new Vector3d(spawnX, spawnY, spawnZ),
-            blockType(ctx),
+        Store<PhysicsStore> physicsStore = PhysicsThreading.store(world);
+        PhysicsThreading.requireWorldThread(physicsStore,
+            "spawn an example PhysicsStore body entity");
+        UUID bodyUuid = UUID.randomUUID();
+        BodyEntityDescriptor descriptor = ExamplePhysicsUtils.bodyEntity(space.spaceRef(),
+            bodyUuid,
+            ExamplePhysicsUtils.toVector3f(position),
             PhysicsShapeSpec.box(0.5f, 0.5f, 0.5f),
             1.0f,
             RigidBodySpawnSettings.material(0.5f, 0.5f),
             null);
+        Ref<PhysicsStore> bodyRef = physicsStore.addEntity(
+            ExamplePhysicsUtils.bodyHolder(physicsStore, descriptor),
+            AddReason.SPAWN);
+        store.addEntity(ExamplePhysicsUtils.attachedPhysicsStoreBlockEntityHolder(
+            time,
+            bodyRef,
+            bodyUuid,
+            blockType(ctx),
+            position,
+            new Vector3f(),
+            new Quaternionf(),
+            Float.NaN,
+            true),
+            AddReason.SPAWN);
 
         ctx.sender()
             .sendMessage(Message.raw("Dropped box at " + spawnX + ", " + spawnY + ", " + spawnZ));
