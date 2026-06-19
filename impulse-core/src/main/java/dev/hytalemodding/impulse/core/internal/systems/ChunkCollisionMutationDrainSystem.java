@@ -42,7 +42,9 @@ import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.Chu
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsEntities;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
@@ -71,7 +73,7 @@ public final class ChunkCollisionMutationDrainSystem extends TickingSystem<Physi
         }
         PhysicsChunkCollisionMutationQueueResource queue = store.getResource(
             PhysicsChunkCollisionMutationQueueResource.getResourceType());
-        List<ChunkCollisionMutation> mutations = queue.drain();
+        List<ChunkCollisionMutation> mutations = coalesceLastMutationPerSource(queue.drain());
         if (mutations.isEmpty()) {
             return;
         }
@@ -83,6 +85,18 @@ public final class ChunkCollisionMutationDrainSystem extends TickingSystem<Physi
 
         applyRemovals(store, runtime, identity, chunkCollisionPayloads, mutations);
         applyUpserts(store, runtime, identity, chunkCollisionPayloads, restore, mutations);
+    }
+
+    @Nonnull
+    private static List<ChunkCollisionMutation> coalesceLastMutationPerSource(
+        @Nonnull List<ChunkCollisionMutation> mutations) {
+        Map<MutationKey, ChunkCollisionMutation> latest = new LinkedHashMap<>();
+        for (ChunkCollisionMutation mutation : mutations) {
+            MutationKey key = new MutationKey(mutation.spaceUuid(), mutation.sourceKey());
+            latest.remove(key);
+            latest.put(key, mutation);
+        }
+        return new ArrayList<>(latest.values());
     }
 
     private static void applyRemovals(@Nonnull Store<PhysicsStore> store,
@@ -393,6 +407,14 @@ public final class ChunkCollisionMutationDrainSystem extends TickingSystem<Physi
         private GeneratedRow {
             Objects.requireNonNull(ref, "ref");
             Objects.requireNonNull(uuid, "uuid");
+        }
+    }
+
+    private record MutationKey(@Nonnull UUID spaceUuid,
+                               @Nonnull String sourceKey) {
+        private MutationKey {
+            Objects.requireNonNull(spaceUuid, "spaceUuid");
+            Objects.requireNonNull(sourceKey, "sourceKey");
         }
     }
 }

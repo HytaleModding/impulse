@@ -331,6 +331,131 @@ class ChunkCollisionMutationDrainSystemTest {
         }
     }
 
+    @Test
+    void sameDrainUpsertThenRemoveKeepsRemoveIntent() {
+        ComponentRegistry<PhysicsStore> registry = new ComponentRegistry<>();
+        ComponentRegistryProxy<PhysicsStore> proxy =
+            new ComponentRegistryProxy<>(new ArrayList<>(), registry);
+        PhysicsComponentTypeRegistry.registerComponentTypes(proxy);
+        PhysicsResourceTypes.registerResourceTypes(proxy);
+        Store<PhysicsStore> store = registry.addStore(
+            new PhysicsStore(TestInstanceFactory.world("chunk-collision-drain-upsert-remove-test")),
+            EmptyResourceStorage.get());
+        try {
+            markCurrentThreadAsWorldThread(store);
+            UUID spaceUuid = uuid(41);
+            BackendId backendId = new BackendId("test:chunk-collision-drain-upsert-remove");
+            addBoundSpace(store, spaceUuid, backendId);
+            String sourceKey = "8:9:10";
+            String payloadKey = "chunk-collision/8/9/10";
+            ChunkCollisionPayload payload = boxPayload(1.0, 2.0, 3.0);
+
+            PhysicsChunkCollisionMutationQueueResource queue = store.getResource(
+                PhysicsChunkCollisionMutationQueueResource.getResourceType());
+            queue.enqueue(ChunkCollisionMutation.upsert(spaceUuid,
+                sourceKey,
+                8,
+                9,
+                10,
+                payloadKey,
+                payload));
+            new ChunkCollisionMutationDrainSystem().tick(0.0f, 0, store);
+            UUID boxUuid = ChunkCollisionMutationDrainSystem.chunkCollisionBodyUuid(spaceUuid,
+                sourceKey,
+                PartKind.BOX,
+                0);
+            PhysicsIdentityIndexResource identity =
+                store.getResource(PhysicsIdentityIndexResource.getResourceType());
+            assertNotNull(identity.getByUuid(boxUuid));
+
+            queue.enqueue(ChunkCollisionMutation.upsert(spaceUuid,
+                sourceKey,
+                8,
+                9,
+                10,
+                payloadKey,
+                boxPayload(4.0, 5.0, 6.0)));
+            queue.enqueue(ChunkCollisionMutation.remove(spaceUuid, sourceKey, 8, 9, 10));
+            new ChunkCollisionMutationDrainSystem().tick(0.0f, 0, store);
+
+            assertEquals(0, queue.size());
+            assertNull(identity.getByUuid(boxUuid));
+            assertSoftSkipsEmpty(store);
+        } finally {
+            registry.removeStore(store);
+            registry.shutdown();
+        }
+    }
+
+    @Test
+    void sameDrainRemoveThenUpsertKeepsUpsertIntent() {
+        ComponentRegistry<PhysicsStore> registry = new ComponentRegistry<>();
+        ComponentRegistryProxy<PhysicsStore> proxy =
+            new ComponentRegistryProxy<>(new ArrayList<>(), registry);
+        PhysicsComponentTypeRegistry.registerComponentTypes(proxy);
+        PhysicsResourceTypes.registerResourceTypes(proxy);
+        Store<PhysicsStore> store = registry.addStore(
+            new PhysicsStore(TestInstanceFactory.world("chunk-collision-drain-remove-upsert-test")),
+            EmptyResourceStorage.get());
+        try {
+            markCurrentThreadAsWorldThread(store);
+            UUID spaceUuid = uuid(42);
+            BackendId backendId = new BackendId("test:chunk-collision-drain-remove-upsert");
+            Ref<PhysicsStore> spaceRef = addBoundSpace(store, spaceUuid, backendId);
+            String sourceKey = "0:1:2";
+            String payloadKey = "chunk-collision/0/1/2";
+
+            PhysicsChunkCollisionMutationQueueResource queue = store.getResource(
+                PhysicsChunkCollisionMutationQueueResource.getResourceType());
+            queue.enqueue(ChunkCollisionMutation.upsert(spaceUuid,
+                sourceKey,
+                0,
+                1,
+                2,
+                payloadKey,
+                boxPayload(1.0, 2.0, 3.0)));
+            new ChunkCollisionMutationDrainSystem().tick(0.0f, 0, store);
+
+            BoxPayload updatedBox = new BoxPayload(4.0, 5.0, 6.0, 0.5, 0.5, 0.5);
+            ChunkCollisionPayload updatedPayload = new ChunkCollisionPayload(1.0f,
+                1.0f,
+                1.0f,
+                new int[0],
+                List.of(updatedBox),
+                List.of(),
+                false,
+                0.6f,
+                0.1f,
+                0x10,
+                0x0F,
+                List.of());
+            queue.enqueue(ChunkCollisionMutation.remove(spaceUuid, sourceKey, 0, 1, 2));
+            queue.enqueue(ChunkCollisionMutation.upsert(spaceUuid,
+                sourceKey,
+                0,
+                1,
+                2,
+                payloadKey,
+                updatedPayload));
+            new ChunkCollisionMutationDrainSystem().tick(0.0f, 0, store);
+
+            assertEquals(0, queue.size());
+            assertGeneratedBox(store,
+                spaceUuid,
+                spaceRef,
+                sourceKey,
+                payloadKey,
+                PartKind.BOX,
+                0,
+                updatedBox,
+                updatedPayload);
+            assertSoftSkipsEmpty(store);
+        } finally {
+            registry.removeStore(store);
+            registry.shutdown();
+        }
+    }
+
     @Nonnull
     private static Ref<PhysicsStore> addBoundSpace(@Nonnull Store<PhysicsStore> store,
         @Nonnull UUID spaceUuid,
@@ -362,6 +487,24 @@ class ChunkCollisionMutationDrainSystemTest {
             backendId,
             new BackendSpaceHandle(spaceHandle));
         return spaceRef;
+    }
+
+    @Nonnull
+    private static ChunkCollisionPayload boxPayload(double centerX,
+        double centerY,
+        double centerZ) {
+        return new ChunkCollisionPayload(1.0f,
+            1.0f,
+            1.0f,
+            new int[0],
+            List.of(new BoxPayload(centerX, centerY, centerZ, 0.5, 0.5, 0.5)),
+            List.of(),
+            false,
+            0.6f,
+            0.1f,
+            0x10,
+            0x0F,
+            List.of());
     }
 
     private static void assertGeneratedVoxel(@Nonnull Store<PhysicsStore> store,
