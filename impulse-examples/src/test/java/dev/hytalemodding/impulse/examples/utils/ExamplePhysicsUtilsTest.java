@@ -1,11 +1,13 @@
 package dev.hytalemodding.impulse.examples.utils;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.hypixel.hytale.component.ComponentRegistry;
 import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.component.Holder;
+import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.server.core.modules.entity.EntityModule;
 import com.hypixel.hytale.server.core.modules.entity.component.HeadRotation;
 import com.hypixel.hytale.server.core.modules.entity.component.ModelComponent;
@@ -18,9 +20,11 @@ import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.Bo
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
 import dev.hytalemodding.impulse.examples.testsupport.ExampleControlTestSupport;
 import java.lang.reflect.Field;
+import java.util.UUID;
 import javax.annotation.Nonnull;
-
+import org.joml.Quaternionf;
 import org.joml.Vector3d;
+import org.joml.Vector3f;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -93,6 +97,27 @@ class ExamplePhysicsUtilsTest {
         assertTrue(holder.getArchetype().contains(ImpulseControllableComponent.getComponentType()));
     }
 
+    @Test
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    void refAwareAttachmentsKeepDurableUuidAndRuntimeRef() throws Exception {
+        UUID bodyUuid = UUID.randomUUID();
+        Ref bodyRef = new TestPhysicsRef(7);
+
+        BodyAttachmentComponent external = ExamplePhysicsUtils.externalBodyAttachment(bodyUuid,
+            bodyRef);
+        BodyAttachmentComponent impulseOwned = ExamplePhysicsUtils.impulseOwnedBodyAttachment(
+            bodyUuid,
+            bodyRef,
+            new Vector3f(1.0f, 2.0f, 3.0f),
+            new Quaternionf(),
+            0.25f);
+
+        assertEquals(bodyUuid, external.getBodyUuid());
+        assertSame(bodyRef, bodyRef(external));
+        assertEquals(bodyUuid, impulseOwned.getBodyUuid());
+        assertSame(bodyRef, bodyRef(impulseOwned));
+    }
+
     @Nonnull
     private static <T> T allocate(@Nonnull Class<T> type) throws Exception {
         Class<?> unsafeType = Class.forName("sun.misc.Unsafe");
@@ -115,5 +140,22 @@ class ExamplePhysicsUtilsTest {
         Field field = owner.getDeclaredField(name);
         field.setAccessible(true);
         return field;
+    }
+
+    private static Object bodyRef(@Nonnull BodyAttachmentComponent attachment) throws Exception {
+        return BodyAttachmentComponent.class.getMethod("getBodyRef").invoke(attachment);
+    }
+
+    @SuppressWarnings("rawtypes")
+    private static final class TestPhysicsRef extends Ref {
+
+        private TestPhysicsRef(int index) {
+            super(null, index);
+        }
+
+        @Override
+        public boolean isValid() {
+            return true;
+        }
     }
 }

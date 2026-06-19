@@ -600,6 +600,7 @@ public final class ExamplePhysicsUtils {
         }
         Ref<EntityStore> entity = spawnAttachedBlockEntity(store,
             time,
+            bodyRef,
             created.bodyUuid(),
             created.blockType(),
             new Vector3d(created.positionX(), created.positionY(), created.positionZ()),
@@ -833,6 +834,7 @@ public final class ExamplePhysicsUtils {
             UUID bodyUuid = batch.bodyUuid(i);
             Ref<EntityStore> entity = spawnAttachedBlockEntity(store,
                 time,
+                null,
                 bodyUuid,
                 blockType,
                 new Vector3d(batch.positionX(i), batch.positionY(i), batch.positionZ(i)),
@@ -865,21 +867,38 @@ public final class ExamplePhysicsUtils {
         @Nonnull UUID bodyUuid,
         @Nonnull Vector3d visualPosition,
         @Nullable String blockType) {
+        return spawnExternalBodyViewBlockEntity(store,
+            time,
+            null,
+            bodyUuid,
+            visualPosition,
+            blockType);
+    }
+
+    @Nullable
+    public static Ref<EntityStore> spawnExternalBodyViewBlockEntity(@Nonnull Store<EntityStore> store,
+        @Nonnull TimeResource time,
+        @Nullable Ref<PhysicsStore> bodyRef,
+        @Nonnull UUID bodyUuid,
+        @Nonnull Vector3d visualPosition,
+        @Nullable String blockType) {
         requirePhysicsEntityVisuals();
         Holder<EntityStore> holder = blockEntityHolder(time, blockType, visualPosition);
         holder.addComponent(BodyAttachmentComponent.getComponentType(),
-            BodyAttachmentComponent.externalEntity(bodyUuid));
+            externalBodyAttachment(bodyUuid, bodyRef));
         return store.addEntity(holder, AddReason.SPAWN);
     }
 
     @Nullable
     private static Ref<EntityStore> spawnAttachedBlockEntity(@Nonnull Store<EntityStore> store,
         @Nonnull TimeResource time,
+        @Nullable Ref<PhysicsStore> bodyRef,
         @Nonnull UUID physicsBodyUuid,
         @Nullable String blockType,
         @Nonnull Vector3d visualPosition,
         boolean controllable) {
         Holder<EntityStore> holder = attachedPhysicsStoreBlockEntityHolder(time,
+            bodyRef,
             physicsBodyUuid,
             blockType,
             visualPosition,
@@ -899,18 +918,62 @@ public final class ExamplePhysicsUtils {
         @Nonnull Quaternionf localRotationOffset,
         float visualOriginOffsetY,
         boolean controllable) {
+        return attachedPhysicsStoreBlockEntityHolder(time,
+            null,
+            physicsBodyUuid,
+            blockType,
+            visualPosition,
+            localPositionOffset,
+            localRotationOffset,
+            visualOriginOffsetY,
+            controllable);
+    }
+
+    @Nonnull
+    public static Holder<EntityStore> attachedPhysicsStoreBlockEntityHolder(@Nonnull TimeResource time,
+        @Nullable Ref<PhysicsStore> bodyRef,
+        @Nonnull UUID physicsBodyUuid,
+        @Nullable String blockType,
+        @Nonnull Vector3d visualPosition,
+        @Nonnull Vector3f localPositionOffset,
+        @Nonnull Quaternionf localRotationOffset,
+        float visualOriginOffsetY,
+        boolean controllable) {
         requirePhysicsEntityVisuals();
         Holder<EntityStore> holder = blockEntityHolder(time, blockType, visualPosition);
         holder.addComponent(BodyAttachmentComponent.getComponentType(),
-            BodyAttachmentComponent.impulseOwnedVisual(physicsBodyUuid,
-            localPositionOffset,
-            localRotationOffset,
-            visualOriginOffsetY));
+            impulseOwnedBodyAttachment(physicsBodyUuid,
+                bodyRef,
+                localPositionOffset,
+                localRotationOffset,
+                visualOriginOffsetY));
         if (controllable && PhysicsControlSessions.isAvailable()) {
             holder.addComponent(ImpulseControllableComponent.getComponentType(),
                 new ImpulseControllableComponent());
         }
         return holder;
+    }
+
+    @Nonnull
+    static BodyAttachmentComponent externalBodyAttachment(@Nonnull UUID bodyUuid,
+        @Nullable Ref<PhysicsStore> bodyRef) {
+        BodyAttachmentComponent attachment = BodyAttachmentComponent.externalEntity(bodyUuid);
+        attachment.setBodyRef(bodyRef);
+        return attachment;
+    }
+
+    @Nonnull
+    static BodyAttachmentComponent impulseOwnedBodyAttachment(@Nonnull UUID bodyUuid,
+        @Nullable Ref<PhysicsStore> bodyRef,
+        @Nonnull Vector3f localPositionOffset,
+        @Nonnull Quaternionf localRotationOffset,
+        float visualOriginOffsetY) {
+        BodyAttachmentComponent attachment = BodyAttachmentComponent.impulseOwnedVisual(bodyUuid,
+            localPositionOffset,
+            localRotationOffset,
+            visualOriginOffsetY);
+        attachment.setBodyRef(bodyRef);
+        return attachment;
     }
 
     @Nonnull

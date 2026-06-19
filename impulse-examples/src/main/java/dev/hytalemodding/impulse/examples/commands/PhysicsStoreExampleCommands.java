@@ -248,6 +248,7 @@ final class PhysicsStoreExampleCommands {
             TimeResource time = store.getResource(TimeResource.getResourceType());
             ExamplePhysicsUtils.spawnExternalBodyViewBlockEntity(store,
                 time,
+                hit.bodyRef(),
                 bodyUuid,
                 point,
                 ExamplePhysicsUtils.DEFAULT_BLOCK_TYPE);
@@ -351,7 +352,7 @@ final class PhysicsStoreExampleCommands {
                 Math.max(0L, world.getTick()));
 
             UUID bodyUuid = UUID.randomUUID();
-            ExamplePhysicsUtils.addPhysicsStoreBody(world,
+            Ref<PhysicsStore> bodyRef = ExamplePhysicsUtils.addPhysicsStoreBody(world,
                 ExamplePhysicsUtils.bodyEntity(spaceRef,
                     bodyUuid,
                     vector(spawn),
@@ -368,6 +369,7 @@ final class PhysicsStoreExampleCommands {
                 strength,
                 verticalLift);
             Holder<EntityStore> holder = ExamplePhysicsUtils.attachedPhysicsStoreBlockEntityHolder(time,
+                bodyRef,
                 bodyUuid,
                 blockType,
                 spawn,

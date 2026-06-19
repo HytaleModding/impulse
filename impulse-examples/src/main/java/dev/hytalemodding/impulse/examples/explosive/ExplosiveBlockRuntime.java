@@ -197,6 +197,7 @@ public final class ExplosiveBlockRuntime {
         for (FragmentVisual visual : group.visualBlocks()) {
             boolean controllable = body.controllable() && !controllableAssigned;
             Holder<EntityStore> holder = ExamplePhysicsUtils.attachedPhysicsStoreBlockEntityHolder(time,
+                body.bodyRef(),
                 body.bodyUuid(),
                 visual.blockType(),
                 visual.position(),
