@@ -5,7 +5,6 @@ import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
-import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkLifecycle;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkCollisionStreamingResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.PhysicsStoreTopologyMutations;
@@ -15,7 +14,6 @@ import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkCollisionMu
 import dev.hytalemodding.impulse.core.plugin.components.SpaceComponent;
 import dev.hytalemodding.impulse.core.plugin.components.UuidComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.ChunkCollisionSettingsComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsSpaces;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
 import java.util.List;
 import java.util.Objects;
@@ -33,23 +31,6 @@ public final class PhysicsChunkCollision {
 
     public static boolean isSubPluginEnabled() {
         return PhysicsChunkLifecycle.isEnabled();
-    }
-
-    @Nonnull
-    public static PhysicsChunkCollisionBuildStats rebuildAround(@Nonnull World world,
-        @Nonnull Store<PhysicsStore> store,
-        @Nonnull SpaceId spaceId,
-        @Nonnull Vector3d center,
-        int radius) {
-        requireEnabled();
-        Store<PhysicsStore> checkedStore = requireMatchingWorldThread(world,
-            store,
-            "rebuild PhysicsChunk collision");
-        return rebuildAroundChecked(world,
-            checkedStore,
-            requireSpaceRef(checkedStore, spaceId),
-            center,
-            radius);
     }
 
     @Nonnull
@@ -89,23 +70,6 @@ public final class PhysicsChunkCollision {
     @Nonnull
     public static PhysicsChunkCollisionBuildStats refreshAround(@Nonnull World world,
         @Nonnull Store<PhysicsStore> store,
-        @Nonnull SpaceId spaceId,
-        @Nonnull Vector3d center,
-        int radius) {
-        requireEnabled();
-        Store<PhysicsStore> checkedStore = requireMatchingWorldThread(world,
-            store,
-            "refresh PhysicsChunk collision");
-        return refreshAroundChecked(world,
-            checkedStore,
-            requireSpaceRef(checkedStore, spaceId),
-            center,
-            radius);
-    }
-
-    @Nonnull
-    public static PhysicsChunkCollisionBuildStats refreshAround(@Nonnull World world,
-        @Nonnull Store<PhysicsStore> store,
         @Nonnull Ref<PhysicsStore> spaceRef,
         @Nonnull Vector3d center,
         int radius) {
@@ -131,25 +95,6 @@ public final class PhysicsChunkCollision {
             Math.max(0L, world.getTick()),
             null,
             settings.buildOptions());
-    }
-
-    @Nonnull
-    public static PhysicsChunkCollisionPrewarmStats ensureAround(@Nonnull World world,
-        @Nonnull Store<PhysicsStore> store,
-        @Nonnull SpaceId spaceId,
-        @Nonnull Iterable<Vector3d> centers,
-        int radius,
-        long tick) {
-        requireEnabled();
-        Store<PhysicsStore> checkedStore = requireMatchingWorldThread(world,
-            store,
-            "ensure PhysicsChunk collision");
-        return ensureAroundChecked(world,
-            checkedStore,
-            requireSpaceRef(checkedStore, spaceId),
-            centers,
-            radius,
-            tick);
     }
 
     @Nonnull
@@ -182,17 +127,6 @@ public final class PhysicsChunkCollision {
             tick,
             null,
             settings.buildOptions());
-    }
-
-    public static int clearSpace(@Nonnull World world,
-        @Nonnull Store<PhysicsStore> store,
-        @Nonnull SpaceId spaceId) {
-        Store<PhysicsStore> checkedStore = requireMatchingWorldThread(world,
-            store,
-            "clear PhysicsChunk collision");
-        return clearSpaceChunkCollisionRows(world,
-            checkedStore,
-            requireSpaceUuid(checkedStore, requireSpaceRef(checkedStore, spaceId)));
     }
 
     public static int clearSpace(@Nonnull World world,
@@ -256,22 +190,6 @@ public final class PhysicsChunkCollision {
             settings.getRadius(),
             settings.getBodyRadius(),
             settings.getTtlTicks());
-    }
-
-    @Nonnull
-    private static Ref<PhysicsStore> requireSpaceRef(@Nonnull Store<PhysicsStore> store,
-        @Nonnull SpaceId spaceId) {
-        SpaceId checkedSpaceId = Objects.requireNonNull(spaceId, "spaceId");
-        Ref<PhysicsStore> ref = PhysicsSpaces.resolveRef(store, checkedSpaceId);
-        if (ref != null) {
-            return ref;
-        }
-        if (PhysicsSpaces.hasSpace(store, checkedSpaceId)) {
-            throw new IllegalStateException("PhysicsStore space id=" + checkedSpaceId.value()
-                + " is not bound yet");
-        }
-        throw new IllegalArgumentException("PhysicsStore space id=" + checkedSpaceId.value()
-            + " does not exist");
     }
 
     @Nonnull
