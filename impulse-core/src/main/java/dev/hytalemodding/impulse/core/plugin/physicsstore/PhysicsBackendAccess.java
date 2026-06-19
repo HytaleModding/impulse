@@ -8,7 +8,6 @@ import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntime;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsIdentityIndexResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResource.BodyHitMetadata;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceCompatibilityIndexResource;
@@ -23,24 +22,6 @@ import javax.annotation.Nullable;
 final class PhysicsBackendAccess {
 
     private PhysicsBackendAccess() {
-    }
-
-    @Nullable
-    static SpaceContext space(@Nonnull Store<PhysicsStore> store, @Nonnull SpaceId spaceId) {
-        PhysicsThreading.requireBackendIdle(store, "read live PhysicsStore backend state");
-        PhysicsSpaceCompatibilityIndexResource compatibility = store.getResource(
-            PhysicsSpaceCompatibilityIndexResource.getResourceType());
-        UUID spaceUuid = compatibility.getSpaceUuid(spaceId);
-        return spaceUuid != null ? space(store, spaceUuid) : null;
-    }
-
-    @Nullable
-    static SpaceContext space(@Nonnull Store<PhysicsStore> store, @Nonnull UUID spaceUuid) {
-        PhysicsThreading.requireBackendIdle(store, "read live PhysicsStore backend state");
-        PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
-        Ref<PhysicsStore> spaceRef = store.getResource(PhysicsIdentityIndexResource.getResourceType())
-            .getByUuid(spaceUuid);
-        return spaceRef != null && spaceRef.isValid() ? space(runtime, spaceRef) : null;
     }
 
     @Nullable
@@ -67,25 +48,6 @@ final class PhysicsBackendAccess {
             return null;
         }
         return new SpaceContext(spaceUuid, backendId, spaceHandle, backendRuntime);
-    }
-
-    @Nonnull
-    static SpaceContext requireSpace(@Nonnull Store<PhysicsStore> store, @Nonnull SpaceId spaceId) {
-        SpaceContext space = space(store, spaceId);
-        if (space == null) {
-            throw new IllegalArgumentException("Physics space id=" + spaceId + " is not registered");
-        }
-        return space;
-    }
-
-    @Nonnull
-    static SpaceContext requireSpace(@Nonnull Store<PhysicsStore> store, @Nonnull UUID spaceUuid) {
-        SpaceContext space = space(store, spaceUuid);
-        if (space == null) {
-            throw new IllegalArgumentException("Physics space uuid=" + spaceUuid
-                + " is not registered");
-        }
-        return space;
     }
 
     @Nonnull

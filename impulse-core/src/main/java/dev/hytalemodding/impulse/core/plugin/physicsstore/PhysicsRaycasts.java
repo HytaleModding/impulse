@@ -4,7 +4,6 @@ import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
-import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.api.runtime.BackendRayHitSink;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResource;
 import dev.hytalemodding.impulse.core.plugin.simulation.RaycastClosestBatchResult;
@@ -14,7 +13,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.UUID;
 import java.util.concurrent.CompletionStage;
 import javax.annotation.Nonnull;
 import org.joml.Vector3f;
@@ -34,52 +32,12 @@ public final class PhysicsRaycasts {
 
     @Nonnull
     public static Optional<RaycastHitView> closest(@Nonnull Store<PhysicsStore> store,
-        @Nonnull SpaceId spaceId,
-        @Nonnull Vector3f from,
-        @Nonnull Vector3f to) {
-        PhysicsBackendAccess.SpaceContext space =
-            PhysicsBackendAccess.space(store, Objects.requireNonNull(spaceId, "spaceId"));
-        return space != null ? closest(store, space, from, to) : Optional.empty();
-    }
-
-    @Nonnull
-    public static Optional<RaycastHitView> closest(@Nonnull Store<PhysicsStore> store,
-        @Nonnull UUID spaceUuid,
-        @Nonnull Vector3f from,
-        @Nonnull Vector3f to) {
-        PhysicsBackendAccess.SpaceContext space =
-            PhysicsBackendAccess.space(store, Objects.requireNonNull(spaceUuid, "spaceUuid"));
-        return space != null ? closest(store, space, from, to) : Optional.empty();
-    }
-
-    @Nonnull
-    public static Optional<RaycastHitView> closest(@Nonnull Store<PhysicsStore> store,
         @Nonnull Ref<PhysicsStore> spaceRef,
         @Nonnull Vector3f from,
         @Nonnull Vector3f to) {
         PhysicsBackendAccess.SpaceContext space =
             PhysicsBackendAccess.space(store, Objects.requireNonNull(spaceRef, "spaceRef"));
         return space != null ? closest(store, space, from, to) : Optional.empty();
-    }
-
-    @Nonnull
-    public static List<RaycastHitView> all(@Nonnull Store<PhysicsStore> store,
-        @Nonnull SpaceId spaceId,
-        @Nonnull Vector3f from,
-        @Nonnull Vector3f to) {
-        PhysicsBackendAccess.SpaceContext space =
-            PhysicsBackendAccess.space(store, Objects.requireNonNull(spaceId, "spaceId"));
-        return space != null ? all(store, space, from, to) : List.of();
-    }
-
-    @Nonnull
-    public static List<RaycastHitView> all(@Nonnull Store<PhysicsStore> store,
-        @Nonnull UUID spaceUuid,
-        @Nonnull Vector3f from,
-        @Nonnull Vector3f to) {
-        PhysicsBackendAccess.SpaceContext space =
-            PhysicsBackendAccess.space(store, Objects.requireNonNull(spaceUuid, "spaceUuid"));
-        return space != null ? all(store, space, from, to) : List.of();
     }
 
     @Nonnull
@@ -94,81 +52,11 @@ public final class PhysicsRaycasts {
 
     @Nonnull
     public static RaycastClosestBatchResult closestBatch(@Nonnull Store<PhysicsStore> store,
-        @Nonnull SpaceId spaceId,
-        @Nonnull List<RaycastSegment> rays) {
-        PhysicsBackendAccess.SpaceContext space =
-            PhysicsBackendAccess.space(store, Objects.requireNonNull(spaceId, "spaceId"));
-        return closestBatch(store, space, rays);
-    }
-
-    @Nonnull
-    public static RaycastClosestBatchResult closestBatch(@Nonnull Store<PhysicsStore> store,
-        @Nonnull UUID spaceUuid,
-        @Nonnull List<RaycastSegment> rays) {
-        PhysicsBackendAccess.SpaceContext space =
-            PhysicsBackendAccess.space(store, Objects.requireNonNull(spaceUuid, "spaceUuid"));
-        return closestBatch(store, space, rays);
-    }
-
-    @Nonnull
-    public static RaycastClosestBatchResult closestBatch(@Nonnull Store<PhysicsStore> store,
         @Nonnull Ref<PhysicsStore> spaceRef,
         @Nonnull List<RaycastSegment> rays) {
         PhysicsBackendAccess.SpaceContext space =
             PhysicsBackendAccess.space(store, Objects.requireNonNull(spaceRef, "spaceRef"));
         return closestBatch(store, space, rays);
-    }
-
-    @Nonnull
-    public static CompletionStage<Optional<RaycastHitView>> closestAsync(@Nonnull World world,
-        @Nonnull SpaceId spaceId,
-        @Nonnull Vector3f from,
-        @Nonnull Vector3f to) {
-        Vector3f copiedFrom = new Vector3f(Objects.requireNonNull(from, "from"));
-        Vector3f copiedTo = new Vector3f(Objects.requireNonNull(to, "to"));
-        return PhysicsThreading.enqueueReadOnWorldThread(world,
-            "queue PhysicsStore closest raycast read",
-            physics -> closest(physics, spaceId, copiedFrom, copiedTo));
-    }
-
-    @Nonnull
-    public static CompletionStage<Optional<RaycastHitView>> closestAsync(
-        @Nonnull Store<PhysicsStore> store,
-        @Nonnull SpaceId spaceId,
-        @Nonnull Vector3f from,
-        @Nonnull Vector3f to) {
-        Vector3f copiedFrom = new Vector3f(Objects.requireNonNull(from, "from"));
-        Vector3f copiedTo = new Vector3f(Objects.requireNonNull(to, "to"));
-        return PhysicsThreading.enqueueReadOnWorldThread(store,
-            "queue PhysicsStore closest raycast read",
-            physics -> closest(physics, spaceId, copiedFrom, copiedTo));
-    }
-
-    @Nonnull
-    public static CompletionStage<Optional<RaycastHitView>> closestAsync(@Nonnull World world,
-        @Nonnull UUID spaceUuid,
-        @Nonnull Vector3f from,
-        @Nonnull Vector3f to) {
-        Vector3f copiedFrom = new Vector3f(Objects.requireNonNull(from, "from"));
-        Vector3f copiedTo = new Vector3f(Objects.requireNonNull(to, "to"));
-        Objects.requireNonNull(spaceUuid, "spaceUuid");
-        return PhysicsThreading.enqueueReadOnWorldThread(world,
-            "queue PhysicsStore closest raycast read",
-            physics -> closest(physics, spaceUuid, copiedFrom, copiedTo));
-    }
-
-    @Nonnull
-    public static CompletionStage<Optional<RaycastHitView>> closestAsync(
-        @Nonnull Store<PhysicsStore> store,
-        @Nonnull UUID spaceUuid,
-        @Nonnull Vector3f from,
-        @Nonnull Vector3f to) {
-        Vector3f copiedFrom = new Vector3f(Objects.requireNonNull(from, "from"));
-        Vector3f copiedTo = new Vector3f(Objects.requireNonNull(to, "to"));
-        Objects.requireNonNull(spaceUuid, "spaceUuid");
-        return PhysicsThreading.enqueueReadOnWorldThread(store,
-            "queue PhysicsStore closest raycast read",
-            physics -> closest(physics, spaceUuid, copiedFrom, copiedTo));
     }
 
     @Nonnull
@@ -200,57 +88,6 @@ public final class PhysicsRaycasts {
 
     @Nonnull
     public static CompletionStage<List<RaycastHitView>> allAsync(@Nonnull World world,
-        @Nonnull SpaceId spaceId,
-        @Nonnull Vector3f from,
-        @Nonnull Vector3f to) {
-        Vector3f copiedFrom = new Vector3f(Objects.requireNonNull(from, "from"));
-        Vector3f copiedTo = new Vector3f(Objects.requireNonNull(to, "to"));
-        return PhysicsThreading.enqueueReadOnWorldThread(world,
-            "queue PhysicsStore all raycast read",
-            physics -> all(physics, spaceId, copiedFrom, copiedTo));
-    }
-
-    @Nonnull
-    public static CompletionStage<List<RaycastHitView>> allAsync(@Nonnull Store<PhysicsStore> store,
-        @Nonnull SpaceId spaceId,
-        @Nonnull Vector3f from,
-        @Nonnull Vector3f to) {
-        Vector3f copiedFrom = new Vector3f(Objects.requireNonNull(from, "from"));
-        Vector3f copiedTo = new Vector3f(Objects.requireNonNull(to, "to"));
-        return PhysicsThreading.enqueueReadOnWorldThread(store,
-            "queue PhysicsStore all raycast read",
-            physics -> all(physics, spaceId, copiedFrom, copiedTo));
-    }
-
-    @Nonnull
-    public static CompletionStage<List<RaycastHitView>> allAsync(@Nonnull World world,
-        @Nonnull UUID spaceUuid,
-        @Nonnull Vector3f from,
-        @Nonnull Vector3f to) {
-        Vector3f copiedFrom = new Vector3f(Objects.requireNonNull(from, "from"));
-        Vector3f copiedTo = new Vector3f(Objects.requireNonNull(to, "to"));
-        Objects.requireNonNull(spaceUuid, "spaceUuid");
-        return PhysicsThreading.enqueueReadOnWorldThread(world,
-            "queue PhysicsStore all raycast read",
-            physics -> all(physics, spaceUuid, copiedFrom, copiedTo));
-    }
-
-    @Nonnull
-    public static CompletionStage<List<RaycastHitView>> allAsync(
-        @Nonnull Store<PhysicsStore> store,
-        @Nonnull UUID spaceUuid,
-        @Nonnull Vector3f from,
-        @Nonnull Vector3f to) {
-        Vector3f copiedFrom = new Vector3f(Objects.requireNonNull(from, "from"));
-        Vector3f copiedTo = new Vector3f(Objects.requireNonNull(to, "to"));
-        Objects.requireNonNull(spaceUuid, "spaceUuid");
-        return PhysicsThreading.enqueueReadOnWorldThread(store,
-            "queue PhysicsStore all raycast read",
-            physics -> all(physics, spaceUuid, copiedFrom, copiedTo));
-    }
-
-    @Nonnull
-    public static CompletionStage<List<RaycastHitView>> allAsync(@Nonnull World world,
         @Nonnull Ref<PhysicsStore> spaceRef,
         @Nonnull Vector3f from,
         @Nonnull Vector3f to) {
@@ -273,52 +110,6 @@ public final class PhysicsRaycasts {
         return PhysicsThreading.enqueueReadOnWorldThread(store,
             "queue PhysicsStore all raycast read",
             physics -> all(physics, spaceRef, copiedFrom, copiedTo));
-    }
-
-    @Nonnull
-    public static CompletionStage<RaycastClosestBatchResult> closestBatchAsync(
-        @Nonnull World world,
-        @Nonnull SpaceId spaceId,
-        @Nonnull List<RaycastSegment> rays) {
-        List<RaycastSegment> copied = List.copyOf(Objects.requireNonNull(rays, "rays"));
-        return PhysicsThreading.enqueueReadOnWorldThread(world,
-            "queue PhysicsStore batch raycast read",
-            physics -> closestBatch(physics, spaceId, copied));
-    }
-
-    @Nonnull
-    public static CompletionStage<RaycastClosestBatchResult> closestBatchAsync(
-        @Nonnull Store<PhysicsStore> store,
-        @Nonnull SpaceId spaceId,
-        @Nonnull List<RaycastSegment> rays) {
-        List<RaycastSegment> copied = List.copyOf(Objects.requireNonNull(rays, "rays"));
-        return PhysicsThreading.enqueueReadOnWorldThread(store,
-            "queue PhysicsStore batch raycast read",
-            physics -> closestBatch(physics, spaceId, copied));
-    }
-
-    @Nonnull
-    public static CompletionStage<RaycastClosestBatchResult> closestBatchAsync(
-        @Nonnull World world,
-        @Nonnull UUID spaceUuid,
-        @Nonnull List<RaycastSegment> rays) {
-        List<RaycastSegment> copied = List.copyOf(Objects.requireNonNull(rays, "rays"));
-        Objects.requireNonNull(spaceUuid, "spaceUuid");
-        return PhysicsThreading.enqueueReadOnWorldThread(world,
-            "queue PhysicsStore batch raycast read",
-            physics -> closestBatch(physics, spaceUuid, copied));
-    }
-
-    @Nonnull
-    public static CompletionStage<RaycastClosestBatchResult> closestBatchAsync(
-        @Nonnull Store<PhysicsStore> store,
-        @Nonnull UUID spaceUuid,
-        @Nonnull List<RaycastSegment> rays) {
-        List<RaycastSegment> copied = List.copyOf(Objects.requireNonNull(rays, "rays"));
-        Objects.requireNonNull(spaceUuid, "spaceUuid");
-        return PhysicsThreading.enqueueReadOnWorldThread(store,
-            "queue PhysicsStore batch raycast read",
-            physics -> closestBatch(physics, spaceUuid, copied));
     }
 
     @Nonnull

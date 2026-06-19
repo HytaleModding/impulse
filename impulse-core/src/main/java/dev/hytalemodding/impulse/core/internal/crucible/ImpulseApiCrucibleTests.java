@@ -229,7 +229,7 @@ final class ImpulseApiCrucibleTests {
         return createPopulatedBodyCleanupState(context)
             .thenCompose(state -> waitApproxTicksOnWorld(context, 4)
                 .thenCompose(_ -> removeBodyEntityAndWait(context, state.store(), state.bodyRef()))
-                .thenCompose(_ -> PhysicsDiagnostics.bodyCountAsync(state.store(), state.spaceId()))
+                .thenCompose(_ -> PhysicsDiagnostics.bodyCountAsync(state.store(), state.spaceRef()))
                 .thenCompose(bodyCount -> PhysicsThreading.callWhenBackendIdleOnWorldThread(
                     state.world(),
                     "check Crucible body cleanup",
@@ -252,11 +252,14 @@ final class ImpulseApiCrucibleTests {
         @Nonnull CrucibleContext context) {
         return callWhenPhysicsStoreIdle(context, "create Crucible body cleanup state", world -> {
             Store<PhysicsStore> store = physicsStore(world);
-            SpaceId spaceId = PhysicsSpaces.create(store,
+            SpaceId spaceId = SpaceId.next();
+            Ref<PhysicsStore> spaceRef = PhysicsSpaces.create(store,
+                UUID.randomUUID(),
+                spaceId,
                 CrucibleBackends.requireBackendId(),
                 PhysicsSpaceSettings.defaults());
-            Ref<PhysicsStore> bodyRef = addCrucibleBox(store, spaceId, UUID.randomUUID());
-            return new PopulatedBodyCleanupState(world, store, spaceId, bodyRef);
+            Ref<PhysicsStore> bodyRef = addCrucibleBox(store, spaceRef, UUID.randomUUID());
+            return new PopulatedBodyCleanupState(world, store, spaceId, spaceRef, bodyRef);
         });
     }
 
@@ -299,12 +302,8 @@ final class ImpulseApiCrucibleTests {
 
     @Nonnull
     private static Ref<PhysicsStore> addCrucibleBox(@Nonnull Store<PhysicsStore> store,
-        @Nonnull SpaceId spaceId,
+        @Nonnull Ref<PhysicsStore> spaceRef,
         @Nonnull UUID bodyUuid) {
-        Ref<PhysicsStore> spaceRef = PhysicsSpaces.resolveRef(store, spaceId);
-        if (spaceRef == null) {
-            throw new IllegalStateException("No PhysicsStore space ref for id=" + spaceId.value());
-        }
         BodyEntityDescriptor descriptor = PhysicsBodyEntities.dynamicBody(spaceRef,
             bodyUuid,
             new Vector3f(0.0f, 5.0f, 0.0f),
@@ -414,6 +413,7 @@ final class ImpulseApiCrucibleTests {
     private record PopulatedBodyCleanupState(@Nonnull World world,
                                              @Nonnull Store<PhysicsStore> store,
                                              @Nonnull SpaceId spaceId,
+                                             @Nonnull Ref<PhysicsStore> spaceRef,
                                              @Nonnull Ref<PhysicsStore> bodyRef) {
     }
 
