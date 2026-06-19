@@ -5,8 +5,8 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import dev.hytalemodding.impulse.api.BackendId;
-import dev.hytalemodding.impulse.api.PhysicsBackend;
-import dev.hytalemodding.impulse.api.PhysicsSpace;
+import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntime;
+import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntimeProvider;
 import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackendRuntimeProvider;
 import java.io.IOException;
 import java.net.URL;
@@ -25,10 +25,10 @@ import org.junit.jupiter.api.io.TempDir;
 
 class ImpulsePluginBackendSelectionTest {
 
-    private static final String BACKEND_SERVICE =
-        "META-INF/services/dev.hytalemodding.impulse.api.PhysicsBackend";
+    private static final String RUNTIME_PROVIDER_SERVICE =
+        "META-INF/services/dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntimeProvider";
     private static final String SERVICE_PROVIDER_CLASS =
-        "dev.hytalemodding.impulse.core.testbackend.JarOnlyServiceLoadedBackend";
+        "dev.hytalemodding.impulse.core.testbackend.JarOnlyServiceLoadedRuntimeProvider";
     private static final BackendId SERVICE_BACKEND_ID = new BackendId("test:service-loaded");
 
     @TempDir
@@ -50,10 +50,11 @@ class ImpulsePluginBackendSelectionTest {
         try (URLClassLoader loader = new URLClassLoader(
             new URL[]{providerJar.toUri().toURL()},
             Thread.currentThread().getContextClassLoader())) {
-            List<PhysicsBackend> backends = BackendDiscovery.discover(List.of(), loader);
+            List<PhysicsBackendRuntimeProvider> backends =
+                BackendDiscovery.discoverRuntimeProviders(List.of(), loader);
 
             assertEquals(List.of(SERVICE_BACKEND_ID), backends.stream()
-                .map(PhysicsBackend::getId)
+                .map(PhysicsBackendRuntimeProvider::getId)
                 .toList());
         }
     }
@@ -64,19 +65,19 @@ class ImpulsePluginBackendSelectionTest {
         Files.createDirectories(backendDirectory);
         writeServiceJar(backendDirectory.resolve("provider.jar"));
 
-        List<PhysicsBackend> backends = BackendDiscovery.discover(
+        List<PhysicsBackendRuntimeProvider> backends = BackendDiscovery.discoverRuntimeProviders(
             List.of(tempDir.resolve("mods")),
             Thread.currentThread().getContextClassLoader());
 
         assertEquals(List.of(SERVICE_BACKEND_ID), backends.stream()
-            .map(PhysicsBackend::getId)
+            .map(PhysicsBackendRuntimeProvider::getId)
             .toList());
     }
 
     private static void writeServiceJar(@Nonnull Path jarPath) throws IOException {
         Path classFile = compileServiceProviderClass(jarPath.getParent());
         try (JarOutputStream jar = new JarOutputStream(Files.newOutputStream(jarPath))) {
-            jar.putNextEntry(new JarEntry(BACKEND_SERVICE));
+            jar.putNextEntry(new JarEntry(RUNTIME_PROVIDER_SERVICE));
             jar.write((SERVICE_PROVIDER_CLASS + "\n")
                 .getBytes(StandardCharsets.UTF_8));
             jar.closeEntry();
@@ -98,29 +99,32 @@ class ImpulsePluginBackendSelectionTest {
             package dev.hytalemodding.impulse.core.testbackend;
 
             import dev.hytalemodding.impulse.api.BackendId;
-            import dev.hytalemodding.impulse.api.PhysicsBackend;
-            import dev.hytalemodding.impulse.api.PhysicsSpace;
+            import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntime;
+            import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntimeProvider;
+            import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackendRuntimeProvider;
             import javax.annotation.Nonnull;
 
-            public final class JarOnlyServiceLoadedBackend implements PhysicsBackend {
+            public final class JarOnlyServiceLoadedRuntimeProvider
+                implements PhysicsBackendRuntimeProvider {
 
-                public JarOnlyServiceLoadedBackend() {
+                private final FakePhysicsBackendRuntimeProvider delegate =
+                    new FakePhysicsBackendRuntimeProvider(new BackendId("test:service-loaded"),
+                        false,
+                        false);
+
+                public JarOnlyServiceLoadedRuntimeProvider() {
                 }
 
                 @Nonnull
                 @Override
                 public BackendId getId() {
-                    return new BackendId("test:service-loaded");
-                }
-
-                @Override
-                public void init() {
+                    return delegate.getId();
                 }
 
                 @Nonnull
                 @Override
-                public PhysicsSpace createSpace() {
-                    throw new UnsupportedOperationException("not used");
+                public PhysicsBackendRuntime createRuntime() {
+                    return delegate.createRuntime();
                 }
             }
             """);
