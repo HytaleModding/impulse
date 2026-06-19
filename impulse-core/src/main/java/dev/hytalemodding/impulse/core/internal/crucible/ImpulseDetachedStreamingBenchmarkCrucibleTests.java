@@ -34,7 +34,7 @@ import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepSchedulingMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
-import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkTerrainMode;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkCollisionMode;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
 import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
@@ -245,7 +245,7 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
             int retained = retainChunks(chunks);
             configureMissingSectionDiagnostics(chunks);
             PhysicsSpaceSettings settings = PhysicsSpaceSettings.defaults();
-            settings.getPhysicsChunkCollisionSettings().setMode(PhysicsChunkTerrainMode.STREAMING);
+            settings.getPhysicsChunkCollisionSettings().setMode(PhysicsChunkCollisionMode.STREAMING);
             settings.getPhysicsChunkCollisionSettings().setBodyRadius(BODY_STREAMING_RADIUS);
             settings.getSolverSettings().setSolverIterations(4);
             settings.getSolverSettings().setStabilizationIterations(1);

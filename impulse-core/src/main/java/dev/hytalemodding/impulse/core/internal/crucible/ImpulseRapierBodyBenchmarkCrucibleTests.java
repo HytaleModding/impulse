@@ -30,7 +30,7 @@ import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSolverSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepSchedulingMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
-import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkTerrainMode;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkCollisionMode;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
 import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
 import java.util.ArrayList;
@@ -228,7 +228,7 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
             physics.clearSyntheticVisualInterests();
 
             PhysicsSpaceSettings settings = PhysicsSpaceSettings.defaults();
-            settings.getPhysicsChunkCollisionSettings().setMode(PhysicsChunkTerrainMode.NONE);
+            settings.getPhysicsChunkCollisionSettings().setMode(PhysicsChunkCollisionMode.NONE);
             settings.getSolverSettings().setSolverIterations(PhysicsSolverSettings.DEFAULT_SOLVER_ITERATIONS);
             settings.getSolverSettings().setStabilizationIterations(
                 PhysicsSolverSettings.DEFAULT_STABILIZATION_ITERATIONS);

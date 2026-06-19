@@ -1,6 +1,6 @@
 package dev.hytalemodding.impulse.core.plugin.settings;
 
-import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkTerrainMode;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkCollisionMode;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.settings.PhysicsChunkCollisionSettings;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.settings.PhysicsCollisionLodSettings;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.settings.PhysicsVisualMaterializationSettings;
@@ -20,7 +20,7 @@ import javax.annotation.Nonnull;
  * code should read and mutate the domain group directly instead of adding flat
  * shortcut state here.</p>
  *
- * <p>Default settings have PhysicsChunk collision disabled ({@link PhysicsChunkTerrainMode#NONE}),
+ * <p>Default settings have PhysicsChunk collision disabled ({@link PhysicsChunkCollisionMode#NONE}),
  * which keeps Impulse fully opt-in: no chunk-collision bodies are created unless the integrator
  * explicitly opts in.</p>
  */
@@ -122,7 +122,7 @@ public class PhysicsSpaceSettings {
     public static PhysicsSpaceSettings streamingPhysicsChunk() {
         PhysicsSpaceSettings settings = new PhysicsSpaceSettings();
         settings.getPhysicsChunkCollisionSettings()
-            .setMode(PhysicsChunkTerrainMode.STREAMING);
+            .setMode(PhysicsChunkCollisionMode.STREAMING);
         return settings;
     }
 }

@@ -30,7 +30,7 @@ import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsBackendExtensionId;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.VisualOcclusionMode;
-import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkTerrainMode;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkCollisionMode;
 import java.util.UUID;
 import java.util.Collection;
 import java.util.List;
@@ -207,7 +207,7 @@ final class ImpulseApiCrucibleTests {
             boolean registered = PhysicsSpaces.hasSpace(store, spaceId)
                 && spaceSettings != null
                 && spaceSettings.getPhysicsChunkCollisionSettings().getMode()
-                    == PhysicsChunkTerrainMode.STREAMING;
+                    == PhysicsChunkCollisionMode.STREAMING;
             PhysicsStoreSpaceMutations.removeEmptySpace(store, spaceId);
             return registered && !PhysicsSpaces.hasSpace(store, spaceId);
         });
@@ -334,7 +334,7 @@ final class ImpulseApiCrucibleTests {
                 if (copy == null) {
                     return false;
                 }
-                return copy.getPhysicsChunkCollisionSettings().getMode() == PhysicsChunkTerrainMode.STREAMING
+                return copy.getPhysicsChunkCollisionSettings().getMode() == PhysicsChunkCollisionMode.STREAMING
                 && copy.getPhysicsChunkCollisionSettings().getRadius() == 9
                 && copy.getPhysicsChunkCollisionSettings().getBodyRadius() == 5
                 && copy.getPhysicsChunkCollisionSettings().getTtlTicks() == 77
@@ -373,7 +373,7 @@ final class ImpulseApiCrucibleTests {
     @Nonnull
     private static PhysicsSpaceSettings populatedSettings() {
         PhysicsSpaceSettings settings = PhysicsSpaceSettings.defaults();
-        settings.getPhysicsChunkCollisionSettings().setMode(PhysicsChunkTerrainMode.STREAMING);
+        settings.getPhysicsChunkCollisionSettings().setMode(PhysicsChunkCollisionMode.STREAMING);
         settings.getPhysicsChunkCollisionSettings().setRadius(9);
         settings.getPhysicsChunkCollisionSettings().setBodyRadius(5);
         settings.getPhysicsChunkCollisionSettings().setTtlTicks(77);

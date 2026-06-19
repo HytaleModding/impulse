@@ -1,6 +1,6 @@
 package dev.hytalemodding.impulse.core.plugin.modules.physicschunk.settings;
 
-import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkTerrainMode;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkCollisionMode;
 import dev.hytalemodding.impulse.core.plugin.settings.EntityChunkBoundaryMode;
 import lombok.Getter;
 import lombok.Setter;
@@ -55,7 +55,7 @@ public class PhysicsChunkCollisionSettings {
     public static final boolean DEFAULT_NATIVE_VOXEL_COLLISION_ENABLED = false;
 
     @Nonnull
-    private PhysicsChunkTerrainMode mode = PhysicsChunkTerrainMode.NONE;
+    private PhysicsChunkCollisionMode mode = PhysicsChunkCollisionMode.NONE;
     @Nonnull
     private EntityChunkBoundaryMode entityChunkBoundaryMode = DEFAULT_ENTITY_CHUNK_BOUNDARY_MODE;
     @Setter
@@ -81,11 +81,11 @@ public class PhysicsChunkCollisionSettings {
     }
 
     @Nonnull
-    public PhysicsChunkTerrainMode getMode() {
+    public PhysicsChunkCollisionMode getMode() {
         return mode;
     }
 
-    public void setMode(@Nonnull PhysicsChunkTerrainMode mode) {
+    public void setMode(@Nonnull PhysicsChunkCollisionMode mode) {
         this.mode = Objects.requireNonNull(mode, "mode");
     }
 

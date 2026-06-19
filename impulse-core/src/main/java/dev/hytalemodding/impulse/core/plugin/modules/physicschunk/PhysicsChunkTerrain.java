@@ -161,7 +161,7 @@ public final class PhysicsChunkTerrain {
             store.getComponent(spaceRef, ChunkCollisionSettingsComponent.getComponentType());
         ChunkCollisionSettingsComponent settings =
             component != null ? component : new ChunkCollisionSettingsComponent();
-        if (settings.getMode() == PhysicsChunkTerrainMode.NONE) {
+        if (settings.getMode() == PhysicsChunkCollisionMode.NONE) {
             throw new IllegalStateException("PhysicsChunk terrain is disabled for space "
                 + spaceId);
         }

@@ -8,7 +8,7 @@ import com.hypixel.hytale.component.Component;
 import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsComponentTypes;
-import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkTerrainMode;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkCollisionMode;
 import dev.hytalemodding.impulse.core.plugin.settings.EntityChunkBoundaryMode;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.settings.PhysicsChunkCollisionSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
@@ -24,10 +24,10 @@ public class ChunkCollisionSettingsComponent implements Component<PhysicsStore> 
     public static final BuilderCodec<ChunkCollisionSettingsComponent> CODEC = BuilderCodec.builder(
             ChunkCollisionSettingsComponent.class,
             ChunkCollisionSettingsComponent::new)
-        .append(new KeyedCodec<>("Mode", new EnumCodec<>(PhysicsChunkTerrainMode.class), false),
+        .append(new KeyedCodec<>("Mode", new EnumCodec<>(PhysicsChunkCollisionMode.class), false),
             (component, value) -> component.mode = value != null
                 ? value
-                : PhysicsChunkTerrainMode.NONE,
+                : PhysicsChunkCollisionMode.NONE,
             ChunkCollisionSettingsComponent::getMode)
         .add()
         .append(new KeyedCodec<>("NativeVoxelCollision", Codec.BOOLEAN, false),
@@ -63,7 +63,7 @@ public class ChunkCollisionSettingsComponent implements Component<PhysicsStore> 
         .build();
 
     @Nonnull
-    private PhysicsChunkTerrainMode mode = PhysicsChunkTerrainMode.NONE;
+    private PhysicsChunkCollisionMode mode = PhysicsChunkCollisionMode.NONE;
     @Nonnull
     private EntityChunkBoundaryMode entityChunkBoundaryMode =
         PhysicsChunkCollisionSettings.DEFAULT_ENTITY_CHUNK_BOUNDARY_MODE;
@@ -85,7 +85,7 @@ public class ChunkCollisionSettingsComponent implements Component<PhysicsStore> 
             settings.getTtlTicks());
     }
 
-    public ChunkCollisionSettingsComponent(@Nonnull PhysicsChunkTerrainMode mode,
+    public ChunkCollisionSettingsComponent(@Nonnull PhysicsChunkCollisionMode mode,
         boolean nativeVoxelCollisionEnabled,
         int radius,
         int bodyRadius,
@@ -98,7 +98,7 @@ public class ChunkCollisionSettingsComponent implements Component<PhysicsStore> 
             ttlTicks);
     }
 
-    public ChunkCollisionSettingsComponent(@Nonnull PhysicsChunkTerrainMode mode,
+    public ChunkCollisionSettingsComponent(@Nonnull PhysicsChunkCollisionMode mode,
         @Nonnull EntityChunkBoundaryMode entityChunkBoundaryMode,
         boolean nativeVoxelCollisionEnabled,
         int radius,
@@ -114,11 +114,11 @@ public class ChunkCollisionSettingsComponent implements Component<PhysicsStore> 
     }
 
     @Nonnull
-    public PhysicsChunkTerrainMode getMode() {
+    public PhysicsChunkCollisionMode getMode() {
         return mode;
     }
 
-    public void setMode(@Nonnull PhysicsChunkTerrainMode mode) {
+    public void setMode(@Nonnull PhysicsChunkCollisionMode mode) {
         this.mode = Objects.requireNonNull(mode, "mode");
     }
 
@@ -179,7 +179,7 @@ public class ChunkCollisionSettingsComponent implements Component<PhysicsStore> 
     }
 
     public boolean isDefault() {
-        return mode == PhysicsChunkTerrainMode.NONE
+        return mode == PhysicsChunkCollisionMode.NONE
             && entityChunkBoundaryMode
                 == PhysicsChunkCollisionSettings.DEFAULT_ENTITY_CHUNK_BOUNDARY_MODE
             && nativeVoxelCollisionEnabled

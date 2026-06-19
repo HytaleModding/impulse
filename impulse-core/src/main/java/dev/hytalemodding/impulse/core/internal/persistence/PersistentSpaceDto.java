@@ -7,7 +7,7 @@ import com.hypixel.hytale.codec.codecs.EnumCodec;
 import com.hypixel.hytale.codec.validation.Validators;
 import com.hypixel.hytale.math.vector.Vector3fUtil;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkCollisionDefaults;
-import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkTerrainMode;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkCollisionMode;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.CollisionLodSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.components.CollisionFilterComponent;
 import dev.hytalemodding.impulse.core.plugin.components.ExtensionSettingsComponent;
@@ -47,11 +47,11 @@ public final class PersistentSpaceDto {
                 "Persisted PhysicsStore space gravity must be finite"))
             .add()
             .append(new KeyedCodec<>("PhysicsChunkTerrainMode",
-                    new EnumCodec<>(PhysicsChunkTerrainMode.class),
+                    new EnumCodec<>(PhysicsChunkCollisionMode.class),
                     false),
                 (dto, value) -> dto.terrainMode = value != null
                     ? value
-                    : PhysicsChunkTerrainMode.NONE,
+                    : PhysicsChunkCollisionMode.NONE,
                 PersistentSpaceDto::getMode)
             .add()
             .append(new KeyedCodec<>("EntityChunkBoundaryMode",
@@ -149,7 +149,7 @@ public final class PersistentSpaceDto {
     @Nonnull
     private final Vector3f gravity = new Vector3f(0.0f, -9.81f, 0.0f);
     @Nonnull
-    private PhysicsChunkTerrainMode terrainMode = PhysicsChunkTerrainMode.NONE;
+    private PhysicsChunkCollisionMode terrainMode = PhysicsChunkCollisionMode.NONE;
     @Nonnull
     private EntityChunkBoundaryMode entityChunkBoundaryMode =
         PhysicsChunkCollisionSettings.DEFAULT_ENTITY_CHUNK_BOUNDARY_MODE;
@@ -188,7 +188,7 @@ public final class PersistentSpaceDto {
         this(spaceUuid,
             backendId,
             gravity,
-            PhysicsChunkTerrainMode.NONE,
+            PhysicsChunkCollisionMode.NONE,
             PhysicsChunkCollisionSettings.DEFAULT_ENTITY_CHUNK_BOUNDARY_MODE,
             PhysicsChunkCollisionSettings.DEFAULT_NATIVE_VOXEL_COLLISION_ENABLED,
             PhysicsChunkCollisionSettings.DEFAULT_RADIUS,
@@ -208,7 +208,7 @@ public final class PersistentSpaceDto {
     public PersistentSpaceDto(@Nonnull UUID spaceUuid,
         @Nonnull String backendId,
         @Nonnull Vector3f gravity,
-        @Nonnull PhysicsChunkTerrainMode terrainMode,
+        @Nonnull PhysicsChunkCollisionMode terrainMode,
         boolean nativeVoxelCollisionEnabled,
         int terrainRadius,
         int bodyTerrainRadius,
@@ -238,7 +238,7 @@ public final class PersistentSpaceDto {
     public PersistentSpaceDto(@Nonnull UUID spaceUuid,
         @Nonnull String backendId,
         @Nonnull Vector3f gravity,
-        @Nonnull PhysicsChunkTerrainMode terrainMode,
+        @Nonnull PhysicsChunkCollisionMode terrainMode,
         @Nonnull EntityChunkBoundaryMode entityChunkBoundaryMode,
         boolean nativeVoxelCollisionEnabled,
         int terrainRadius,
@@ -274,7 +274,7 @@ public final class PersistentSpaceDto {
     public PersistentSpaceDto(@Nonnull UUID spaceUuid,
         @Nonnull String backendId,
         @Nonnull Vector3f gravity,
-        @Nonnull PhysicsChunkTerrainMode terrainMode,
+        @Nonnull PhysicsChunkCollisionMode terrainMode,
         @Nonnull EntityChunkBoundaryMode entityChunkBoundaryMode,
         boolean nativeVoxelCollisionEnabled,
         int terrainRadius,
@@ -330,7 +330,7 @@ public final class PersistentSpaceDto {
     }
 
     @Nonnull
-    public PhysicsChunkTerrainMode getMode() {
+    public PhysicsChunkCollisionMode getMode() {
         return terrainMode;
     }
 

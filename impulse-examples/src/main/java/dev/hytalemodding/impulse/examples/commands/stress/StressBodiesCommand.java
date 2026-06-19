@@ -18,7 +18,7 @@ import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkTerrain;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkTerrainPrewarmStats;
-import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkTerrainMode;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkCollisionMode;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsSpaces;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsWorlds;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsBackendExtensionId;
@@ -304,7 +304,7 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
         PhysicsChunkCollisionSettings chunkCollisionSettings =
             settings.getPhysicsChunkCollisionSettings();
         PhysicsCollisionLodSettings collisionLodSettings = settings.getCollisionLodSettings();
-        chunkCollisionSettings.setMode(PhysicsChunkTerrainMode.STREAMING);
+        chunkCollisionSettings.setMode(PhysicsChunkCollisionMode.STREAMING);
         chunkCollisionSettings.setBodyRadius(
             Math.max(chunkCollisionSettings.getBodyRadius(),
                 STRESS_BODY_CHUNK_COLLISION_RADIUS));
@@ -351,7 +351,7 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
         PhysicsChunkCollisionSettings chunkCollisionSettings =
             settings.getPhysicsChunkCollisionSettings();
         if (!mode.usesDetachedBodies()
-            || chunkCollisionSettings.getMode() != PhysicsChunkTerrainMode.STREAMING) {
+            || chunkCollisionSettings.getMode() != PhysicsChunkCollisionMode.STREAMING) {
             return 0;
         }
 

@@ -14,7 +14,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsSpaces;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
-import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkTerrainMode;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkCollisionMode;
 import dev.hytalemodding.impulse.core.plugin.settings.EntityChunkBoundaryMode;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.settings.PhysicsChunkCollisionSettings;
 import java.util.Locale;
@@ -89,7 +89,7 @@ public class PhysicsChunkSettingsCommand extends AbstractAsyncPlayerCommand {
             return CompletableFuture.completedFuture(null);
         }
 
-        PhysicsChunkTerrainMode mode = settings.getMode();
+        PhysicsChunkCollisionMode mode = settings.getMode();
         if (modeArg.provided(ctx)) {
             mode = parseMode(modeArg.get(ctx));
             if (mode == null) {
@@ -181,11 +181,11 @@ public class PhysicsChunkSettingsCommand extends AbstractAsyncPlayerCommand {
     }
 
     @Nullable
-    private static PhysicsChunkTerrainMode parseMode(@Nonnull String value) {
+    private static PhysicsChunkCollisionMode parseMode(@Nonnull String value) {
         return switch (value.toLowerCase(Locale.ROOT)) {
-            case "none", "off", "disabled" -> PhysicsChunkTerrainMode.NONE;
-            case "manual" -> PhysicsChunkTerrainMode.MANUAL;
-            case "streaming", "stream", "on", "enabled" -> PhysicsChunkTerrainMode.STREAMING;
+            case "none", "off", "disabled" -> PhysicsChunkCollisionMode.NONE;
+            case "manual" -> PhysicsChunkCollisionMode.MANUAL;
+            case "streaming", "stream", "on", "enabled" -> PhysicsChunkCollisionMode.STREAMING;
             default -> null;
         };
     }

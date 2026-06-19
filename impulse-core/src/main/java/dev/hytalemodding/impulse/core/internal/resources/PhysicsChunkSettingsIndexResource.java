@@ -5,7 +5,7 @@ import com.hypixel.hytale.component.ResourceType;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkBuildOptions;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.ChunkCollisionMode;
-import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkTerrainMode;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkCollisionMode;
 import dev.hytalemodding.impulse.core.plugin.settings.EntityChunkBoundaryMode;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import java.util.List;
@@ -36,7 +36,7 @@ public final class PhysicsChunkSettingsIndexResource implements Resource<Physics
     @Nonnull
     public synchronized List<PhysicsChunkSpaceSettings> streamingSpaces() {
         return settingsBySpaceUuid.values().stream()
-            .filter(settings -> settings.mode() == PhysicsChunkTerrainMode.STREAMING)
+            .filter(settings -> settings.mode() == PhysicsChunkCollisionMode.STREAMING)
             .toList();
     }
 
@@ -68,7 +68,7 @@ public final class PhysicsChunkSettingsIndexResource implements Resource<Physics
     }
 
     public record PhysicsChunkSpaceSettings(@Nonnull UUID spaceUuid,
-                                              @Nonnull PhysicsChunkTerrainMode mode,
+                                              @Nonnull PhysicsChunkCollisionMode mode,
                                               @Nonnull EntityChunkBoundaryMode entityChunkBoundaryMode,
                                               boolean nativeVoxelCollisionEnabled,
                                               int radius,
