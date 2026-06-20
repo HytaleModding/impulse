@@ -43,7 +43,7 @@ public class PhysicsDebugResource implements Resource<EntityStore> {
     @Setter
     private boolean debugMotionEnabled = true;
     @Setter
-    private boolean debugContactsEnabled = true;
+    private boolean debugContactsEnabled;
     @Setter
     private boolean debugJointsEnabled = true;
     @Setter

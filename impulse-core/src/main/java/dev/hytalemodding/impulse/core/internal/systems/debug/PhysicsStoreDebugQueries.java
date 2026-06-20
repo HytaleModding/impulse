@@ -112,7 +112,7 @@ final class PhysicsStoreDebugQueries {
     }
 
     @Nonnull
-    private static List<PhysicsDebugContactView> contacts(@Nonnull Store<PhysicsStore> store,
+    static List<PhysicsDebugContactView> contacts(@Nonnull Store<PhysicsStore> store,
         @Nonnull SpaceId spaceId,
         double viewerX,
         double viewerY,
@@ -132,7 +132,7 @@ final class PhysicsStoreDebugQueries {
 
         double maxDistanceSquared = viewRadius * viewRadius;
         List<PhysicsDebugContactView> visible = new ArrayList<>(Math.min(limit, 64));
-        space.backendRuntime().contacts(space.spaceHandle().value(), (bodyAId,
+        space.backendRuntime().contacts(space.spaceHandle().value(), limit, (bodyAId,
             bodyBId,
             pointAX,
             pointAY,

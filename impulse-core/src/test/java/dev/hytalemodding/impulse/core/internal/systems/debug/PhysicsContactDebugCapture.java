@@ -24,7 +24,7 @@ final class PhysicsContactDebugCapture {
         }
         List<PhysicsDebugRenderer.ContactDebugPrimitive> primitives = new ArrayList<>();
         double radiusSquared = radius * radius;
-        for (PhysicsContact contact : space.getContacts()) {
+        for (PhysicsContact contact : space.getContacts(maxContacts)) {
             Vector3f pointOnB = contact.pointOnB();
             Vector3d point = new Vector3d(pointOnB.x, pointOnB.y, pointOnB.z);
             if (point.distanceSquared(center) <= radiusSquared) {
