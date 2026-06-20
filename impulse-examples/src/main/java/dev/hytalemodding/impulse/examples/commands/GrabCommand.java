@@ -33,7 +33,7 @@ import dev.hytalemodding.impulse.core.plugin.components.BodyCommandComponent;
 import dev.hytalemodding.impulse.core.plugin.components.JointComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.PhysicsEntityAttachments;
 import dev.hytalemodding.impulse.core.plugin.snapshots.PhysicsBodySnapshot;
-import dev.hytalemodding.impulse.core.plugin.simulation.JointType;
+import dev.hytalemodding.impulse.core.plugin.components.JointType;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
 import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
 import dev.hytalemodding.impulse.core.plugin.simulation.view.RaycastHitView;

@@ -15,7 +15,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.physics.PhysicsJointEntities;
 import dev.hytalemodding.impulse.core.plugin.components.JointComponent;
-import dev.hytalemodding.impulse.core.plugin.simulation.JointType;
+import dev.hytalemodding.impulse.core.plugin.components.JointType;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
 import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
 import dev.hytalemodding.impulse.examples.utils.ExampleBlockEntityVisuals;

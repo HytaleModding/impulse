@@ -1,4 +1,4 @@
-package dev.hytalemodding.impulse.core.plugin.simulation;
+package dev.hytalemodding.impulse.core.plugin.components;
 
 /**
  * Public joint kinds supported by PhysicsStore joint entities and snapshot views.

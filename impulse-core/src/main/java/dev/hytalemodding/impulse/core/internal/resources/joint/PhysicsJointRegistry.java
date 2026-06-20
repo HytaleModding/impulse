@@ -2,7 +2,7 @@ package dev.hytalemodding.impulse.core.internal.resources.joint;
 
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.internal.resources.BackendJointHandle;
-import dev.hytalemodding.impulse.core.plugin.simulation.JointType;
+import dev.hytalemodding.impulse.core.plugin.components.JointType;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;

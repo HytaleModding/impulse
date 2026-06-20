@@ -2,7 +2,7 @@ package dev.hytalemodding.impulse.core.internal.resources.joint;
 
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.internal.resources.BackendJointHandle;
-import dev.hytalemodding.impulse.core.plugin.simulation.JointType;
+import dev.hytalemodding.impulse.core.plugin.components.JointType;
 import java.util.Objects;
 import java.util.UUID;
 import javax.annotation.Nonnull;

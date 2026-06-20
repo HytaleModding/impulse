@@ -3,7 +3,7 @@ package dev.hytalemodding.impulse.core.plugin.physics;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.core.plugin.components.JointComponent;
-import dev.hytalemodding.impulse.core.plugin.simulation.JointType;
+import dev.hytalemodding.impulse.core.plugin.components.JointType;
 import java.util.Objects;
 import java.util.UUID;
 import javax.annotation.Nonnull;
