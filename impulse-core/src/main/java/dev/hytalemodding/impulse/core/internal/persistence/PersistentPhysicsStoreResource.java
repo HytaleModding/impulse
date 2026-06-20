@@ -9,6 +9,7 @@ import com.hypixel.hytale.component.Resource;
 import com.hypixel.hytale.component.ResourceType;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsResourceTypes;
+import lombok.Getter;
 import java.util.Arrays;
 import javax.annotation.Nonnull;
 
@@ -85,6 +86,7 @@ public final class PersistentPhysicsStoreResource implements Resource<PhysicsSto
             .add()
             .build();
 
+    @Getter
     private int schemaVersion = CURRENT_SCHEMA_VERSION;
     @Nonnull
     private PersistentSpaceDto[] spaces = EMPTY_SPACES;
@@ -100,10 +102,6 @@ public final class PersistentPhysicsStoreResource implements Resource<PhysicsSto
     private PersistentJointDto[] joints = EMPTY_JOINTS;
 
     public PersistentPhysicsStoreResource() {
-    }
-
-    public int getSchemaVersion() {
-        return schemaVersion;
     }
 
     public void setSchemaVersion(int schemaVersion) {
