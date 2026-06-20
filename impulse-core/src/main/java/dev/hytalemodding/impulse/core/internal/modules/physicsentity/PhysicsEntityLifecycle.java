@@ -29,11 +29,4 @@ public final class PhysicsEntityLifecycle {
         return GATE.isEnabled();
     }
 
-    public static long generation() {
-        return GATE.generation();
-    }
-
-    public static void requireEnabled() {
-        GATE.requireEnabled();
-    }
 }

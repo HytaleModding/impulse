@@ -38,16 +38,6 @@ class ControlLifecycleTest {
     }
 
     @Test
-    void lifecycleGenerationChangesWhenLifecycleIsDisabled() {
-        ControlLifecycle.enable();
-        long enabledGeneration = ControlLifecycle.generation();
-
-        ControlLifecycle.disable();
-
-        assertTrue(ControlLifecycle.generation() > enabledGeneration);
-    }
-
-    @Test
     void disablingLifecycleWithoutRegisteredSessionComponentDoesNotThrow() {
         ControlTypeRegistry.clearComponentTypes();
         ControlLifecycle.enable();

@@ -65,6 +65,10 @@ public final class PhysicsChunkComponentSyncResource implements Resource<Physics
         resourceType = type;
     }
 
+    public static void clearResourceType() {
+        resourceType = null;
+    }
+
     public record ChunkCollisionSurfaceComponents(float friction,
                                                   float restitution,
                                                   int collisionGroup,

@@ -82,6 +82,10 @@ public final class PhysicsChunkSettingsIndexResource implements Resource<Physics
         resourceType = type;
     }
 
+    public static void clearResourceType() {
+        resourceType = null;
+    }
+
     public record PhysicsChunkSpaceSettings(@Nonnull UUID spaceUuid,
                                               @Nonnull PhysicsChunkCollisionMode mode,
                                               @Nonnull EntityChunkBoundaryMode entityChunkBoundaryMode,

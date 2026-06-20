@@ -83,4 +83,8 @@ public final class PhysicsChunkCollisionMutationQueueResource implements Resourc
         @Nonnull ResourceType<PhysicsStore, PhysicsChunkCollisionMutationQueueResource> type) {
         resourceType = type;
     }
+
+    public static void clearResourceType() {
+        resourceType = null;
+    }
 }

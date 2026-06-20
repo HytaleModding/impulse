@@ -57,4 +57,8 @@ public final class PhysicsChunkCollisionPayloadResource implements Resource<Phys
         @Nonnull ResourceType<PhysicsStore, PhysicsChunkCollisionPayloadResource> type) {
         resourceType = type;
     }
+
+    public static void clearResourceType() {
+        resourceType = null;
+    }
 }

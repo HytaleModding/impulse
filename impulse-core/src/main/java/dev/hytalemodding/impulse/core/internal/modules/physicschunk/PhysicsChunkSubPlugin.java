@@ -43,5 +43,6 @@ public final class PhysicsChunkSubPlugin extends JavaPlugin {
         PhysicsChunkLifecycle.disable();
         PhysicsChunkCommandContributions.unregister();
         PhysicsChunkTypes.clearEntityStoreResourceTypes();
+        PhysicsChunkStoreTypes.clearPhysicsStoreResourceTypes();
     }
 }
