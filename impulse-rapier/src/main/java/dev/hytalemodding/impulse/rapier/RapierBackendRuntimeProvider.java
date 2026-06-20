@@ -10,17 +10,17 @@ import javax.annotation.Nonnull;
  */
 public final class RapierBackendRuntimeProvider implements PhysicsBackendRuntimeProvider {
 
-    private final RapierBackend backend = new RapierBackend();
+    private static final BackendId ID = new BackendId("impulse:rapier");
 
     @Nonnull
     @Override
     public BackendId getId() {
-        return RapierBackend.ID;
+        return ID;
     }
 
     @Override
     public void init() {
-        backend.init();
+        RapierNative.load();
     }
 
     @Nonnull

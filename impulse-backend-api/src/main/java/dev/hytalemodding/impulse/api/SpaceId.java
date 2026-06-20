@@ -3,9 +3,9 @@ package dev.hytalemodding.impulse.api;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * PhysicsSpace identifier
+ * Physics space identifier.
  *
- * @param value
+ * @param value backend-local numeric space id
  */
 public record SpaceId(int value) {
 

@@ -1,10 +1,9 @@
 package dev.hytalemodding.impulse.core.internal.systems.debug;
 
-import dev.hytalemodding.impulse.api.PhysicsJoint;
-import dev.hytalemodding.impulse.api.PhysicsSpace;
 import java.util.ArrayList;
 import java.util.List;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.joml.Vector3d;
 import org.joml.Vector3f;
 
@@ -15,7 +14,7 @@ final class PhysicsJointDebugCapture {
 
     @Nonnull
     static List<PhysicsDebugRenderer.JointDebugPrimitive> collectVisibleJointPrimitives(
-        @Nonnull PhysicsSpace space,
+        @Nonnull List<JointDebugSource> joints,
         @Nonnull Vector3d center,
         double radius,
         int maxJoints) {
@@ -24,12 +23,12 @@ final class PhysicsJointDebugCapture {
         }
         List<PhysicsDebugRenderer.JointDebugPrimitive> primitives = new ArrayList<>();
         double radiusSquared = radius * radius;
-        for (PhysicsJoint joint : space.getJoints()) {
-            Vector3d anchorA = worldAnchor(joint.getBodyA().getPosition(), joint.getAnchorA());
-            Vector3d anchorB = worldAnchor(joint.getBodyB().getPosition(), joint.getAnchorB());
+        for (JointDebugSource joint : joints) {
+            Vector3d anchorA = worldAnchor(joint.bodyAPosition(), joint.anchorA());
+            Vector3d anchorB = worldAnchor(joint.bodyBPosition(), joint.anchorB());
             Vector3d midpoint = new Vector3d(anchorA).add(anchorB).mul(0.5);
             if (midpoint.distanceSquared(center) <= radiusSquared) {
-                Vector3f axis = joint.getAxis();
+                Vector3f axis = joint.axis();
                 Vector3d axisDebug = axis != null
                     ? new Vector3d(axis.x, axis.y, axis.z).normalize().mul(0.9)
                     : null;
@@ -48,5 +47,12 @@ final class PhysicsJointDebugCapture {
         return new Vector3d(bodyPosition.x + localAnchor.x,
             bodyPosition.y + localAnchor.y,
             bodyPosition.z + localAnchor.z);
+    }
+
+    record JointDebugSource(@Nonnull Vector3f bodyAPosition,
+                            @Nonnull Vector3f bodyBPosition,
+                            @Nonnull Vector3f anchorA,
+                            @Nonnull Vector3f anchorB,
+                            @Nullable Vector3f axis) {
     }
 }

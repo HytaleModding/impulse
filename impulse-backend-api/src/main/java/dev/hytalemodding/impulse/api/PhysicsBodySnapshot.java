@@ -9,9 +9,8 @@ import org.joml.Vector3f;
 /**
  * Immutable copy of body state captured from live backend state.
  *
- * <p>Snapshots deliberately contain shape metadata instead of a live {@link PhysicsBody} handle so
- * they can be published to world-thread readers and debug systems without escaping backend
- * ownership.</p>
+ * <p>Snapshots deliberately contain shape metadata instead of live backend handles so they can be
+ * published to world-thread readers and debug systems without escaping backend ownership.</p>
  */
 public final class PhysicsBodySnapshot {
 
@@ -300,67 +299,6 @@ public final class PhysicsBodySnapshot {
             sphereRadius,
             halfHeight,
             shapeAxis);
-    }
-
-    @Nonnull
-    public static PhysicsBodySnapshot from(@Nonnull PhysicsBody body) {
-        return from(body, null);
-    }
-
-    @Nonnull
-    public static PhysicsBodySnapshot from(@Nonnull PhysicsBody body,
-        @Nullable PhysicsBodySnapshot previous) {
-        Objects.requireNonNull(body, "body");
-        boolean sleeping = body.isSleeping();
-        if (sleeping && previous != null && previous.sleeping()) {
-            return previous;
-        }
-
-        Vector3f position = new Vector3f();
-        Quaternionf rotation = new Quaternionf();
-        Vector3f linearVelocity = new Vector3f();
-        Vector3f angularVelocity = new Vector3f();
-        body.getPosition(position);
-        body.getRotation(rotation);
-        PhysicsBodyType bodyType = body.getBodyType();
-        if (!sleeping && bodyType != PhysicsBodyType.STATIC) {
-            body.getLinearVelocity(linearVelocity);
-            body.getAngularVelocity(angularVelocity);
-        }
-        Vector3f boxHalfExtents = body.getBoxHalfExtents();
-        return new PhysicsBodySnapshot(position.x,
-            position.y,
-            position.z,
-            rotation.x,
-            rotation.y,
-            rotation.z,
-            rotation.w,
-            linearVelocity.x,
-            linearVelocity.y,
-            linearVelocity.z,
-            angularVelocity.x,
-            angularVelocity.y,
-            angularVelocity.z,
-            bodyType,
-            sleeping,
-            body.isSensor(),
-            body.getMass(),
-            body.getFriction(),
-            body.getRestitution(),
-            body.getLinearDamping(),
-            body.getAngularDamping(),
-            body.getCollisionGroup(),
-            body.getCollisionMask(),
-            body.isContinuousCollisionEnabled(),
-            body.getCenterOfMassOffsetY(),
-            body.getShapeType(),
-            boxHalfExtents != null,
-            boxHalfExtents != null ? boxHalfExtents.x : 0.0f,
-            boxHalfExtents != null ? boxHalfExtents.y : 0.0f,
-            boxHalfExtents != null ? boxHalfExtents.z : 0.0f,
-            body.getSphereRadius(),
-            body.getHalfHeight(),
-            body.getShapeAxis());
     }
 
     @Nonnull

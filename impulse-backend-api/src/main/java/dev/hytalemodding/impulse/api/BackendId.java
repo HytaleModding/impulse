@@ -3,9 +3,9 @@ package dev.hytalemodding.impulse.api;
 import javax.annotation.Nonnull;
 
 /**
- * PhysicsBackend Identifier to provide serialization options
+ * Physics backend identifier used for provider selection and persistence.
  *
- * @param value the identifier, follows [backend_provider]:[backend_name], e.g. impulse:bullet
+ * @param value the identifier, follows [backend_provider]:[backend_name], e.g. impulse:rapier
  */
 public record BackendId(@Nonnull String value) {
 

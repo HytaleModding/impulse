@@ -2,6 +2,7 @@ package dev.hytalemodding.impulse.rapier;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -12,7 +13,6 @@ import dev.hytalemodding.impulse.api.runtime.BackendBodySnapshotSink;
 import dev.hytalemodding.impulse.api.runtime.BackendJointType;
 import dev.hytalemodding.impulse.api.runtime.BackendRuntimeCodes;
 import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntime;
-import dev.hytalemodding.impulse.api.runtime.legacy.LegacyPhysicsBackendRuntime;
 import java.lang.reflect.Field;
 import java.util.Map;
 import javax.annotation.Nonnull;
@@ -21,13 +21,13 @@ import org.junit.jupiter.api.Test;
 class RapierBackendRuntimeProviderTest {
 
     @Test
-    void providerCreatesIdOnlyRuntimeInsteadOfLegacyAdapter() {
+    void providerCreatesIdOnlyRuntime() {
         RapierBackendRuntimeProvider provider = new RapierBackendRuntimeProvider();
         provider.init();
 
         PhysicsBackendRuntime runtime = provider.createRuntime();
 
-        assertFalse(runtime instanceof LegacyPhysicsBackendRuntime);
+        assertInstanceOf(RapierBackendRuntime.class, runtime);
     }
 
     @Test

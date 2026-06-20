@@ -67,7 +67,7 @@ subprojects {
     }
 }
 
-val backendProjectPaths = setOf(":impulse-bullet", ":impulse-rapier")
+val backendProjectPaths = setOf(":impulse-rapier")
 val stagedBackendJarDirectory = layout.projectDirectory.dir("run/mods/impulse-backends")
 val stagedEarlyPluginJarDirectory = layout.projectDirectory.dir("run/earlyplugins")
 val physicsStoreEarlyPluginEnabled = providers.gradleProperty("impulse.physicsStoreEarlyPlugin")
@@ -137,7 +137,6 @@ tasks.register("packageBackendPlatformJars") {
     group = "build"
     description = "Packages all per-platform and universal backend provider jars"
     dependsOn(
-        ":impulse-bullet:packageBulletBackendPlatformJars",
         ":impulse-rapier:packageRapierBackendPlatformJars"
     )
 }
@@ -148,7 +147,6 @@ tasks.register("headlessTest") {
     dependsOn(
         ":impulse-backend-api:test",
         ":impulse-native-loader:test",
-        ":impulse-bullet:test",
         ":impulse-rapier:test",
         ":impulse-core:test",
         ":impulse-examples:test",

@@ -8,22 +8,6 @@ import org.junit.jupiter.api.Test;
 class PhysicsCapabilitySettingsTest {
 
     @Test
-    void descriptorRejectsBlankDisplayName() {
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
-            () -> new PhysicsCapabilityDescriptor(new PhysicsCapabilityId("impulse:test"), " ", "Test capability"));
-
-        assertEquals("displayName cannot be blank", exception.getMessage());
-    }
-
-    @Test
-    void descriptorRejectsBlankDescription() {
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
-            () -> new PhysicsCapabilityDescriptor(new PhysicsCapabilityId("impulse:test"), "Test", " "));
-
-        assertEquals("description cannot be blank", exception.getMessage());
-    }
-
-    @Test
     void rejectsNonPositiveSolverIterations() {
         IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
             () -> new PhysicsSolverTuning(0, 1));

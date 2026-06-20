@@ -140,9 +140,9 @@ class ChunkCollisionVoxelStitchingSystemTest {
             EmptyResourceStorage.get());
         try {
             UUID spaceUuid = uuid(11);
-            RuntimeFixture bulletRuntime = addBoundSpace(store,
+            RuntimeFixture joltRuntime = addBoundSpace(store,
                 spaceUuid,
-                new BackendId("test:chunk-collision-bullet"));
+                new BackendId("test:chunk-collision-jolt"));
             RuntimeFixture rapierRuntime = addBoundSpace(store,
                 uuid(12),
                 new BackendId("test:chunk-collision-rapier"));
@@ -151,7 +151,7 @@ class ChunkCollisionVoxelStitchingSystemTest {
             String firstPayloadKey = "chunk-collision/cross-backend/0";
             String secondPayloadKey = "chunk-collision/cross-backend/1";
             addVoxelRow(store,
-                bulletRuntime,
+                joltRuntime,
                 spaceUuid,
                 firstSourceKey,
                 firstPayloadKey,
@@ -175,7 +175,7 @@ class ChunkCollisionVoxelStitchingSystemTest {
             runStitchingSystem(store);
 
             assertEquals(List.of(),
-                bulletRuntime.backendRuntime().combineCalls(bulletRuntime.spaceHandle().value()));
+                joltRuntime.backendRuntime().combineCalls(joltRuntime.spaceHandle().value()));
             assertEquals(List.of(),
                 rapierRuntime.backendRuntime().combineCalls(rapierRuntime.spaceHandle().value()));
             assertSoftSkipsEmpty(store);

@@ -3,10 +3,12 @@ package dev.hytalemodding.impulse.rapier;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import dev.hytalemodding.impulse.api.PhysicsBody;
-import dev.hytalemodding.impulse.api.PhysicsSpace;
+import dev.hytalemodding.impulse.api.PhysicsBodyType;
+import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.SpaceId;
-import dev.hytalemodding.impulse.api.capability.PhysicsVoxelTerrainCapability;
+import dev.hytalemodding.impulse.api.runtime.BackendBodySnapshotSink;
+import dev.hytalemodding.impulse.api.runtime.BackendRuntimeCodes;
+import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntime;
 import org.joml.Vector3f;
 import org.junit.jupiter.api.Test;
 
@@ -14,60 +16,54 @@ class RapierVoxelTerrainTest {
 
     @Test
     void dynamicBoxRestsOnNativeVoxelFloor() {
-        RapierBackend backend = new RapierBackend();
-        backend.init();
-        PhysicsSpace space = backend.createSpace(new SpaceId(10));
+        PhysicsBackendRuntime runtime = runtime();
+        int spaceId = runtime.createSpace(new SpaceId(10));
         try {
-            space.setGravity(0.0f, -9.81f, 0.0f);
-            addVoxelFloor(space, 0.0f);
-            PhysicsBody box = addDynamicBox(space, 8.0f, 3.0f, 8.0f);
+            runtime.setGravity(spaceId, 0.0f, -9.81f, 0.0f);
+            addVoxelFloor(runtime, spaceId, 0.0f);
+            long boxId = addDynamicBox(runtime, spaceId, 8.0f, 3.0f, 8.0f);
 
-            StepResult result = stepAndTrackMinimumY(space, box, 240);
+            StepResult result = stepAndTrackMinimumY(runtime, spaceId, boxId, 240);
 
             assertFalse(result.fellThrough());
         } finally {
-            space.close();
+            runtime.destroySpace(spaceId);
         }
     }
 
     @Test
     void dynamicBoxRestsNearNativeVoxelSectionEdge() {
-        RapierBackend backend = new RapierBackend();
-        backend.init();
-        PhysicsSpace space = backend.createSpace(new SpaceId(11));
+        PhysicsBackendRuntime runtime = runtime();
+        int spaceId = runtime.createSpace(new SpaceId(11));
         try {
-            space.setGravity(0.0f, -9.81f, 0.0f);
-            addVoxelFloor(space, 0.0f);
-            PhysicsBody box = addDynamicBox(space, 15.75f, 3.0f, 8.0f);
+            runtime.setGravity(spaceId, 0.0f, -9.81f, 0.0f);
+            addVoxelFloor(runtime, spaceId, 0.0f);
+            long boxId = addDynamicBox(runtime, spaceId, 15.75f, 3.0f, 8.0f);
 
-            StepResult result = stepAndTrackMinimumY(space, box, 240);
+            StepResult result = stepAndTrackMinimumY(runtime, spaceId, boxId, 240);
 
             assertFalse(result.fellThrough());
         } finally {
-            space.close();
+            runtime.destroySpace(spaceId);
         }
     }
 
     @Test
     void dynamicBoxRestsAcrossStitchedNativeVoxelSections() {
-        RapierBackend backend = new RapierBackend();
-        backend.init();
-        PhysicsSpace space = backend.createSpace(new SpaceId(12));
+        PhysicsBackendRuntime runtime = runtime();
+        int spaceId = runtime.createSpace(new SpaceId(12));
         try {
-            space.setGravity(0.0f, -9.81f, 0.0f);
-            PhysicsVoxelTerrainCapability voxelTerrain = space
-                .getCapability(PhysicsVoxelTerrainCapability.class)
-                .orElseThrow();
-            PhysicsBody first = addVoxelFloor(space, 0.0f);
-            PhysicsBody second = addVoxelFloor(space, 16.0f);
-            voxelTerrain.combineVoxelTerrains(first, second, 16, 0, 0);
-            PhysicsBody box = addDynamicBox(space, 16.0f, 3.0f, 8.0f);
+            runtime.setGravity(spaceId, 0.0f, -9.81f, 0.0f);
+            long first = addVoxelFloor(runtime, spaceId, 0.0f);
+            long second = addVoxelFloor(runtime, spaceId, 16.0f);
+            runtime.combineVoxelTerrains(spaceId, first, second, 16, 0, 0);
+            long boxId = addDynamicBox(runtime, spaceId, 16.0f, 3.0f, 8.0f);
 
-            StepResult result = stepAndTrackMinimumY(space, box, 240);
+            StepResult result = stepAndTrackMinimumY(runtime, spaceId, boxId, 240);
 
             assertFalse(result.fellThrough());
         } finally {
-            space.close();
+            runtime.destroySpace(spaceId);
         }
     }
 
@@ -80,61 +76,52 @@ class RapierVoxelTerrainTest {
 
     @Test
     void combineVoxelTerrainsRejectsNonVoxelBodies() {
-        RapierBackend backend = new RapierBackend();
-        backend.init();
-        PhysicsSpace space = backend.createSpace(new SpaceId(2));
+        PhysicsBackendRuntime runtime = runtime();
+        int spaceId = runtime.createSpace(new SpaceId(2));
         try {
-            PhysicsVoxelTerrainCapability voxelTerrain = space
-                .getCapability(PhysicsVoxelTerrainCapability.class)
-                .orElseThrow();
-            PhysicsBody voxelBody = voxelTerrain.createVoxelTerrain(1.0f,
-                1.0f,
-                1.0f,
-                new int[] {0, 0, 0});
-            PhysicsBody box = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
-            space.addBody(voxelBody);
-            space.addBody(box);
+            long voxelBody = addVoxelFloor(runtime, spaceId, 0.0f);
+            long box = addDynamicBox(runtime, spaceId, 0.0f, 1.0f, 0.0f);
 
             assertThrows(IllegalArgumentException.class,
-                () -> voxelTerrain.combineVoxelTerrains(voxelBody, box, 1, 0, 0));
+                () -> runtime.combineVoxelTerrains(spaceId, voxelBody, box, 1, 0, 0));
         } finally {
-            space.close();
+            runtime.destroySpace(spaceId);
         }
     }
 
     @Test
     void combineVoxelTerrainsRejectsSameBody() {
-        RapierBackend backend = new RapierBackend();
-        backend.init();
-        PhysicsSpace space = backend.createSpace(new SpaceId(3));
+        PhysicsBackendRuntime runtime = runtime();
+        int spaceId = runtime.createSpace(new SpaceId(3));
         try {
-            PhysicsVoxelTerrainCapability voxelTerrain = space
-                .getCapability(PhysicsVoxelTerrainCapability.class)
-                .orElseThrow();
-            PhysicsBody voxelBody = voxelTerrain.createVoxelTerrain(1.0f,
-                1.0f,
-                1.0f,
-                new int[] {0, 0, 0});
-            space.addBody(voxelBody);
+            long voxelBody = addVoxelFloor(runtime, spaceId, 0.0f);
 
             assertThrows(IllegalArgumentException.class,
-                () -> voxelTerrain.combineVoxelTerrains(voxelBody, voxelBody, 1, 0, 0));
+                () -> runtime.combineVoxelTerrains(spaceId, voxelBody, voxelBody, 1, 0, 0));
         } finally {
-            space.close();
+            runtime.destroySpace(spaceId);
         }
     }
 
-    private static PhysicsBody addVoxelFloor(PhysicsSpace space, float originX) {
-        PhysicsVoxelTerrainCapability voxelTerrain = space
-            .getCapability(PhysicsVoxelTerrainCapability.class)
-            .orElseThrow();
-        PhysicsBody floor = voxelTerrain.createVoxelTerrain(1.0f,
+    private static PhysicsBackendRuntime runtime() {
+        RapierBackendRuntimeProvider provider = new RapierBackendRuntimeProvider();
+        provider.init();
+        return provider.createRuntime();
+    }
+
+    private static long addVoxelFloor(PhysicsBackendRuntime runtime, int spaceId, float originX) {
+        return runtime.createVoxelTerrain(spaceId,
             1.0f,
             1.0f,
-            voxelFloorCoordinates(16, 16));
-        floor.setPosition(originX, 0.0f, 0.0f);
-        space.addBody(floor);
-        return floor;
+            1.0f,
+            voxelFloorCoordinates(16, 16),
+            originX,
+            0.0f,
+            0.0f,
+            0.5f,
+            0.0f,
+            1,
+            1);
     }
 
     private static int[] voxelFloorCoordinates(int width, int depth) {
@@ -150,28 +137,88 @@ class RapierVoxelTerrainTest {
         return coordinates;
     }
 
-    private static PhysicsBody addDynamicBox(PhysicsSpace space, float x, float y, float z) {
-        PhysicsBody box = space.createBox(0.45f, 0.45f, 0.45f, 1.0f);
-        box.setPosition(x, y, z);
-        space.addBody(box);
-        return box;
+    private static long addDynamicBox(PhysicsBackendRuntime runtime, int spaceId, float x, float y, float z) {
+        return runtime.createBody(spaceId,
+            BackendRuntimeCodes.shapeTypeCode(ShapeType.BOX),
+            0.45f,
+            0.45f,
+            0.45f,
+            -1.0f,
+            -1.0f,
+            BackendRuntimeCodes.AXIS_Y,
+            0.0f,
+            1.0f,
+            BackendRuntimeCodes.bodyTypeCode(PhysicsBodyType.DYNAMIC),
+            x,
+            y,
+            z,
+            0.0f,
+            0.0f,
+            0.0f,
+            1.0f);
     }
 
-    private static StepResult stepAndTrackMinimumY(PhysicsSpace space,
-        PhysicsBody body,
+    private static StepResult stepAndTrackMinimumY(PhysicsBackendRuntime runtime,
+        int spaceId,
+        long bodyId,
         int steps) {
+        CapturedSnapshot snapshot = new CapturedSnapshot();
         float minY = Float.POSITIVE_INFINITY;
         for (int i = 0; i < steps; i++) {
-            space.step(1.0f / 30.0f);
-            minY = Math.min(minY, body.getPosition().y);
+            runtime.step(spaceId, 1.0f / 30.0f);
+            runtime.bodySnapshot(spaceId, bodyId, snapshot);
+            minY = Math.min(minY, snapshot.position.y);
         }
-        return new StepResult(body.getPosition(), minY);
+        return new StepResult(new Vector3f(snapshot.position), minY);
     }
 
     private record StepResult(Vector3f finalPosition, float minY) {
 
         private boolean fellThrough() {
             return finalPosition.y < 1.0f || minY < 0.75f;
+        }
+    }
+
+    private static final class CapturedSnapshot implements BackendBodySnapshotSink {
+
+        private final Vector3f position = new Vector3f();
+
+        @Override
+        public void accept(long bodyId,
+            int shapeTypeCode,
+            int bodyTypeCode,
+            float positionX,
+            float positionY,
+            float positionZ,
+            float rotationX,
+            float rotationY,
+            float rotationZ,
+            float rotationW,
+            float linearVelocityX,
+            float linearVelocityY,
+            float linearVelocityZ,
+            float angularVelocityX,
+            float angularVelocityY,
+            float angularVelocityZ,
+            boolean sleeping,
+            boolean sensor,
+            float mass,
+            float friction,
+            float restitution,
+            float linearDamping,
+            float angularDamping,
+            int collisionGroup,
+            int collisionMask,
+            boolean continuousCollisionEnabled,
+            float centerOfMassOffsetY,
+            boolean hasBoxHalfExtents,
+            float halfExtentX,
+            float halfExtentY,
+            float halfExtentZ,
+            float radius,
+            float halfHeight,
+            int axisCode) {
+            position.set(positionX, positionY, positionZ);
         }
     }
 }

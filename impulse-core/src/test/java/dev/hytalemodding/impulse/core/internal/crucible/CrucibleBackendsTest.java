@@ -12,30 +12,30 @@ class CrucibleBackendsTest {
 
     @Test
     void configuredBackendWinsWhenRegistered() {
-        BackendId bullet = new BackendId("impulse:bullet");
+        BackendId jolt = new BackendId("impulse:jolt");
         BackendId rapier = new BackendId("impulse:rapier");
 
-        assertEquals(bullet, CrucibleBackends.selectBackendId(List.of(
-            provider(bullet),
-            provider(rapier)), "impulse:bullet"));
+        assertEquals(jolt, CrucibleBackends.selectBackendId(List.of(
+            provider(jolt),
+            provider(rapier)), "impulse:jolt"));
     }
 
     @Test
     void rapierIsPreferredWhenMultipleBackendsAreRegistered() {
-        BackendId bullet = new BackendId("impulse:bullet");
+        BackendId jolt = new BackendId("impulse:jolt");
         BackendId rapier = new BackendId("impulse:rapier");
 
         assertEquals(rapier, CrucibleBackends.selectBackendId(List.of(
-            provider(bullet),
+            provider(jolt),
             provider(rapier)), null));
     }
 
     @Test
     void singleBackendIsSelectedWhenRapierIsUnavailable() {
-        BackendId bullet = new BackendId("impulse:bullet");
+        BackendId jolt = new BackendId("impulse:jolt");
 
-        assertEquals(bullet, CrucibleBackends.selectBackendId(List.of(
-            provider(bullet)), null));
+        assertEquals(jolt, CrucibleBackends.selectBackendId(List.of(
+            provider(jolt)), null));
     }
 
     @Test

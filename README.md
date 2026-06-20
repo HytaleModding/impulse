@@ -8,11 +8,10 @@ Impulse codebase is divided as follows:
 
 - **impulse-core** - Hytale ECS integration and backend communication.
 - **impulse-api** - backend-agnostic API layer and contracts.
-- **impulse-native-loader** - legacy loader for PhysicsBackend
+- **impulse-native-loader** - native library loader for backend provider jars.
 - **impulse-examples** - example plugins to understand the framework usage.
   
 Official physics backend implementations:
-- **impulse-bullet** - Libbulletjme backend implementation.
 - **impulse-rapier** - Rapier backend with a small Rust/JNI native shim.
 
 ### Architecture
@@ -69,10 +68,7 @@ flowchart TB
     subgraph API["impulse-api"]
         direction TB
 
-        Current["PhysicsBackend"]
-        WIP["Runtime / Provider"]
-
-        Current ~~~ WIP
+        Runtime["PhysicsBackendRuntime"]
     end
 
     subgraph Backends["backends"]
@@ -108,11 +104,9 @@ flowchart TB
     TickB ----> Dispatch
     TickN ----> Dispatch
 
-    Dispatch ----> Current
-    Dispatch -.-> WIP
+    Dispatch ----> Runtime
 
-    Current ----> Active
-    WIP -.-> Active
+    Runtime ----> Active
 
     Active ----> Step
     Step --> Router
@@ -211,7 +205,7 @@ Crucible in-game tests are also provided. Run them in game with:
 Backend provider artifacts may include third-party native binaries so Impulse can load the
 backend at runtime. These artifacts are convenience packages for Impulse plugins; they are not
 the official upstream distribution channel for those native libraries. Download standalone
-Bullet/Libbulletjme or Rapier binaries from their upstream projects instead.
+Rapier binaries from their upstream project instead.
 
 ## Code style
 

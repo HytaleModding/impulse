@@ -19,7 +19,7 @@ services from jars anywhere under the configured Hytale `mods` directories.
 ## Event frames
 
 `PhysicsWorlds.latestEventFrame(physicsStore)` exposes the latest value-only physics event frame
-for diagnostics. When collection is enabled, backends emit bounded post-step `PhysicsBackendEvent`
+for diagnostics. When collection is enabled, backends emit bounded post-step event
 batches; core translates them to stable UUID-primary `PhysicsFrameEvent` values and copied
 PhysicsStore refs where available, then publishes one `PhysicsEventFramePublishedEvent` Hytale
 world event for the completed frame.

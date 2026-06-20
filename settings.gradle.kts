@@ -28,7 +28,6 @@ rootProject.name = "impulse"
 
 include("impulse-backend-api")
 include("impulse-native-loader")
-include("impulse-bullet")
 include("impulse-rapier")
 include("impulse-core")
 include("impulse-examples")
