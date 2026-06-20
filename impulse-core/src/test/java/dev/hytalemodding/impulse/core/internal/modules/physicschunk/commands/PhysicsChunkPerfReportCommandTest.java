@@ -10,6 +10,26 @@ import org.junit.jupiter.api.Test;
 class PhysicsChunkPerfReportCommandTest {
 
     @Test
+    void runtimeStatsSummaryIncludesLiveBackendPressureCounters() {
+        RuntimeStatsSample sample = new RuntimeStatsSample(2,
+            180,
+            210,
+            24,
+            96,
+            44,
+            128,
+            4,
+            92,
+            3,
+            12);
+
+        assertEquals("spaces=2 bodies=180 colliders=210 activeBodies=24 activeIslands=3 "
+                + "contactPairs=96 contactManifolds=44 contactPoints=128 "
+                + "dynamicDynamicPairs=4 terrainPairs=92 joints=12",
+            PhysicsChunkPerfReportCommand.formatRuntimeStatsSummary(sample));
+    }
+
+    @Test
     void preStepDrainSummaryReportsAverageLatestAndMaxBackpressure() {
         StepDrainSample cumulative = new StepDrainSample(2,
             6,
@@ -95,5 +115,18 @@ class PhysicsChunkPerfReportCommandTest {
         public int getMaxLateMutationBacklogAtStep() {
             return maxLateMutationBacklogAtStep;
         }
+    }
+
+    private record RuntimeStatsSample(int runtimeStatsSpaces,
+        int runtimeBodies,
+        int runtimeColliders,
+        int runtimeActiveBodies,
+        int runtimeContactPairs,
+        int runtimeContactManifolds,
+        int runtimeContactPoints,
+        int runtimeDynamicDynamicContactPairs,
+        int runtimeTerrainContactPairs,
+        int runtimeActiveIslands,
+        int runtimeJoints) implements PhysicsChunkPerfReportCommand.RuntimeStatsView {
     }
 }

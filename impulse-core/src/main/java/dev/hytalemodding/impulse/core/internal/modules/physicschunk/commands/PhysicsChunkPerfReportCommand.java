@@ -71,7 +71,7 @@ public class PhysicsChunkPerfReportCommand extends AbstractAsyncWorldCommand {
             + runtimeFootprint.summary()));
         if (runtimeFootprint.hasRuntimeStats()) {
             ctx.sender().sendMessage(Message.raw("Physics backend runtime stats: "
-                + runtimeFootprint.runtimeStatsSummary()));
+                + formatRuntimeStatsSummary(runtimeFootprint)));
         }
         ctx.sender().sendMessage(Message.raw("Physics event frame: "
             + formatEventFrameSummary(PhysicsWorlds.latestEventFrame(physicsStore))));
@@ -238,8 +238,8 @@ public class PhysicsChunkPerfReportCommand extends AbstractAsyncWorldCommand {
                     + "/" + latestVisual.getDematerialized()));
             }
         } else {
-                ctx.sender().sendMessage(Message.raw("No profiled physics step/sync/visual ticks recorded yet."
-                    + (runtimeProfiling.enabled()
+            ctx.sender().sendMessage(Message.raw("No profiled physics step/sync/visual ticks recorded yet."
+                + (runtimeProfiling.enabled()
                 ? ""
                 : " Run /impulse physicschunk perf toggle, wait a few seconds, then run /impulse physicschunk perf report.")));
         }
@@ -472,6 +472,46 @@ public class PhysicsChunkPerfReportCommand extends AbstractAsyncWorldCommand {
     }
 
     @Nonnull
+    static String formatRuntimeStatsSummary(@Nonnull RuntimeStatsView stats) {
+        return "spaces=" + stats.runtimeStatsSpaces()
+            + " bodies=" + stats.runtimeBodies()
+            + " colliders=" + stats.runtimeColliders()
+            + " activeBodies=" + stats.runtimeActiveBodies()
+            + " activeIslands=" + stats.runtimeActiveIslands()
+            + " contactPairs=" + stats.runtimeContactPairs()
+            + " contactManifolds=" + stats.runtimeContactManifolds()
+            + " contactPoints=" + stats.runtimeContactPoints()
+            + " dynamicDynamicPairs=" + stats.runtimeDynamicDynamicContactPairs()
+            + " terrainPairs=" + stats.runtimeTerrainContactPairs()
+            + " joints=" + stats.runtimeJoints();
+    }
+
+    interface RuntimeStatsView {
+
+        int runtimeStatsSpaces();
+
+        int runtimeBodies();
+
+        int runtimeColliders();
+
+        int runtimeActiveBodies();
+
+        int runtimeContactPairs();
+
+        int runtimeContactManifolds();
+
+        int runtimeContactPoints();
+
+        int runtimeDynamicDynamicContactPairs();
+
+        int runtimeTerrainContactPairs();
+
+        int runtimeActiveIslands();
+
+        int runtimeJoints();
+    }
+
+    @Nonnull
     private static String formatMillis(long nanos) {
         return String.format(Locale.ROOT, "%.3f", nanos / 1_000_000.0);
     }
@@ -537,21 +577,21 @@ public class PhysicsChunkPerfReportCommand extends AbstractAsyncWorldCommand {
     }
 
     private record RuntimeFootprint(int spaces,
-        int backendBodies,
-        int backendJoints,
-        int detachedBodies,
-        int detachedVisualProxies,
-        int runtimeStatsSpaces,
-        int runtimeBodies,
-        int runtimeColliders,
-        int runtimeActiveBodies,
-        int runtimeContactPairs,
-        int runtimeContactManifolds,
-        int runtimeContactPoints,
-        int runtimeDynamicDynamicContactPairs,
-        int runtimeTerrainContactPairs,
-        int runtimeActiveIslands,
-        int runtimeJoints) {
+                                    int backendBodies,
+                                    int backendJoints,
+                                    int detachedBodies,
+                                    int detachedVisualProxies,
+                                    int runtimeStatsSpaces,
+                                    int runtimeBodies,
+                                    int runtimeColliders,
+                                    int runtimeActiveBodies,
+                                    int runtimeContactPairs,
+                                    int runtimeContactManifolds,
+                                    int runtimeContactPoints,
+                                    int runtimeDynamicDynamicContactPairs,
+                                    int runtimeTerrainContactPairs,
+                                    int runtimeActiveIslands,
+                                    int runtimeJoints) implements RuntimeStatsView {
 
         @Nonnull
         private static RuntimeFootprint collect(@Nonnull List<SpaceSummary> summaries) {
@@ -573,6 +613,20 @@ public class PhysicsChunkPerfReportCommand extends AbstractAsyncWorldCommand {
                 spaces++;
                 backendBodies += summary.bodyCount();
                 backendJoints += summary.jointCount();
+                if (summary.runtimeStatsAvailable()) {
+                    runtimeStatsSpaces++;
+                    runtimeBodies += summary.runtimeBodyCount();
+                    runtimeColliders += summary.runtimeColliderCount();
+                    runtimeActiveBodies += summary.runtimeActiveBodyCount();
+                    runtimeContactPairs += summary.runtimeContactPairCount();
+                    runtimeContactManifolds += summary.runtimeContactManifoldCount();
+                    runtimeContactPoints += summary.runtimeContactPointCount();
+                    runtimeDynamicDynamicContactPairs +=
+                        summary.runtimeDynamicDynamicContactPairCount();
+                    runtimeTerrainContactPairs += summary.runtimeTerrainContactPairCount();
+                    runtimeActiveIslands += summary.runtimeActiveIslandCount();
+                    runtimeJoints += summary.runtimeJointCount();
+                }
             }
 
             return new RuntimeFootprint(spaces,
@@ -604,21 +658,6 @@ public class PhysicsChunkPerfReportCommand extends AbstractAsyncWorldCommand {
 
         private boolean hasRuntimeStats() {
             return runtimeStatsSpaces > 0;
-        }
-
-        @Nonnull
-        private String runtimeStatsSummary() {
-            return "spaces=" + runtimeStatsSpaces
-                + " bodies=" + runtimeBodies
-                + " colliders=" + runtimeColliders
-                + " activeBodies=" + runtimeActiveBodies
-                + " activeIslands=" + runtimeActiveIslands
-                + " contactPairs=" + runtimeContactPairs
-                + " contactManifolds=" + runtimeContactManifolds
-                + " contactPoints=" + runtimeContactPoints
-                + " dynamicDynamicPairs=" + runtimeDynamicDynamicContactPairs
-                + " terrainPairs=" + runtimeTerrainContactPairs
-                + " joints=" + runtimeJoints;
         }
     }
 }

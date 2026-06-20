@@ -5,11 +5,12 @@ import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.BackendId;
 import dev.hytalemodding.impulse.api.SpaceId;
+import dev.hytalemodding.impulse.api.runtime.BackendRuntimeStatsSink;
 import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntime;
+import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResource.BodyHitMetadata;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceCompatibilityIndexResource;
-import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
 import dev.hytalemodding.impulse.core.plugin.simulation.SpaceSummary;
 import dev.hytalemodding.impulse.core.plugin.simulation.view.RaycastHitView;
 import java.util.Objects;
@@ -67,10 +68,23 @@ final class PhysicsBackendAccess {
             throw new IllegalStateException("PhysicsStore space has no compatibility SpaceId: "
                 + space.spaceUuid());
         }
+        RuntimeStatsCapture runtimeStats = new RuntimeStatsCapture();
+        space.backendRuntime().runtimeStats(space.spaceHandle().value(), runtimeStats);
         return new SpaceSummary(spaceId,
             space.backendId(),
             space.backendRuntime().bodyCount(space.spaceHandle().value()),
-            space.backendRuntime().jointCount(space.spaceHandle().value()));
+            space.backendRuntime().jointCount(space.spaceHandle().value()),
+            runtimeStats.available(),
+            runtimeStats.bodyCount(),
+            runtimeStats.colliderCount(),
+            runtimeStats.activeBodyCount(),
+            runtimeStats.contactPairCount(),
+            runtimeStats.contactManifoldCount(),
+            runtimeStats.contactPointCount(),
+            runtimeStats.dynamicDynamicContactPairCount(),
+            runtimeStats.terrainContactPairCount(),
+            runtimeStats.activeIslandCount(),
+            runtimeStats.jointCount());
     }
 
     @Nonnull
@@ -100,5 +114,89 @@ final class PhysicsBackendAccess {
                         @Nonnull BackendId backendId,
                         @Nonnull BackendSpaceHandle spaceHandle,
                         @Nonnull PhysicsBackendRuntime backendRuntime) {
+    }
+
+    private static final class RuntimeStatsCapture implements BackendRuntimeStatsSink {
+
+        private int bodyCount;
+        private int colliderCount;
+        private int activeBodyCount;
+        private int contactPairCount;
+        private int contactManifoldCount;
+        private int contactPointCount;
+        private int dynamicDynamicContactPairCount;
+        private int terrainContactPairCount;
+        private int activeIslandCount;
+        private int jointCount;
+        private boolean available;
+
+        @Override
+        public void accept(int bodyCount,
+            int colliderCount,
+            int activeBodyCount,
+            int contactPairCount,
+            int contactManifoldCount,
+            int contactPointCount,
+            int dynamicDynamicContactPairCount,
+            int terrainContactPairCount,
+            int activeIslandCount,
+            int jointCount,
+            boolean available) {
+            this.bodyCount = bodyCount;
+            this.colliderCount = colliderCount;
+            this.activeBodyCount = activeBodyCount;
+            this.contactPairCount = contactPairCount;
+            this.contactManifoldCount = contactManifoldCount;
+            this.contactPointCount = contactPointCount;
+            this.dynamicDynamicContactPairCount = dynamicDynamicContactPairCount;
+            this.terrainContactPairCount = terrainContactPairCount;
+            this.activeIslandCount = activeIslandCount;
+            this.jointCount = jointCount;
+            this.available = available;
+        }
+
+        private int bodyCount() {
+            return bodyCount;
+        }
+
+        private int colliderCount() {
+            return colliderCount;
+        }
+
+        private int activeBodyCount() {
+            return activeBodyCount;
+        }
+
+        private int contactPairCount() {
+            return contactPairCount;
+        }
+
+        private int contactManifoldCount() {
+            return contactManifoldCount;
+        }
+
+        private int contactPointCount() {
+            return contactPointCount;
+        }
+
+        private int dynamicDynamicContactPairCount() {
+            return dynamicDynamicContactPairCount;
+        }
+
+        private int terrainContactPairCount() {
+            return terrainContactPairCount;
+        }
+
+        private int activeIslandCount() {
+            return activeIslandCount;
+        }
+
+        private int jointCount() {
+            return jointCount;
+        }
+
+        private boolean available() {
+            return available;
+        }
     }
 }
