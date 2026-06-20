@@ -11,6 +11,7 @@ import com.hypixel.hytale.component.query.Query;
 import com.hypixel.hytale.component.system.QuerySystem;
 import com.hypixel.hytale.component.system.tick.TickingSystem;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
+import dev.hytalemodding.impulse.api.BackendId;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.runtime.BackendRuntimeCodes;
@@ -120,6 +121,11 @@ public final class BodyBindingSystem extends TickingSystem<PhysicsStore>
             restore.recordSoftSkip("Body references unbound space: " + bodyUuid);
             return;
         }
+        BackendId backendId = runtime.getSpaceBackendId(spaceRef);
+        if (backendId == null) {
+            restore.recordSoftSkip("Body references missing backend id: " + bodyUuid);
+            return;
+        }
         PhysicsBackendRuntime backendRuntime = runtimeForSpace(runtime, spaceRef);
         if (backendRuntime == null) {
             restore.recordSoftSkip("Body references missing backend runtime: " + bodyUuid);
@@ -193,13 +199,20 @@ public final class BodyBindingSystem extends TickingSystem<PhysicsStore>
                 backendRuntime.setBodyContinuousCollision(spaceHandle.value(), bodyId, true);
             }
             applyInitialTargetState(backendRuntime, spaceHandle, bodyHandle, bodyType, target);
-            runtime.putBodyHandle(bodyUuid, bodyRef, body.getSpaceUuid(), spaceHandle, bodyHandle);
-            runtime.putBodyHitMetadata(bodyHandle,
+            runtime.putBodyHandle(bodyRef, spaceRef, spaceHandle, bodyHandle);
+            runtime.putBodySnapshotMetadata(backendId,
+                spaceHandle,
+                bodyHandle,
+                bodyUuid,
+                bodyRef,
+                body.getSpaceUuid());
+            runtime.putBodyHitMetadata(backendId,
+                spaceHandle,
+                bodyHandle,
                 bodyUuid,
                 bodyRef,
                 bodyType,
                 shape.getShapeType());
-            identity.putBodyHandle(bodyHandle, bodyRef);
         } catch (RuntimeException exception) {
             if (bodyId != Long.MIN_VALUE) {
                 try {

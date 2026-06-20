@@ -144,11 +144,11 @@ class StaleBodyRemovalSystemTest {
         PhysicsRuntimeResource runtimeResource = store.getResource(
             PhysicsRuntimeResource.getResourceType());
         runtimeResource.putRuntime(backendId, runtime);
-        runtimeResource.putSpaceBinding(spaceUuid, spaceRef, backendId, spaceHandle);
-        identity.putSpaceHandle(spaceHandle, spaceRef);
+        runtimeResource.putSpaceHandle(spaceRef, backendId, spaceHandle);
+        runtimeResource.putSpaceMetadata(backendId, spaceHandle, spaceUuid, spaceRef);
         store.getResource(PhysicsSpaceCompatibilityIndexResource.getResourceType())
             .putSpace(new SpaceId(42), spaceUuid);
-        return new BoundSpace(spaceRef, runtime, spaceHandle, backendId);
+        return new BoundSpace(spaceUuid, spaceRef, runtime, spaceHandle, backendId);
     }
 
     @Nonnull
@@ -209,9 +209,20 @@ class StaleBodyRemovalSystemTest {
             1.0f);
         BackendBodyHandle handle = new BackendBodyHandle(bodyId);
         PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
-        runtime.putBodyHandle(bodyUuid, bodyRef, uuid(1), space.handle(), handle);
-        store.getResource(PhysicsIdentityIndexResource.getResourceType())
-            .putBodyHandle(handle, bodyRef);
+        runtime.putBodyHandle(bodyRef, space.ref(), space.handle(), handle);
+        runtime.putBodySnapshotMetadata(space.backendId(),
+            space.handle(),
+            handle,
+            bodyUuid,
+            bodyRef,
+            space.uuid());
+        runtime.putBodyHitMetadata(space.backendId(),
+            space.handle(),
+            handle,
+            bodyUuid,
+            bodyRef,
+            PhysicsBodyType.DYNAMIC,
+            ShapeType.BOX);
     }
 
     private static void publishCopiedState(@Nonnull Store<PhysicsStore> store,
@@ -273,7 +284,8 @@ class StaleBodyRemovalSystemTest {
         }
     }
 
-    private record BoundSpace(@Nonnull Ref<PhysicsStore> ref,
+    private record BoundSpace(@Nonnull UUID uuid,
+                              @Nonnull Ref<PhysicsStore> ref,
                               @Nonnull PhysicsBackendRuntime runtime,
                               @Nonnull BackendSpaceHandle handle,
                               @Nonnull BackendId backendId) {

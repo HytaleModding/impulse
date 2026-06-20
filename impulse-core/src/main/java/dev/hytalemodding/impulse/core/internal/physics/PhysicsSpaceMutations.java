@@ -298,8 +298,7 @@ public final class PhysicsSpaceMutations {
                 throw new IllegalStateException("PhysicsStore space is not empty: " + spaceUuid);
             }
             backendRuntime.destroySpace(handle.value());
-            identity.removeSpaceHandle(handle);
-            runtime.removeSpaceHandle(spaceUuid);
+            runtime.removeSpaceHandle(ref);
         }
         compatibility.removeBySpaceUuid(spaceUuid);
         if (ref != null && ref.isValid()) {

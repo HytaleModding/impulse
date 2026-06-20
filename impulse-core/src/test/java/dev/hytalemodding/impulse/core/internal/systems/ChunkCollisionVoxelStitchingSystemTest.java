@@ -127,6 +127,64 @@ class ChunkCollisionVoxelStitchingSystemTest {
         }
     }
 
+    @Test
+    void voxelRowsWithSameNumericSpaceHandleAreNotStitchedAcrossBackends() {
+        ComponentRegistry<PhysicsStore> registry = new ComponentRegistry<>();
+        ComponentRegistryProxy<PhysicsStore> proxy =
+            new ComponentRegistryProxy<>(new ArrayList<>(), registry);
+        PhysicsComponentTypeRegistry.registerComponentTypes(proxy);
+        PhysicsResourceTypes.registerResourceTypes(proxy);
+        PhysicsChunkStoreTypes.registerPhysicsStoreResourceTypes(proxy);
+        Store<PhysicsStore> store = registry.addStore(
+            new PhysicsStore(TestInstanceFactory.world("chunk-collision-cross-backend-test")),
+            EmptyResourceStorage.get());
+        try {
+            UUID spaceUuid = uuid(11);
+            RuntimeFixture bulletRuntime = addBoundSpace(store,
+                spaceUuid,
+                new BackendId("test:chunk-collision-bullet"));
+            RuntimeFixture rapierRuntime = addBoundSpace(store,
+                uuid(12),
+                new BackendId("test:chunk-collision-rapier"));
+            String firstSourceKey = "0:0:0";
+            String secondSourceKey = "1:0:0";
+            String firstPayloadKey = "chunk-collision/cross-backend/0";
+            String secondPayloadKey = "chunk-collision/cross-backend/1";
+            addVoxelRow(store,
+                bulletRuntime,
+                spaceUuid,
+                firstSourceKey,
+                firstPayloadKey,
+                0,
+                0,
+                0);
+            addVoxelRow(store,
+                rapierRuntime,
+                spaceUuid,
+                secondSourceKey,
+                secondPayloadKey,
+                1,
+                0,
+                0);
+            store.getResource(PhysicsChunkCollisionPayloadResource.getResourceType())
+                .put(firstPayloadKey,
+                    payloadWithNeighbors(List.of(new Neighbor(secondSourceKey, 16, 0, 0))));
+            store.getResource(PhysicsChunkCollisionPayloadResource.getResourceType())
+                .put(secondPayloadKey, payloadWithNeighbors(List.of()));
+
+            runStitchingSystem(store);
+
+            assertEquals(List.of(),
+                bulletRuntime.backendRuntime().combineCalls(bulletRuntime.spaceHandle().value()));
+            assertEquals(List.of(),
+                rapierRuntime.backendRuntime().combineCalls(rapierRuntime.spaceHandle().value()));
+            assertSoftSkipsEmpty(store);
+        } finally {
+            registry.removeStore(store);
+            registry.shutdown();
+        }
+    }
+
     @Nonnull
     private static RuntimeFixture addBoundSpace(@Nonnull Store<PhysicsStore> store,
         @Nonnull UUID spaceUuid,
@@ -147,9 +205,9 @@ class ChunkCollisionVoxelStitchingSystemTest {
         PhysicsRuntimeResource runtimeResource = store.getResource(
             PhysicsRuntimeResource.getResourceType());
         runtimeResource.putRuntime(backendId, runtime);
-        runtimeResource.putSpaceBinding(spaceUuid, spaceRef, backendId, spaceHandle);
-        identity.putSpaceHandle(spaceHandle, spaceRef);
-        return new RuntimeFixture(spaceRef, spaceHandle, runtime);
+        runtimeResource.putSpaceHandle(spaceRef, backendId, spaceHandle);
+        runtimeResource.putSpaceMetadata(backendId, spaceHandle, spaceUuid, spaceRef);
+        return new RuntimeFixture(spaceUuid, backendId, spaceRef, spaceHandle, runtime);
     }
 
     @Nonnull
@@ -214,13 +272,25 @@ class ChunkCollisionVoxelStitchingSystemTest {
                 PhysicsCollisionFilters.TERRAIN,
                 PhysicsCollisionFilters.ALL);
         BackendBodyHandle backendBodyHandle = new BackendBodyHandle(bodyHandle);
-        store.getResource(PhysicsRuntimeResource.getResourceType())
-            .putBodyHandle(bodyUuid,
-                bodyRef,
-                spaceUuid,
-                runtime.spaceHandle(),
-                backendBodyHandle);
-        identity.putBodyHandle(backendBodyHandle, bodyRef);
+        PhysicsRuntimeResource runtimeResource =
+            store.getResource(PhysicsRuntimeResource.getResourceType());
+        runtimeResource.putBodyHandle(bodyRef,
+            runtime.spaceRef(),
+            runtime.spaceHandle(),
+            backendBodyHandle);
+        runtimeResource.putBodySnapshotMetadata(runtime.backendId(),
+            runtime.spaceHandle(),
+            backendBodyHandle,
+            bodyUuid,
+            bodyRef,
+            runtime.spaceUuid());
+        runtimeResource.putBodyHitMetadata(runtime.backendId(),
+            runtime.spaceHandle(),
+            backendBodyHandle,
+            bodyUuid,
+            bodyRef,
+            PhysicsBodyType.STATIC,
+            ShapeType.VOXELS);
         return bodyRef;
     }
 
@@ -309,7 +379,9 @@ class ChunkCollisionVoxelStitchingSystemTest {
         return new UUID(0L, leastSignificantBits);
     }
 
-    private record RuntimeFixture(@Nonnull Ref<PhysicsStore> spaceRef,
+    private record RuntimeFixture(@Nonnull UUID spaceUuid,
+                                  @Nonnull BackendId backendId,
+                                  @Nonnull Ref<PhysicsStore> spaceRef,
                                   @Nonnull BackendSpaceHandle spaceHandle,
                                   @Nonnull FakePhysicsBackendRuntime backendRuntime) {
     }

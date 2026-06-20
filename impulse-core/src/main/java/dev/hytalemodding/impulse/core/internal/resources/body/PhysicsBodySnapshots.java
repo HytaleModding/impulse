@@ -4,7 +4,6 @@ import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.runtime.BackendBodySnapshotSink;
 import dev.hytalemodding.impulse.api.runtime.BackendRuntimeCodes;
 import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntime;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceBinding;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -14,12 +13,6 @@ import javax.annotation.Nullable;
 public final class PhysicsBodySnapshots {
 
     private PhysicsBodySnapshots() {
-    }
-
-    @Nullable
-    public static PhysicsBodySnapshot read(@Nonnull PhysicsSpaceBinding space,
-        long backendBodyId) {
-        return read(space.runtime(), space.backendSpaceHandle().value(), backendBodyId);
     }
 
     @Nullable

@@ -7,6 +7,7 @@ import com.hypixel.hytale.component.dependency.Order;
 import com.hypixel.hytale.component.dependency.SystemDependency;
 import com.hypixel.hytale.component.system.tick.TickingSystem;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
+import dev.hytalemodding.impulse.api.BackendId;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.PhysicsContactPhase;
 import dev.hytalemodding.impulse.api.PhysicsStepPhaseStats;
@@ -161,8 +162,8 @@ public final class StepSubmissionSystem extends TickingSystem<PhysicsStore> {
     private static List<RuntimeStepBinding> runtimeStepBindings(
         @Nonnull PhysicsRuntimeResource runtime) {
         List<RuntimeStepBinding> bindings = new ArrayList<>();
-        runtime.forEachRuntimeSpaceBinding((spaceRef, _, spaceHandle, backendRuntime) ->
-            bindings.add(new RuntimeStepBinding(spaceRef, spaceHandle, backendRuntime)));
+        runtime.forEachRuntimeSpaceBinding((spaceRef, backendId, spaceHandle, backendRuntime) ->
+            bindings.add(new RuntimeStepBinding(spaceRef, backendId, spaceHandle, backendRuntime)));
         return bindings;
     }
 
@@ -174,8 +175,9 @@ public final class StepSubmissionSystem extends TickingSystem<PhysicsStore> {
             bindings));
         for (RuntimeStepBinding binding : bindings) {
             binding.backendRuntime().snapshotBodies(binding.spaceHandle().value(),
-                bodyIds -> runtime.forEachBodyHandle(binding.spaceHandle(),
-                    bodyIds::accept),
+                bodyIds -> runtime.forEachBodyHandle(binding.backendId(),
+                    binding.spaceHandle(),
+                    bodyIds),
                 (bodyId,
                     _,
                     bodyTypeCode,
@@ -211,6 +213,8 @@ public final class StepSubmissionSystem extends TickingSystem<PhysicsStore> {
                     _,
                     _) -> collectOwnerLaneSnapshot(runtime,
                         snapshots,
+                        binding.backendId(),
+                        binding.spaceHandle(),
                         bodyId,
                         bodyTypeCode,
                         positionX,
@@ -236,13 +240,15 @@ public final class StepSubmissionSystem extends TickingSystem<PhysicsStore> {
         @Nonnull List<RuntimeStepBinding> bindings) {
         int bodyCount = 0;
         for (RuntimeStepBinding binding : bindings) {
-            bodyCount += runtime.bodyHandleCount(binding.spaceHandle());
+            bodyCount += runtime.bodyHandleCount(binding.backendId(), binding.spaceHandle());
         }
         return bodyCount;
     }
 
     private static void collectOwnerLaneSnapshot(@Nonnull PhysicsRuntimeResource runtime,
         @Nonnull List<PhysicsBodySnapshot> snapshots,
+        @Nonnull BackendId backendId,
+        @Nonnull BackendSpaceHandle spaceHandle,
         long bodyId,
         int bodyTypeCode,
         float positionX,
@@ -260,7 +266,9 @@ public final class StepSubmissionSystem extends TickingSystem<PhysicsStore> {
         float angularVelocityZ,
         float centerOfMassOffsetY,
         boolean sleeping) {
-        BodySnapshotMetadata metadata = runtime.getBodySnapshotMetadata(bodyId);
+        BodySnapshotMetadata metadata = runtime.getBodySnapshotMetadata(backendId,
+            spaceHandle,
+            bodyId);
         if (metadata == null) {
             return;
         }
@@ -322,6 +330,8 @@ public final class StepSubmissionSystem extends TickingSystem<PhysicsStore> {
                 distance,
                 impulse) -> collectOwnerLaneContactEvent(runtime,
                     backendEvents,
+                    binding.backendId(),
+                    binding.spaceHandle(),
                     spaceId,
                     bodyAId,
                     bodyBId,
@@ -342,6 +352,8 @@ public final class StepSubmissionSystem extends TickingSystem<PhysicsStore> {
 
     private static void collectOwnerLaneContactEvent(@Nonnull PhysicsRuntimeResource runtime,
         @Nonnull StepBackendEvents backendEvents,
+        @Nonnull BackendId backendId,
+        @Nonnull BackendSpaceHandle spaceHandle,
         @Nonnull SpaceId spaceId,
         long bodyAId,
         long bodyBId,
@@ -356,8 +368,8 @@ public final class StepSubmissionSystem extends TickingSystem<PhysicsStore> {
         float normalBZ,
         float distance,
         float impulse) {
-        BodyHitMetadata bodyA = runtime.getBodyHitMetadata(bodyAId);
-        BodyHitMetadata bodyB = runtime.getBodyHitMetadata(bodyBId);
+        BodyHitMetadata bodyA = runtime.getBodyHitMetadata(backendId, spaceHandle, bodyAId);
+        BodyHitMetadata bodyB = runtime.getBodyHitMetadata(backendId, spaceHandle, bodyBId);
         if (bodyA == null
             || bodyA.bodyRef() == null
             || bodyB == null
@@ -386,9 +398,9 @@ public final class StepSubmissionSystem extends TickingSystem<PhysicsStore> {
             simulationSteps,
             maxStepDt);
         StepRisk risk = new StepRisk(dt, minimumSteps);
-        runtime.forEachRuntimeSpaceBinding((_, _, spaceHandle, backendRuntime) ->
+        runtime.forEachRuntimeSpaceBinding((_, backendId, spaceHandle, backendRuntime) ->
             backendRuntime.snapshotBodies(spaceHandle.value(),
-                bodyIds -> runtime.forEachBodyHandle(spaceHandle, bodyIds::accept),
+                bodyIds -> runtime.forEachBodyHandle(backendId, spaceHandle, bodyIds),
                 risk));
         return risk.steps();
     }
@@ -407,12 +419,14 @@ public final class StepSubmissionSystem extends TickingSystem<PhysicsStore> {
     private static void syncContinuousCollisionMode(@Nonnull Store<PhysicsStore> store,
         @Nonnull PhysicsRuntimeResource runtime,
         boolean forceDynamicBodies) {
-        runtime.forEachRuntimeSpaceBinding((_, _, spaceHandle, backendRuntime) -> {
+        runtime.forEachRuntimeSpaceBinding((_, backendId, spaceHandle, backendRuntime) -> {
             if (!backendRuntime.supportsContinuousCollision(spaceHandle.value())) {
                 return;
             }
-            runtime.forEachBodyHandle(spaceHandle, bodyId -> {
-                BodySnapshotMetadata metadata = runtime.getBodySnapshotMetadata(bodyId);
+            runtime.forEachBodyHandle(backendId, spaceHandle, bodyId -> {
+                BodySnapshotMetadata metadata = runtime.getBodySnapshotMetadata(backendId,
+                    spaceHandle,
+                    bodyId);
                 boolean authoredCcd = metadata != null
                     && authoredContinuousCollision(store, metadata);
                 backendRuntime.bodySnapshot(spaceHandle.value(),
@@ -650,6 +664,7 @@ public final class StepSubmissionSystem extends TickingSystem<PhysicsStore> {
     }
 
     private record RuntimeStepBinding(@Nonnull Ref<PhysicsStore> spaceRef,
+                                      @Nonnull BackendId backendId,
                                       @Nonnull BackendSpaceHandle spaceHandle,
                                       @Nonnull PhysicsBackendRuntime backendRuntime) {
     }

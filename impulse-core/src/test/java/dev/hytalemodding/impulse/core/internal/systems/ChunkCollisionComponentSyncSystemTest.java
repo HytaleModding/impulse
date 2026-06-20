@@ -150,9 +150,9 @@ class ChunkCollisionComponentSyncSystemTest {
         PhysicsRuntimeResource runtimeResource = store.getResource(
             PhysicsRuntimeResource.getResourceType());
         runtimeResource.putRuntime(backendId, runtime);
-        runtimeResource.putSpaceBinding(spaceUuid, spaceRef, backendId, spaceHandle);
-        identity.putSpaceHandle(spaceHandle, spaceRef);
-        return new RuntimeFixture(spaceRef, spaceHandle, runtime);
+        runtimeResource.putSpaceHandle(spaceRef, backendId, spaceHandle);
+        runtimeResource.putSpaceMetadata(backendId, spaceHandle, spaceUuid, spaceRef);
+        return new RuntimeFixture(spaceUuid, backendId, spaceRef, spaceHandle, runtime);
     }
 
     private static void putSpaceSurface(@Nonnull Store<PhysicsStore> store,
@@ -231,13 +231,25 @@ class ChunkCollisionComponentSyncSystemTest {
             0x01,
             0x02);
         BackendBodyHandle backendBodyHandle = new BackendBodyHandle(bodyHandle);
-        store.getResource(PhysicsRuntimeResource.getResourceType())
-            .putBodyHandle(bodyUuid,
-                bodyRef,
-                spaceUuid,
-                runtime.spaceHandle(),
-                backendBodyHandle);
-        identity.putBodyHandle(backendBodyHandle, bodyRef);
+        PhysicsRuntimeResource runtimeResource =
+            store.getResource(PhysicsRuntimeResource.getResourceType());
+        runtimeResource.putBodyHandle(bodyRef,
+            runtime.spaceRef(),
+            runtime.spaceHandle(),
+            backendBodyHandle);
+        runtimeResource.putBodySnapshotMetadata(runtime.backendId(),
+            runtime.spaceHandle(),
+            backendBodyHandle,
+            bodyUuid,
+            bodyRef,
+            runtime.spaceUuid());
+        runtimeResource.putBodyHitMetadata(runtime.backendId(),
+            runtime.spaceHandle(),
+            backendBodyHandle,
+            bodyUuid,
+            bodyRef,
+            PhysicsBodyType.STATIC,
+            ShapeType.BOX);
         return new GeneratedRow(bodyRef, backendBodyHandle);
     }
 
@@ -276,7 +288,9 @@ class ChunkCollisionComponentSyncSystemTest {
         return new UUID(0L, leastSignificantBits);
     }
 
-    private record RuntimeFixture(@Nonnull Ref<PhysicsStore> spaceRef,
+    private record RuntimeFixture(@Nonnull UUID spaceUuid,
+                                  @Nonnull BackendId backendId,
+                                  @Nonnull Ref<PhysicsStore> spaceRef,
                                   @Nonnull BackendSpaceHandle spaceHandle,
                                   @Nonnull FakePhysicsBackendRuntime backendRuntime) {
     }

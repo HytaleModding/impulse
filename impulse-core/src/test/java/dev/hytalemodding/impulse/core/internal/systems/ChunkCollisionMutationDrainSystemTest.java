@@ -604,11 +604,10 @@ class ChunkCollisionMutationDrainSystemTest {
             new FakePhysicsBackendRuntimeProvider(backendId, false, voxelTerrain).createRuntime();
         int spaceHandle = backendRuntime.createSpace(new SpaceId(42));
         PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
+        BackendSpaceHandle backendSpaceHandle = new BackendSpaceHandle(spaceHandle);
         runtime.putRuntime(backendId, backendRuntime);
-        runtime.putSpaceBinding(spaceUuid,
-            spaceRef,
-            backendId,
-            new BackendSpaceHandle(spaceHandle));
+        runtime.putSpaceHandle(spaceRef, backendId, backendSpaceHandle);
+        runtime.putSpaceMetadata(backendId, backendSpaceHandle, spaceUuid, spaceRef);
         store.getResource(PhysicsSpaceCompatibilityIndexResource.getResourceType())
             .putSpace(new SpaceId(42), spaceUuid);
         publishSettingsIndex(store, spaceUuid);

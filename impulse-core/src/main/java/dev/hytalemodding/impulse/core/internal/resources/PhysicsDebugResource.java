@@ -21,6 +21,7 @@ import lombok.Setter;
 @Getter
 public class PhysicsDebugResource implements Resource<EntityStore> {
 
+    @Getter
     @Nullable
     private static ResourceType<EntityStore, PhysicsDebugResource> resourceType;
 
@@ -164,10 +165,6 @@ public class PhysicsDebugResource implements Resource<EntityStore> {
         copy.maxPhysicsChunkSections = maxPhysicsChunkSections;
         copy.maxPhysicsChunkBoxes = maxPhysicsChunkBoxes;
         return copy;
-    }
-
-    public static ResourceType<EntityStore, PhysicsDebugResource> getResourceType() {
-        return resourceType;
     }
 
     public static void setResourceType(

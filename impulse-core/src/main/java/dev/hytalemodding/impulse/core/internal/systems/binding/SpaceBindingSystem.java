@@ -81,7 +81,9 @@ public final class SpaceBindingSystem extends TickingSystem<PhysicsStore>
                 continue;
             }
             Ref<PhysicsStore> spaceRef = chunk.getReferenceTo(index);
-            if (runtime.getSpaceHandle(spaceRef) != null) {
+            BackendSpaceHandle existingHandle = runtime.getSpaceHandle(spaceRef);
+            if (existingHandle != null) {
+                validateBoundSpaceBackend(runtime, restore, spaceRef, spaceUuid, space);
                 continue;
             }
             bindSpace(runtime,
@@ -94,6 +96,25 @@ public final class SpaceBindingSystem extends TickingSystem<PhysicsStore>
                 space,
                 chunk.getComponent(index, SolverSettingsComponent.getComponentType()),
                 chunk.getComponent(index, ExtensionSettingsComponent.getComponentType()));
+        }
+    }
+
+    private static void validateBoundSpaceBackend(@Nonnull PhysicsRuntimeResource runtime,
+        @Nonnull PhysicsRestoreStatusResource restore,
+        @Nonnull Ref<PhysicsStore> spaceRef,
+        @Nonnull UUID spaceUuid,
+        @Nonnull SpaceComponent space) {
+        BackendId boundBackendId = runtime.getSpaceBackendId(spaceRef);
+        if (boundBackendId == null) {
+            restore.markFailed("PhysicsStore space " + spaceUuid
+                + " has a backend space handle without a backend id");
+            return;
+        }
+        BackendId authoredBackendId = space.getBackendId();
+        if (!boundBackendId.equals(authoredBackendId)) {
+            restore.markFailed("PhysicsStore space " + spaceUuid
+                + " changed backend id after binding: " + boundBackendId.value()
+                + " -> " + authoredBackendId.value());
         }
     }
 
@@ -141,10 +162,10 @@ public final class SpaceBindingSystem extends TickingSystem<PhysicsStore>
                 handle,
                 solverSettings != null ? solverSettings : new SolverSettingsComponent(),
                 extensionSettings);
-            runtime.putSpaceBinding(spaceUuid, ref, backendId, handle);
+            runtime.putSpaceHandle(ref, backendId, handle);
+            runtime.putSpaceMetadata(backendId, handle, spaceUuid, ref);
             runtime.clearPendingSpaceSettings(ref);
             compatibility.putSpace(compatibilitySpaceId, spaceUuid);
-            identity.putSpaceHandle(handle, ref);
         } catch (RuntimeException exception) {
             if (handle != null) {
                 try {

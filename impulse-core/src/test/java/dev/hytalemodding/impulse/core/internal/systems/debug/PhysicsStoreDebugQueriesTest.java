@@ -82,11 +82,10 @@ class PhysicsStoreDebugQueriesTest {
         store.getResource(PhysicsSpaceCompatibilityIndexResource.getResourceType())
             .putSpace(new SpaceId(77), spaceUuid);
         PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
+        BackendSpaceHandle spaceHandle = new BackendSpaceHandle(7700);
         runtime.putRuntime(backendId, recordingRuntime.proxy());
-        runtime.putSpaceBinding(spaceUuid,
-            spaceRef,
-            backendId,
-            new BackendSpaceHandle(7700));
+        runtime.putSpaceHandle(spaceRef, backendId, spaceHandle);
+        runtime.putSpaceMetadata(backendId, spaceHandle, spaceUuid, spaceRef);
     }
 
     private static void markCurrentThreadAsWorldThread(@Nonnull Store<PhysicsStore> store) {

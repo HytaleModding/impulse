@@ -89,6 +89,7 @@ final class PhysicsBackendAccess {
 
     @Nonnull
     static RaycastHitView toView(@Nonnull PhysicsRuntimeResource runtime,
+        @Nonnull SpaceContext space,
         long bodyId,
         float pointX,
         float pointY,
@@ -98,7 +99,9 @@ final class PhysicsBackendAccess {
         float normalZ,
         float fraction,
         float distance) {
-        BodyHitMetadata metadata = runtime.getBodyHitMetadata(bodyId);
+        BodyHitMetadata metadata = runtime.getBodyHitMetadata(space.backendId(),
+            space.spaceHandle(),
+            bodyId);
         return new RaycastHitView(metadata != null ? metadata.bodyRef() : null,
             pointX,
             pointY,

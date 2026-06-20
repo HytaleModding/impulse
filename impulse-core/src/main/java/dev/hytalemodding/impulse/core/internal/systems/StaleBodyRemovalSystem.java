@@ -7,7 +7,9 @@ import com.hypixel.hytale.component.dependency.Order;
 import com.hypixel.hytale.component.dependency.SystemDependency;
 import com.hypixel.hytale.component.system.tick.TickingSystem;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
+import dev.hytalemodding.impulse.api.BackendId;
 import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntime;
+import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
 import dev.hytalemodding.impulse.core.internal.physics.PhysicsStoreRowCleanup;
 import dev.hytalemodding.impulse.core.internal.physics.PhysicsStoreRowCleanup.BodyEntityRemoval;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsIdentityIndexResource;
@@ -53,13 +55,16 @@ public final class StaleBodyRemovalSystem extends TickingSystem<PhysicsStore> {
         @Nonnull PhysicsIdentityIndexResource identity,
         @Nonnull PhysicsRestoreStatusResource restore) {
         List<BoundBody> staleBodies = new ArrayList<>();
-        runtime.forEachRuntimeSpaceBinding((_, _, spaceHandle, backendRuntime) ->
-            runtime.forEachBodyHandle(spaceHandle,
+        runtime.forEachRuntimeSpaceBinding((_, backendId, spaceHandle, backendRuntime) ->
+            runtime.forEachBodyHandle(backendId,
+                spaceHandle,
                 bodyId -> collectStaleBody(store,
                     identity,
                     runtime,
                     restore,
                     staleBodies,
+                    backendId,
+                    spaceHandle,
                     backendRuntime,
                     bodyId)));
         if (restore.isFailed()) {
@@ -193,9 +198,13 @@ public final class StaleBodyRemovalSystem extends TickingSystem<PhysicsStore> {
         @Nonnull PhysicsRuntimeResource runtime,
         @Nonnull PhysicsRestoreStatusResource restore,
         @Nonnull List<BoundBody> staleBodies,
+        @Nonnull BackendId backendId,
+        @Nonnull BackendSpaceHandle spaceHandle,
         @Nonnull PhysicsBackendRuntime backendRuntime,
         long bodyId) {
-        BodySnapshotMetadata metadata = runtime.getBodySnapshotMetadata(bodyId);
+        BodySnapshotMetadata metadata = runtime.getBodySnapshotMetadata(backendId,
+            spaceHandle,
+            bodyId);
         if (metadata == null) {
             restore.markFailed("PhysicsStore backend body " + bodyId
                 + " has no runtime snapshot metadata");

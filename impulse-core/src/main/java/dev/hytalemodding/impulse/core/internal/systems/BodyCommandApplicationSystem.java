@@ -11,6 +11,7 @@ import com.hypixel.hytale.component.query.Query;
 import com.hypixel.hytale.component.system.QuerySystem;
 import com.hypixel.hytale.component.system.tick.TickingSystem;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
+import dev.hytalemodding.impulse.api.BackendId;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.runtime.BackendRuntimeCodes;
 import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntime;
@@ -84,13 +85,9 @@ public final class BodyCommandApplicationSystem extends TickingSystem<PhysicsSto
         @Nonnull BodyCommandComponent.Entry command) {
         switch (command.getKind()) {
             case WAKE -> runtime.enqueuePendingBodyOperation(PendingBodyOperation.wake(bodyUuid,
-                ref,
-                null,
-                null));
+                ref));
             case SLEEP -> runtime.enqueuePendingBodyOperation(PendingBodyOperation.sleep(bodyUuid,
-                ref,
-                null,
-                null));
+                ref));
             case IMPULSE -> enqueueVector(runtime, ref, bodyUuid, command, PendingBodyOperation.Kind.IMPULSE);
             case TORQUE_IMPULSE -> enqueueVector(runtime,
                 ref,
@@ -133,19 +130,20 @@ public final class BodyCommandApplicationSystem extends TickingSystem<PhysicsSto
         RuntimeBodyBinding binding = runtimeBodyBinding(runtime, ref, bodyUuid, restore, false);
         if (binding == null) {
             if (command.isActivate()) {
-                runtime.enqueuePendingBodyOperation(PendingBodyOperation.wake(bodyUuid, ref, null, null));
+                runtime.enqueuePendingBodyOperation(PendingBodyOperation.wake(bodyUuid, ref));
             }
             return;
         }
         binding.backendRuntime().setBodyType(binding.spaceHandle().value(),
             binding.bodyHandle().value(),
             BackendRuntimeCodes.bodyTypeCode(command.getBodyType()));
-        updateBodyHitMetadata(runtime, binding.bodyHandle(), command.getBodyType());
+        updateBodyHitMetadata(runtime,
+            binding.backendId(),
+            binding.spaceHandle(),
+            binding.bodyHandle(),
+            command.getBodyType());
         if (command.isActivate()) {
-            runtime.enqueuePendingBodyOperation(PendingBodyOperation.wake(bodyUuid,
-                ref,
-                binding.spaceHandle(),
-                binding.bodyHandle()));
+            runtime.enqueuePendingBodyOperation(PendingBodyOperation.wake(bodyUuid, ref));
         }
     }
 
@@ -161,7 +159,7 @@ public final class BodyCommandApplicationSystem extends TickingSystem<PhysicsSto
         RuntimeBodyBinding binding = runtimeBodyBinding(runtime, ref, bodyUuid, restore, false);
         if (binding == null) {
             if (command.isActivate()) {
-                runtime.enqueuePendingBodyOperation(PendingBodyOperation.wake(bodyUuid, ref, null, null));
+                runtime.enqueuePendingBodyOperation(PendingBodyOperation.wake(bodyUuid, ref));
             }
             return;
         }
@@ -170,10 +168,7 @@ public final class BodyCommandApplicationSystem extends TickingSystem<PhysicsSto
             command.getCollisionGroup(),
             command.getCollisionMask());
         if (command.isActivate()) {
-            runtime.enqueuePendingBodyOperation(PendingBodyOperation.wake(bodyUuid,
-                ref,
-                binding.spaceHandle(),
-                binding.bodyHandle()));
+            runtime.enqueuePendingBodyOperation(PendingBodyOperation.wake(bodyUuid, ref));
         }
     }
 
@@ -195,10 +190,7 @@ public final class BodyCommandApplicationSystem extends TickingSystem<PhysicsSto
             command.getAngularY(),
             command.getAngularZ());
         if (command.isActivate()) {
-            runtime.enqueuePendingBodyOperation(PendingBodyOperation.wake(bodyUuid,
-                ref,
-                binding.spaceHandle(),
-                binding.bodyHandle()));
+            runtime.enqueuePendingBodyOperation(PendingBodyOperation.wake(bodyUuid, ref));
         }
     }
 
@@ -210,8 +202,6 @@ public final class BodyCommandApplicationSystem extends TickingSystem<PhysicsSto
         runtime.enqueuePendingBodyOperation(PendingBodyOperation.vector(kind,
             bodyUuid,
             ref,
-            null,
-            null,
             command.getX(),
             command.getY(),
             command.getZ(),
@@ -229,7 +219,8 @@ public final class BodyCommandApplicationSystem extends TickingSystem<PhysicsSto
         boolean requireBound) {
         BackendBodyHandle bodyHandle = runtime.getBodyHandle(ref);
         BackendSpaceHandle spaceHandle = runtime.getBodySpaceHandle(ref);
-        if (bodyHandle == null || spaceHandle == null) {
+        BackendId backendId = runtime.getBodyBackendId(ref);
+        if (bodyHandle == null || spaceHandle == null || backendId == null) {
             if (requireBound) {
                 restore.recordSoftSkip("Body command target is unbound: " + bodyUuid);
             }
@@ -240,15 +231,20 @@ public final class BodyCommandApplicationSystem extends TickingSystem<PhysicsSto
             restore.recordSoftSkip("Body command backend runtime is missing: " + bodyUuid);
             return null;
         }
-        return new RuntimeBodyBinding(spaceHandle, bodyHandle, backendRuntime);
+        return new RuntimeBodyBinding(backendId, spaceHandle, bodyHandle, backendRuntime);
     }
 
     private static void updateBodyHitMetadata(@Nonnull PhysicsRuntimeResource runtime,
+        @Nonnull BackendId backendId,
+        @Nonnull BackendSpaceHandle spaceHandle,
         @Nonnull BackendBodyHandle bodyHandle,
         @Nonnull PhysicsBodyType bodyType) {
-        PhysicsRuntimeResource.BodyHitMetadata metadata = runtime.getBodyHitMetadata(bodyHandle);
+        PhysicsRuntimeResource.BodyHitMetadata metadata =
+            runtime.getBodyHitMetadata(backendId, spaceHandle, bodyHandle.value());
         if (metadata != null) {
-            runtime.putBodyHitMetadata(bodyHandle,
+            runtime.putBodyHitMetadata(backendId,
+                spaceHandle,
+                bodyHandle,
                 metadata.bodyUuid(),
                 metadata.bodyRef(),
                 bodyType,
@@ -268,7 +264,8 @@ public final class BodyCommandApplicationSystem extends TickingSystem<PhysicsSto
         return DEPENDENCIES;
     }
 
-    private record RuntimeBodyBinding(@Nonnull BackendSpaceHandle spaceHandle,
+    private record RuntimeBodyBinding(@Nonnull BackendId backendId,
+                                      @Nonnull BackendSpaceHandle spaceHandle,
                                       @Nonnull BackendBodyHandle bodyHandle,
                                       @Nonnull PhysicsBackendRuntime backendRuntime) {
     }

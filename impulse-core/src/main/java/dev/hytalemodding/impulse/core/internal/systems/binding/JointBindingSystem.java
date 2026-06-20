@@ -11,6 +11,7 @@ import com.hypixel.hytale.component.query.Query;
 import com.hypixel.hytale.component.system.QuerySystem;
 import com.hypixel.hytale.component.system.tick.TickingSystem;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
+import dev.hytalemodding.impulse.api.BackendId;
 import dev.hytalemodding.impulse.api.runtime.BackendJointType;
 import dev.hytalemodding.impulse.api.runtime.BackendRuntimeCodes;
 import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntime;
@@ -97,7 +98,9 @@ public final class JointBindingSystem extends TickingSystem<PhysicsStore>
         BackendBodyHandle bodyB = bodyBRef != null ? runtime.getBodyHandle(bodyBRef) : null;
         BackendSpaceHandle bodyASpace = bodyARef != null ? runtime.getBodySpaceHandle(bodyARef) : null;
         BackendSpaceHandle bodyBSpace = bodyBRef != null ? runtime.getBodySpaceHandle(bodyBRef) : null;
-        var backendId = spaceRef != null ? runtime.getSpaceBackendId(spaceRef) : null;
+        BackendId backendId = spaceRef != null ? runtime.getSpaceBackendId(spaceRef) : null;
+        BackendId bodyABackendId = bodyARef != null ? runtime.getBodyBackendId(bodyARef) : null;
+        BackendId bodyBBackendId = bodyBRef != null ? runtime.getBodyBackendId(bodyBRef) : null;
         PhysicsBackendRuntime backendRuntime = backendId != null ? runtime.getRuntime(backendId) : null;
         if (spaceHandle == null || bodyA == null || bodyB == null || backendRuntime == null) {
             restore.recordSoftSkip("Joint references unbound endpoint: " + jointUuid);
@@ -105,6 +108,10 @@ public final class JointBindingSystem extends TickingSystem<PhysicsStore>
         }
         if (bodyASpace == null
             || bodyBSpace == null
+            || bodyABackendId == null
+            || bodyBBackendId == null
+            || !bodyABackendId.equals(backendId)
+            || !bodyBBackendId.equals(backendId)
             || bodyASpace.value() != spaceHandle.value()
             || bodyBSpace.value() != spaceHandle.value()) {
             restore.recordSoftSkip("Joint endpoints are not in the joint space: " + jointUuid);
@@ -137,8 +144,8 @@ public final class JointBindingSystem extends TickingSystem<PhysicsStore>
                 joint.getMotorTargetVelocity(),
                 joint.getMotorMaxForce());
             BackendJointHandle handle = new BackendJointHandle(jointId);
-            runtime.putJointHandle(jointRef, jointUuid, backendId, spaceHandle, handle);
-            identity.putJointHandle(handle, jointRef);
+            runtime.putJointHandle(jointRef, spaceRef, spaceHandle, handle);
+            runtime.putJointMetadata(backendId, spaceHandle, handle, jointUuid, jointRef);
         } catch (RuntimeException exception) {
             if (jointId != Long.MIN_VALUE) {
                 try {
@@ -161,13 +168,19 @@ public final class JointBindingSystem extends TickingSystem<PhysicsStore>
         BackendSpaceHandle spaceHandle = spaceRef != null ? runtime.getSpaceHandle(spaceRef) : null;
         BackendSpaceHandle bodyASpace = bodyARef != null ? runtime.getBodySpaceHandle(bodyARef) : null;
         BackendSpaceHandle bodyBSpace = bodyBRef != null ? runtime.getBodySpaceHandle(bodyBRef) : null;
+        BackendId backendId = spaceRef != null ? runtime.getSpaceBackendId(spaceRef) : null;
+        BackendId bodyABackendId = bodyARef != null ? runtime.getBodyBackendId(bodyARef) : null;
+        BackendId bodyBBackendId = bodyBRef != null ? runtime.getBodyBackendId(bodyBRef) : null;
         return spaceHandle != null
+            && backendId != null
             && bodyARef != null
             && bodyBRef != null
             && runtime.getBodyHandle(bodyARef) != null
             && runtime.getBodyHandle(bodyBRef) != null
             && bodyASpace != null
             && bodyBSpace != null
+            && backendId.equals(bodyABackendId)
+            && backendId.equals(bodyBBackendId)
             && bodyASpace.value() == spaceHandle.value()
             && bodyBSpace.value() == spaceHandle.value();
     }
@@ -215,8 +228,7 @@ public final class JointBindingSystem extends TickingSystem<PhysicsStore>
         if (spaceHandle != null && backendRuntime != null) {
             backendRuntime.removeJoint(spaceHandle.value(), handle.value());
         }
-        identity.removeJointHandle(handle);
-        runtime.removeJointHandle(jointUuid, jointRef);
+        runtime.removeJointHandle(jointRef);
     }
 
     @Nonnull

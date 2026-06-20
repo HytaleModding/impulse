@@ -4,6 +4,7 @@ import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.RemoveReason;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
+import dev.hytalemodding.impulse.api.BackendId;
 import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntime;
 import dev.hytalemodding.impulse.core.internal.modules.control.PhysicsControlRuntimeStates;
 import dev.hytalemodding.impulse.core.internal.resources.BackendBodyHandle;
@@ -12,6 +13,7 @@ import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkCollisionPayloadResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsIdentityIndexResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResource.BodySnapshotMetadata;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSnapshotResource;
 import dev.hytalemodding.impulse.core.plugin.components.UuidComponent;
 import java.util.ArrayList;
@@ -35,18 +37,24 @@ public final class PhysicsStoreRowCleanup {
         @Nonnull PhysicsIdentityIndexResource identity,
         @Nonnull UUID jointUuid,
         @Nonnull Ref<PhysicsStore> jointRef) {
-        BackendJointHandle jointHandle = runtime.getJointHandle(jointRef);
-        BackendSpaceHandle spaceHandle = runtime.getJointSpaceHandle(jointRef);
+        Ref<PhysicsStore> resolvedJointRef = cleanupRefForUuid(identity, jointUuid, jointRef);
+        BackendJointHandle jointHandle = runtime.getJointHandle(resolvedJointRef);
+        BackendSpaceHandle spaceHandle = runtime.getJointSpaceHandle(resolvedJointRef);
         if (jointHandle == null) {
-            runtime.removeJointHandle(jointUuid, jointRef);
+            if (refMatchesUuid(resolvedJointRef, jointUuid)) {
+                runtime.removeJointHandle(resolvedJointRef);
+            }
             return false;
         }
-        PhysicsBackendRuntime backendRuntime = runtime.runtimeForJointRef(jointRef);
+        BackendId backendId = runtime.getJointBackendId(resolvedJointRef);
+        if (!jointBindingMatchesUuid(runtime, jointUuid, backendId, spaceHandle, jointHandle)) {
+            return false;
+        }
+        PhysicsBackendRuntime backendRuntime = runtime.runtimeForJointRef(resolvedJointRef);
         if (spaceHandle != null && backendRuntime != null) {
             backendRuntime.removeJoint(spaceHandle.value(), jointHandle.value());
         }
-        identity.removeJointHandle(jointHandle);
-        runtime.removeJointHandle(jointUuid, jointRef);
+        runtime.removeJointHandle(resolvedJointRef);
         return true;
     }
 
@@ -62,22 +70,77 @@ public final class PhysicsStoreRowCleanup {
         @Nonnull UUID bodyUuid,
         @Nonnull Ref<PhysicsStore> bodyRef,
         @Nullable PhysicsBackendRuntime fallbackRuntime) {
-        BackendBodyHandle bodyHandle = runtime.getBodyHandle(bodyRef);
-        BackendSpaceHandle spaceHandle = runtime.getBodySpaceHandle(bodyRef);
+        Ref<PhysicsStore> resolvedBodyRef = cleanupRefForUuid(identity, bodyUuid, bodyRef);
+        BackendBodyHandle bodyHandle = runtime.getBodyHandle(resolvedBodyRef);
+        BackendSpaceHandle spaceHandle = runtime.getBodySpaceHandle(resolvedBodyRef);
         if (bodyHandle == null) {
-            runtime.removeBodyHandle(bodyUuid, bodyRef);
+            if (refMatchesUuid(resolvedBodyRef, bodyUuid)) {
+                runtime.removeBodyHandle(resolvedBodyRef);
+            }
             return false;
         }
-        PhysicsBackendRuntime backendRuntime = runtime.runtimeForBodyRef(bodyRef);
+        BackendId backendId = runtime.getBodyBackendId(resolvedBodyRef);
+        if (!bodyBindingMatchesUuid(runtime, bodyUuid, backendId, spaceHandle, bodyHandle)) {
+            return false;
+        }
+        PhysicsBackendRuntime backendRuntime = runtime.runtimeForBodyRef(resolvedBodyRef);
         if (backendRuntime == null) {
             backendRuntime = fallbackRuntime;
         }
         if (spaceHandle != null && backendRuntime != null) {
             backendRuntime.removeBody(spaceHandle.value(), bodyHandle.value());
         }
-        identity.removeBodyHandle(bodyHandle);
-        runtime.removeBodyHandle(bodyUuid, bodyRef);
+        runtime.removeBodyHandle(resolvedBodyRef);
         return true;
+    }
+
+    @Nonnull
+    private static Ref<PhysicsStore> cleanupRefForUuid(@Nonnull PhysicsIdentityIndexResource identity,
+        @Nonnull UUID rowUuid,
+        @Nonnull Ref<PhysicsStore> suppliedRef) {
+        Ref<PhysicsStore> indexedRef = identity.getByUuid(rowUuid);
+        if (refMatchesUuid(indexedRef, rowUuid)) {
+            return indexedRef;
+        }
+        if (refMatchesUuid(suppliedRef, rowUuid)) {
+            return suppliedRef;
+        }
+        return suppliedRef;
+    }
+
+    private static boolean bodyBindingMatchesUuid(@Nonnull PhysicsRuntimeResource runtime,
+        @Nonnull UUID bodyUuid,
+        @Nullable BackendId backendId,
+        @Nullable BackendSpaceHandle spaceHandle,
+        @Nonnull BackendBodyHandle bodyHandle) {
+        if (backendId == null || spaceHandle == null) {
+            return false;
+        }
+        BodySnapshotMetadata metadata = runtime.getBodySnapshotMetadata(backendId,
+            spaceHandle,
+            bodyHandle.value());
+        return metadata != null && bodyUuid.equals(metadata.bodyUuid());
+    }
+
+    private static boolean jointBindingMatchesUuid(@Nonnull PhysicsRuntimeResource runtime,
+        @Nonnull UUID jointUuid,
+        @Nullable BackendId backendId,
+        @Nullable BackendSpaceHandle spaceHandle,
+        @Nonnull BackendJointHandle jointHandle) {
+        if (backendId == null || spaceHandle == null) {
+            return false;
+        }
+        UUID boundJointUuid = runtime.getJointUuid(backendId, spaceHandle, jointHandle.value());
+        return jointUuid.equals(boundJointUuid);
+    }
+
+    private static boolean refMatchesUuid(@Nullable Ref<PhysicsStore> ref,
+        @Nonnull UUID rowUuid) {
+        if (ref == null || !ref.isValid() || ref.getStore() == null) {
+            return false;
+        }
+        UuidComponent uuid = ref.getStore().getComponent(ref, UuidComponent.getComponentType());
+        return uuid != null && rowUuid.equals(uuid.getUuid());
     }
 
     public static void clearBodyCopiedState(@Nonnull Store<PhysicsStore> store,

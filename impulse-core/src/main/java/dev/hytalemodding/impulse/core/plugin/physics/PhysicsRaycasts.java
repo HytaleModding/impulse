@@ -142,7 +142,7 @@ public final class PhysicsRaycasts {
         @Nonnull Vector3f from,
         @Nonnull Vector3f to) {
         PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
-        RayHitCapture hit = new RayHitCapture(runtime);
+        RayHitCapture hit = new RayHitCapture(runtime, space);
         Vector3f copiedFrom = new Vector3f(Objects.requireNonNull(from, "from"));
         Vector3f copiedTo = new Vector3f(Objects.requireNonNull(to, "to"));
         boolean hitFound = space.backendRuntime().raycastClosest(space.spaceHandle().value(),
@@ -181,6 +181,7 @@ public final class PhysicsRaycasts {
                 normalZ,
                 fraction,
                 distance) -> hits.add(PhysicsBackendAccess.toView(runtime,
+                space,
                 bodyId,
                 pointX,
                 pointY,
@@ -227,6 +228,7 @@ public final class PhysicsRaycasts {
                     normalZ,
                     fraction,
                     distance) -> hits[rayIndex] = PhysicsBackendAccess.toView(runtime,
+                    space,
                     bodyId,
                     pointX,
                     pointY,
@@ -244,11 +246,15 @@ public final class PhysicsRaycasts {
 
         @Nonnull
         private final PhysicsRuntimeResource runtime;
+        @Nonnull
+        private final PhysicsBackendAccess.SpaceContext space;
         private boolean captured;
         private RaycastHitView view;
 
-        private RayHitCapture(@Nonnull PhysicsRuntimeResource runtime) {
+        private RayHitCapture(@Nonnull PhysicsRuntimeResource runtime,
+            @Nonnull PhysicsBackendAccess.SpaceContext space) {
             this.runtime = runtime;
+            this.space = space;
         }
 
         @Override
@@ -262,6 +268,7 @@ public final class PhysicsRaycasts {
             float fraction,
             float distance) {
             view = PhysicsBackendAccess.toView(runtime,
+                space,
                 bodyId,
                 pointX,
                 pointY,

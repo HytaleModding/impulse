@@ -11,6 +11,7 @@ import com.hypixel.hytale.component.query.Query;
 import com.hypixel.hytale.component.system.QuerySystem;
 import com.hypixel.hytale.component.system.tick.TickingSystem;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
+import dev.hytalemodding.impulse.api.BackendId;
 import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntime;
 import dev.hytalemodding.impulse.core.internal.resources.BackendBodyHandle;
 import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
@@ -101,7 +102,8 @@ public final class ChunkCollisionVoxelStitchingSystem extends TickingSystem<Phys
         @Nonnull ChunkCollisionSourceComponent source) {
         BackendBodyHandle bodyHandle = runtime.getBodyHandle(bodyRef);
         BackendSpaceHandle spaceHandle = runtime.getBodySpaceHandle(bodyRef);
-        if (bodyHandle == null || spaceHandle == null) {
+        BackendId backendId = runtime.getBodyBackendId(bodyRef);
+        if (bodyHandle == null || spaceHandle == null || backendId == null) {
             return;
         }
         PhysicsBackendRuntime backendRuntime = runtime.runtimeForBodyRef(bodyRef);
@@ -119,6 +121,7 @@ public final class ChunkCollisionVoxelStitchingSystem extends TickingSystem<Phys
             stitchNeighbor(runtime,
                 identity,
                 backendRuntime,
+                backendId,
                 spaceHandle,
                 body.getSpaceUuid(),
                 bodyHandle,
@@ -131,6 +134,7 @@ public final class ChunkCollisionVoxelStitchingSystem extends TickingSystem<Phys
     private static void stitchNeighbor(@Nonnull PhysicsRuntimeResource runtime,
         @Nonnull PhysicsIdentityIndexResource identity,
         @Nonnull PhysicsBackendRuntime backendRuntime,
+        @Nonnull BackendId backendId,
         @Nonnull BackendSpaceHandle spaceHandle,
         @Nonnull UUID spaceUuid,
         @Nonnull BackendBodyHandle bodyHandle,
@@ -142,8 +146,11 @@ public final class ChunkCollisionVoxelStitchingSystem extends TickingSystem<Phys
         }
         BackendBodyHandle neighborBody = runtime.getBodyHandle(neighborRef);
         BackendSpaceHandle neighborSpace = runtime.getBodySpaceHandle(neighborRef);
+        BackendId neighborBackendId = runtime.getBodyBackendId(neighborRef);
         if (neighborBody == null
             || neighborSpace == null
+            || neighborBackendId == null
+            || !neighborBackendId.equals(backendId)
             || neighborSpace.value() != spaceHandle.value()) {
             return;
         }

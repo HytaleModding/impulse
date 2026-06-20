@@ -144,10 +144,11 @@ class PhysicsStoreTopologyMutationsTest {
             new BackendSpaceHandle(backendRuntime.createSpace(new SpaceId(42)));
         PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
         runtime.putRuntime(backendId, backendRuntime);
-        runtime.putSpaceBinding(spaceUuid, spaceRef, backendId, spaceHandle);
+        runtime.putSpaceHandle(spaceRef, backendId, spaceHandle);
+        runtime.putSpaceMetadata(backendId, spaceHandle, spaceUuid, spaceRef);
         store.getResource(PhysicsSpaceCompatibilityIndexResource.getResourceType())
             .putSpace(new SpaceId(42), spaceUuid);
-        return new BoundSpace(spaceRef, backendRuntime, spaceHandle, backendId);
+        return new BoundSpace(spaceUuid, spaceRef, backendRuntime, spaceHandle, backendId);
     }
 
     @Nonnull
@@ -240,9 +241,20 @@ class PhysicsStoreTopologyMutationsTest {
             1.0f);
         BackendBodyHandle handle = new BackendBodyHandle(bodyId);
         PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
-        runtime.putBodyHandle(bodyUuid, bodyRef, uuid(1), space.handle(), handle);
-        store.getResource(PhysicsIdentityIndexResource.getResourceType())
-            .putBodyHandle(handle, bodyRef);
+        runtime.putBodyHandle(bodyRef, space.ref(), space.handle(), handle);
+        runtime.putBodySnapshotMetadata(space.backendId(),
+            space.handle(),
+            handle,
+            bodyUuid,
+            bodyRef,
+            space.uuid());
+        runtime.putBodyHitMetadata(space.backendId(),
+            space.handle(),
+            handle,
+            bodyUuid,
+            bodyRef,
+            PhysicsBodyType.DYNAMIC,
+            ShapeType.BOX);
         return handle;
     }
 
@@ -278,9 +290,9 @@ class PhysicsStoreTopologyMutationsTest {
             0.0f);
         BackendJointHandle handle = new BackendJointHandle(jointId);
         store.getResource(PhysicsRuntimeResource.getResourceType())
-            .putJointHandle(jointRef, jointUuid, space.backendId(), space.handle(), handle);
-        store.getResource(PhysicsIdentityIndexResource.getResourceType())
-            .putJointHandle(handle, jointRef);
+            .putJointHandle(jointRef, space.ref(), space.handle(), handle);
+        store.getResource(PhysicsRuntimeResource.getResourceType())
+            .putJointMetadata(space.backendId(), space.handle(), handle, jointUuid, jointRef);
     }
 
     private static void publishCopiedState(@Nonnull Store<PhysicsStore> store,
@@ -339,7 +351,8 @@ class PhysicsStoreTopologyMutationsTest {
         return new UUID(0L, leastSignificantBits);
     }
 
-    private record BoundSpace(@Nonnull Ref<PhysicsStore> ref,
+    private record BoundSpace(@Nonnull UUID uuid,
+                              @Nonnull Ref<PhysicsStore> ref,
                               @Nonnull PhysicsBackendRuntime runtime,
                               @Nonnull BackendSpaceHandle handle,
                               @Nonnull BackendId backendId) {
