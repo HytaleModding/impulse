@@ -38,7 +38,7 @@ public final class BodyCommandApplicationSystem extends TickingSystem<PhysicsSto
     private static final Set<Dependency<PhysicsStore>> DEPENDENCIES = Set.of(
         new SystemDependency<>(Order.AFTER, BodyBindingSystem.class)
     );
-    private static final Query<PhysicsStore> QUERY = BodyCommandComponent.getComponentType();
+    private final Query<PhysicsStore> query = BodyCommandComponent.getComponentType();
 
     @Override
     public void tick(float dt, int systemIndex, @Nonnull Store<PhysicsStore> store) {
@@ -69,7 +69,7 @@ public final class BodyCommandApplicationSystem extends TickingSystem<PhysicsSto
                 continue;
             }
             for (BodyCommandComponent.Entry command : commands.entries()) {
-                applyCommand(store, runtime, restore, ref, bodyUuid, command);
+                applyCommand(store, runtime, restore, commandBuffer, ref, bodyUuid, command);
             }
             commandBuffer.removeComponent(ref, BodyCommandComponent.getComponentType());
         }
@@ -78,6 +78,7 @@ public final class BodyCommandApplicationSystem extends TickingSystem<PhysicsSto
     private static void applyCommand(@Nonnull Store<PhysicsStore> store,
         @Nonnull PhysicsRuntimeResource runtime,
         @Nonnull PhysicsRestoreStatusResource restore,
+        @Nonnull CommandBuffer<PhysicsStore> commandBuffer,
         @Nonnull Ref<PhysicsStore> ref,
         @Nonnull UUID bodyUuid,
         @Nonnull BodyCommandComponent.Entry command) {
@@ -98,15 +99,27 @@ public final class BodyCommandApplicationSystem extends TickingSystem<PhysicsSto
                 PendingBodyOperation.Kind.TORQUE_IMPULSE);
             case FORCE -> enqueueVector(runtime, ref, bodyUuid, command, PendingBodyOperation.Kind.FORCE);
             case TORQUE -> enqueueVector(runtime, ref, bodyUuid, command, PendingBodyOperation.Kind.TORQUE);
-            case SET_TYPE -> applyBodyType(store, runtime, restore, ref, bodyUuid, command);
+            case SET_TYPE -> applyBodyType(store,
+                runtime,
+                restore,
+                commandBuffer,
+                ref,
+                bodyUuid,
+                command);
             case SET_VELOCITY -> applyVelocity(runtime, restore, ref, bodyUuid, command);
-            case SET_COLLISION_FILTER -> applyCollisionFilter(runtime, restore, store, ref, bodyUuid, command);
+            case SET_COLLISION_FILTER -> applyCollisionFilter(runtime,
+                restore,
+                commandBuffer,
+                ref,
+                bodyUuid,
+                command);
         }
     }
 
     private static void applyBodyType(@Nonnull Store<PhysicsStore> store,
         @Nonnull PhysicsRuntimeResource runtime,
         @Nonnull PhysicsRestoreStatusResource restore,
+        @Nonnull CommandBuffer<PhysicsStore> commandBuffer,
         @Nonnull Ref<PhysicsStore> ref,
         @Nonnull UUID bodyUuid,
         @Nonnull BodyCommandComponent.Entry command) {
@@ -115,7 +128,7 @@ public final class BodyCommandApplicationSystem extends TickingSystem<PhysicsSto
             DynamicsComponent.getComponentType());
         DynamicsComponent updated = dynamics != null ? dynamics.clone() : new DynamicsComponent();
         updated.setBodyType(command.getBodyType());
-        store.putComponent(ref, DynamicsComponent.getComponentType(), updated);
+        commandBuffer.putComponent(ref, DynamicsComponent.getComponentType(), updated);
 
         RuntimeBodyBinding binding = runtimeBodyBinding(runtime, ref, bodyUuid, restore, false);
         if (binding == null) {
@@ -138,11 +151,11 @@ public final class BodyCommandApplicationSystem extends TickingSystem<PhysicsSto
 
     private static void applyCollisionFilter(@Nonnull PhysicsRuntimeResource runtime,
         @Nonnull PhysicsRestoreStatusResource restore,
-        @Nonnull Store<PhysicsStore> store,
+        @Nonnull CommandBuffer<PhysicsStore> commandBuffer,
         @Nonnull Ref<PhysicsStore> ref,
         @Nonnull UUID bodyUuid,
         @Nonnull BodyCommandComponent.Entry command) {
-        store.putComponent(ref,
+        commandBuffer.putComponent(ref,
             CollisionFilterComponent.getComponentType(),
             new CollisionFilterComponent(command.getCollisionGroup(), command.getCollisionMask()));
         RuntimeBodyBinding binding = runtimeBodyBinding(runtime, ref, bodyUuid, restore, false);
@@ -246,7 +259,7 @@ public final class BodyCommandApplicationSystem extends TickingSystem<PhysicsSto
     @Nonnull
     @Override
     public Query<PhysicsStore> getQuery() {
-        return QUERY;
+        return query;
     }
 
     @Nonnull
