@@ -15,10 +15,10 @@ import dev.hytalemodding.impulse.core.internal.modules.physicschunk.components.C
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.internal.registration.PhysicsComponentTypeRegistry;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsBodyRegistrationResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsIdentityIndexResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsResourceTypes;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSnapshotResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceCompatibilityIndexResource;
 import dev.hytalemodding.impulse.core.internal.testsupport.TestInstanceFactory;
 import dev.hytalemodding.impulse.core.plugin.physics.PhysicsEntities;
 import dev.hytalemodding.impulse.core.plugin.snapshots.PhysicsBodySnapshot;
@@ -50,10 +50,9 @@ class CleanCommandLifecycleGuardTest {
             UUID bodyUuid = UUID.randomUUID();
             UUID generatedUuid = UUID.randomUUID();
             UUID spaceUuid = UUID.randomUUID();
-            Ref<PhysicsStore> bodyRef = addBodyIdentityRow(store, bodyUuid, false);
-            Ref<PhysicsStore> generatedRef = addBodyIdentityRow(store, generatedUuid, true);
+            addBodyIdentityRow(store, bodyUuid, false);
+            addBodyIdentityRow(store, generatedUuid, true);
             publishSnapshots(store, bodyUuid, generatedUuid, spaceUuid);
-            publishRegistrations(store, bodyUuid, bodyRef, generatedUuid, generatedRef);
 
             Set<?> selected = selectBodyUuidsNear(store, new Vector3d(), 10.0f);
 
@@ -68,21 +67,12 @@ class CleanCommandLifecycleGuardTest {
         @Nonnull UUID bodyUuid,
         @Nonnull UUID generatedUuid,
         @Nonnull UUID spaceUuid) {
+        store.getResource(PhysicsSpaceCompatibilityIndexResource.getResourceType())
+            .putSpace(new SpaceId(1), spaceUuid);
         store.getResource(PhysicsSnapshotResource.getResourceType())
             .publish(new PhysicsSnapshotFrame(1L,
                 0.05f,
                 List.of(snapshot(bodyUuid, spaceUuid), snapshot(generatedUuid, spaceUuid))));
-    }
-
-    private static void publishRegistrations(@Nonnull Store<PhysicsStore> store,
-        @Nonnull UUID bodyUuid,
-        @Nonnull Ref<PhysicsStore> bodyRef,
-        @Nonnull UUID generatedUuid,
-        @Nonnull Ref<PhysicsStore> generatedRef) {
-        store.getResource(PhysicsBodyRegistrationResource.getResourceType())
-            .publish(1L,
-                List.of(publication(bodyRef, bodyUuid),
-                    publication(generatedRef, generatedUuid)));
     }
 
     @Nonnull
@@ -129,16 +119,6 @@ class CleanCommandLifecycleGuardTest {
             0.0f,
             0.0f,
             false);
-    }
-
-    @Nonnull
-    private static PhysicsBodyRegistrationResource.BodyRegistrationPublication publication(
-        @Nonnull Ref<PhysicsStore> bodyRef,
-        @Nonnull UUID bodyUuid) {
-        return new PhysicsBodyRegistrationResource.BodyRegistrationPublication(
-            bodyRef,
-            bodyUuid,
-            new SpaceId(1));
     }
 
     @Nonnull

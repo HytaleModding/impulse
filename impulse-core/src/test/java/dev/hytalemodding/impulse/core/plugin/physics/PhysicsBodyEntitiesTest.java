@@ -2,6 +2,7 @@ package dev.hytalemodding.impulse.core.plugin.physics;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.hypixel.hytale.component.AddReason;
 import com.hypixel.hytale.component.ComponentRegistry;
@@ -36,6 +37,12 @@ import org.joml.Vector3f;
 import org.junit.jupiter.api.Test;
 
 class PhysicsBodyEntitiesTest {
+
+    @Test
+    void physicsBodiesDoesNotExposeBodyUuidRefHelper() {
+        assertThrows(NoSuchMethodException.class,
+            () -> PhysicsBodies.class.getDeclaredMethod("bodyUuid", Store.class, Ref.class));
+    }
 
     @Test
     void dynamicBodyHolderInfersEntityIdentityFromBodyUuidAndSpaceRef() {

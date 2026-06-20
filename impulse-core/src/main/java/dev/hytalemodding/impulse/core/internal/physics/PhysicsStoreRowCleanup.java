@@ -9,7 +9,6 @@ import dev.hytalemodding.impulse.core.internal.modules.control.PhysicsControlRun
 import dev.hytalemodding.impulse.core.internal.resources.BackendBodyHandle;
 import dev.hytalemodding.impulse.core.internal.resources.BackendJointHandle;
 import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsBodyRegistrationResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkCollisionPayloadResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsIdentityIndexResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResource;
@@ -100,8 +99,6 @@ public final class PhysicsStoreRowCleanup {
             PhysicsControlRuntimeStates.clearControlled(removal.bodyRef());
         }
         store.getResource(PhysicsSnapshotResource.getResourceType()).removeBodies(bodyUuids);
-        store.getResource(PhysicsBodyRegistrationResource.getResourceType())
-            .removeBodies(bodyUuids);
     }
 
     public static void removeBodyEntity(@Nonnull Store<PhysicsStore> store,

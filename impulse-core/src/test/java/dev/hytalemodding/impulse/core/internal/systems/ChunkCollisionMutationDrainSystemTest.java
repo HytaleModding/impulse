@@ -32,7 +32,6 @@ import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunk
 import dev.hytalemodding.impulse.core.internal.physics.PhysicsTopologyMutations;
 import dev.hytalemodding.impulse.core.internal.registration.PhysicsComponentTypeRegistry;
 import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsBodyRegistrationResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkCollisionMutationQueueResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkCollisionPayloadResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkSettingsIndexResource;
@@ -42,6 +41,7 @@ import dev.hytalemodding.impulse.core.internal.resources.PhysicsResourceTypes;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRestoreStatusResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSnapshotResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceCompatibilityIndexResource;
 import dev.hytalemodding.impulse.core.internal.testsupport.TestInstanceFactory;
 import dev.hytalemodding.impulse.core.plugin.components.BodyComponent;
 import dev.hytalemodding.impulse.core.plugin.components.CollisionFilterComponent;
@@ -56,6 +56,7 @@ import dev.hytalemodding.impulse.core.internal.modules.physicschunk.components.C
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkCollisionMode;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.settings.EntityChunkBoundaryMode;
 import dev.hytalemodding.impulse.core.plugin.physics.PhysicsEntities;
+import dev.hytalemodding.impulse.core.plugin.physics.PhysicsBodies;
 import dev.hytalemodding.impulse.core.plugin.snapshots.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.core.plugin.snapshots.PhysicsSnapshotFrame;
 import java.lang.reflect.InvocationTargetException;
@@ -310,12 +311,10 @@ class ChunkCollisionMutationDrainSystemTest {
             publishCopiedState(store, spaceUuid, boxUuid, boxRef, detailUuid, detailRef);
             PhysicsSnapshotResource snapshots =
                 store.getResource(PhysicsSnapshotResource.getResourceType());
-            PhysicsBodyRegistrationResource registrations =
-                store.getResource(PhysicsBodyRegistrationResource.getResourceType());
             assertNotNull(snapshots.getBody(boxUuid));
             assertNotNull(snapshots.getBody(detailUuid));
-            assertTrue(registrations.hasBody(boxUuid));
-            assertTrue(registrations.hasBody(detailUuid));
+            assertTrue(PhysicsBodies.isRegistered(store, boxUuid));
+            assertTrue(PhysicsBodies.isRegistered(store, detailUuid));
 
             queue.enqueue(ChunkCollisionMutation.remove(spaceUuid, sourceKey, 5, 6, 7));
             new ChunkCollisionMutationDrainSystem().tick(0.0f, 0, store);
@@ -325,8 +324,8 @@ class ChunkCollisionMutationDrainSystemTest {
             assertNull(identity.getByUuid(detailUuid));
             assertNull(snapshots.getBody(boxUuid));
             assertNull(snapshots.getBody(detailUuid));
-            assertFalse(registrations.hasBody(boxUuid));
-            assertFalse(registrations.hasBody(detailUuid));
+            assertFalse(PhysicsBodies.isRegistered(store, boxUuid));
+            assertFalse(PhysicsBodies.isRegistered(store, detailUuid));
             assertNull(store.getResource(PhysicsChunkCollisionPayloadResource.getResourceType())
                 .get(payloadKey));
             assertSoftSkipsEmpty(store);
@@ -610,6 +609,8 @@ class ChunkCollisionMutationDrainSystemTest {
             spaceRef,
             backendId,
             new BackendSpaceHandle(spaceHandle));
+        store.getResource(PhysicsSpaceCompatibilityIndexResource.getResourceType())
+            .putSpace(new SpaceId(42), spaceUuid);
         publishSettingsIndex(store, spaceUuid);
         return spaceRef;
     }
@@ -645,10 +646,6 @@ class ChunkCollisionMutationDrainSystemTest {
                 0.05f,
                 List.of(snapshot(firstBodyRef, firstBodyUuid, spaceUuid),
                     snapshot(secondBodyRef, secondBodyUuid, spaceUuid))));
-        store.getResource(PhysicsBodyRegistrationResource.getResourceType())
-            .publish(1L,
-                List.of(publication(firstBodyRef, firstBodyUuid),
-                    publication(secondBodyRef, secondBodyUuid)));
     }
 
     @Nonnull
@@ -674,15 +671,6 @@ class ChunkCollisionMutationDrainSystemTest {
             0.0f,
             0.0f,
             false);
-    }
-
-    @Nonnull
-    private static PhysicsBodyRegistrationResource.BodyRegistrationPublication publication(
-        @Nonnull Ref<PhysicsStore> bodyRef,
-        @Nonnull UUID bodyUuid) {
-        return new PhysicsBodyRegistrationResource.BodyRegistrationPublication(bodyRef,
-            bodyUuid,
-            new SpaceId(42));
     }
 
     private static long previousGeneration(long generation) {

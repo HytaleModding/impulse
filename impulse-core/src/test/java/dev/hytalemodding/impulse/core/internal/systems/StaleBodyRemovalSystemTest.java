@@ -24,12 +24,12 @@ import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackendRuntimeProvid
 import dev.hytalemodding.impulse.core.internal.registration.PhysicsComponentTypeRegistry;
 import dev.hytalemodding.impulse.core.internal.resources.BackendBodyHandle;
 import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsBodyRegistrationResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsIdentityIndexResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsResourceTypes;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRestoreStatusResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSnapshotResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceCompatibilityIndexResource;
 import dev.hytalemodding.impulse.core.internal.testsupport.TestInstanceFactory;
 import dev.hytalemodding.impulse.core.plugin.components.BodyComponent;
 import dev.hytalemodding.impulse.core.plugin.components.ColliderComponent;
@@ -39,6 +39,7 @@ import dev.hytalemodding.impulse.core.plugin.components.MaterialComponent;
 import dev.hytalemodding.impulse.core.plugin.components.ShapeComponent;
 import dev.hytalemodding.impulse.core.plugin.components.SpaceComponent;
 import dev.hytalemodding.impulse.core.plugin.physics.PhysicsEntities;
+import dev.hytalemodding.impulse.core.plugin.physics.PhysicsBodies;
 import dev.hytalemodding.impulse.core.plugin.snapshots.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.core.plugin.snapshots.PhysicsSnapshotFrame;
 import java.lang.reflect.InvocationTargetException;
@@ -100,8 +101,6 @@ class StaleBodyRemovalSystemTest {
                 PhysicsRuntimeResource.getResourceType());
             PhysicsSnapshotResource snapshots =
                 store.getResource(PhysicsSnapshotResource.getResourceType());
-            PhysicsBodyRegistrationResource registrations = store.getResource(
-                PhysicsBodyRegistrationResource.getResourceType());
             assertFalse(store.getResource(PhysicsRestoreStatusResource.getResourceType())
                 .isFailed());
             assertNull(identity.getByUuid(firstStaleUuid));
@@ -114,9 +113,9 @@ class StaleBodyRemovalSystemTest {
             assertNull(snapshots.getBody(firstStaleUuid));
             assertNull(snapshots.getBody(secondStaleUuid));
             assertNotNull(snapshots.getBody(retainedUuid));
-            assertNull(registrations.getBodySpaceId(firstStaleUuid));
-            assertNull(registrations.getBodySpaceId(secondStaleUuid));
-            assertNotNull(registrations.getBodySpaceId(retainedUuid));
+            assertNull(PhysicsBodies.spaceId(store, firstStaleUuid));
+            assertNull(PhysicsBodies.spaceId(store, secondStaleUuid));
+            assertEquals(new SpaceId(42), PhysicsBodies.spaceId(store, retainedUuid));
             assertFalse(firstStaleRef.isValid());
             assertFalse(secondStaleRef.isValid());
         } finally {
@@ -147,6 +146,8 @@ class StaleBodyRemovalSystemTest {
         runtimeResource.putRuntime(backendId, runtime);
         runtimeResource.putSpaceBinding(spaceUuid, spaceRef, backendId, spaceHandle);
         identity.putSpaceHandle(spaceHandle, spaceRef);
+        store.getResource(PhysicsSpaceCompatibilityIndexResource.getResourceType())
+            .putSpace(new SpaceId(42), spaceUuid);
         return new BoundSpace(spaceRef, runtime, spaceHandle, backendId);
     }
 
@@ -227,11 +228,6 @@ class StaleBodyRemovalSystemTest {
                 List.of(snapshot(firstBodyRef, firstBodyUuid, spaceUuid),
                     snapshot(secondBodyRef, secondBodyUuid, spaceUuid),
                     snapshot(retainedBodyRef, retainedBodyUuid, spaceUuid))));
-        store.getResource(PhysicsBodyRegistrationResource.getResourceType())
-            .publish(1L,
-                List.of(publication(firstBodyRef, firstBodyUuid),
-                    publication(secondBodyRef, secondBodyUuid),
-                    publication(retainedBodyRef, retainedBodyUuid)));
     }
 
     @Nonnull
@@ -257,15 +253,6 @@ class StaleBodyRemovalSystemTest {
             0.0f,
             0.0f,
             false);
-    }
-
-    @Nonnull
-    private static PhysicsBodyRegistrationResource.BodyRegistrationPublication publication(
-        @Nonnull Ref<PhysicsStore> bodyRef,
-        @Nonnull UUID bodyUuid) {
-        return new PhysicsBodyRegistrationResource.BodyRegistrationPublication(bodyRef,
-            bodyUuid,
-            new SpaceId(42));
     }
 
     @Nonnull

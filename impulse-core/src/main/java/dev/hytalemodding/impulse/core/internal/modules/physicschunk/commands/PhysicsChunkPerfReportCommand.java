@@ -92,11 +92,6 @@ public class PhysicsChunkPerfReportCommand extends AbstractAsyncWorldCommand {
                 + " indexCells=" + formatAverage(cumulativeStep.getSpatialIndexCells(), cumulativeStep.getTickSamples())));
             ctx.sender().sendMessage(Message.raw("Physics snapshot avg ms/completedStep="
                 + formatAverageMillis(cumulativeStep.getSnapshotNanos(), cumulativeStep.getTickSamples())));
-            ctx.sender().sendMessage(Message.raw("Physics registration publication avg ms/completedStep="
-                + formatAverageMillis(cumulativeStep.getRegistrationPublicationNanos(),
-                cumulativeStep.getTickSamples())
-                + " rebuilds/skips=" + cumulativeStep.getRegistrationPublicationRebuilds()
-                + "/" + cumulativeStep.getRegistrationPublicationSkips()));
             ctx.sender().sendMessage(Message.raw("Physics store tick avg queued/run/latency ms="
                 + formatAverageMillis(cumulativeStep.getStoreTickQueuedNanos(), cumulativeStep.getTickSamples())
                 + "/" + formatAverageMillis(cumulativeStep.getStoreTickRunNanos(), cumulativeStep.getTickSamples())
@@ -142,12 +137,6 @@ public class PhysicsChunkPerfReportCommand extends AbstractAsyncWorldCommand {
                 + "/" + latestStep.getSpatialIndexCells()
                 + " snapshot latest/worst ms=" + formatMillis(latestStep.getSnapshotNanos())
                 + "/" + formatMillis(worstStep.getSnapshotNanos())
-                + " registration latest/worst ms="
-                + formatMillis(latestStep.getRegistrationPublicationNanos())
-                + "/" + formatMillis(worstStep.getRegistrationPublicationNanos())
-                + " registration latest rebuilds/skips="
-                + latestStep.getRegistrationPublicationRebuilds()
-                + "/" + latestStep.getRegistrationPublicationSkips()
                 + " pendingAge latest/max ms=" + formatMillis(latestStep.getPendingStepAgeNanos())
                 + "/" + formatMillis(worstStep.getMaxPendingStepAgeNanos())));
             if (cumulativeStep.getNativePhaseSamples() > 0) {

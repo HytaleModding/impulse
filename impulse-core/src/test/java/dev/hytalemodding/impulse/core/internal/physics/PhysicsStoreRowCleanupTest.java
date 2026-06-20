@@ -16,13 +16,14 @@ import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.internal.physics.PhysicsStoreRowCleanup.BodyEntityRemoval;
 import dev.hytalemodding.impulse.core.internal.registration.PhysicsComponentTypeRegistry;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsBodyRegistrationResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsIdentityIndexResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsResourceTypes;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSnapshotResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceCompatibilityIndexResource;
 import dev.hytalemodding.impulse.core.internal.testsupport.TestInstanceFactory;
 import dev.hytalemodding.impulse.core.plugin.components.UuidComponent;
 import dev.hytalemodding.impulse.core.plugin.physics.PhysicsEntities;
+import dev.hytalemodding.impulse.core.plugin.physics.PhysicsBodies;
 import dev.hytalemodding.impulse.core.plugin.snapshots.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.core.plugin.snapshots.PhysicsSnapshotFrame;
 import java.lang.reflect.InvocationTargetException;
@@ -69,15 +70,13 @@ class PhysicsStoreRowCleanupTest {
 
             PhysicsSnapshotResource snapshots =
                 store.getResource(PhysicsSnapshotResource.getResourceType());
-            PhysicsBodyRegistrationResource registrations = store.getResource(
-                PhysicsBodyRegistrationResource.getResourceType());
             assertNull(snapshots.getBody(firstBodyUuid));
             assertNull(snapshots.getBody(secondBodyUuid));
             assertNotNull(snapshots.getBody(retainedBodyUuid));
-            assertNull(registrations.getBodySpaceId(firstBodyUuid));
-            assertNull(registrations.getBodySpaceId(secondBodyUuid));
-            assertNotNull(registrations.getBodySpaceId(retainedBodyUuid));
-            assertEquals(1, registrations.getBodyRegistrationCount());
+            assertNull(PhysicsBodies.spaceId(store, firstBodyUuid));
+            assertNull(PhysicsBodies.spaceId(store, secondBodyUuid));
+            assertEquals(new SpaceId(42), PhysicsBodies.spaceId(store, retainedBodyUuid));
+            assertEquals(1, PhysicsBodies.registrationCount(store));
             assertNotNull(store.getComponent(firstBodyRef, UuidComponent.getComponentType()));
             assertNotNull(store.getComponent(secondBodyRef, UuidComponent.getComponentType()));
         } finally {
@@ -137,17 +136,14 @@ class PhysicsStoreRowCleanupTest {
         @Nonnull Ref<PhysicsStore> secondBodyRef,
         @Nonnull UUID retainedBodyUuid,
         @Nonnull Ref<PhysicsStore> retainedBodyRef) {
+        store.getResource(PhysicsSpaceCompatibilityIndexResource.getResourceType())
+            .putSpace(new SpaceId(42), spaceUuid);
         store.getResource(PhysicsSnapshotResource.getResourceType())
             .publish(new PhysicsSnapshotFrame(1L,
                 0.05f,
                 List.of(snapshot(firstBodyRef, firstBodyUuid, spaceUuid),
                     snapshot(secondBodyRef, secondBodyUuid, spaceUuid),
                     snapshot(retainedBodyRef, retainedBodyUuid, spaceUuid))));
-        store.getResource(PhysicsBodyRegistrationResource.getResourceType())
-            .publish(1L,
-                List.of(publication(firstBodyRef, firstBodyUuid),
-                    publication(secondBodyRef, secondBodyUuid),
-                    publication(retainedBodyRef, retainedBodyUuid)));
     }
 
     @Nonnull
@@ -173,15 +169,6 @@ class PhysicsStoreRowCleanupTest {
             0.0f,
             0.0f,
             false);
-    }
-
-    @Nonnull
-    private static PhysicsBodyRegistrationResource.BodyRegistrationPublication publication(
-        @Nonnull Ref<PhysicsStore> bodyRef,
-        @Nonnull UUID bodyUuid) {
-        return new PhysicsBodyRegistrationResource.BodyRegistrationPublication(bodyRef,
-            bodyUuid,
-            new SpaceId(42));
     }
 
     @Nonnull

@@ -1,7 +1,5 @@
 package dev.hytalemodding.impulse.core.internal.systems;
 
-import com.hypixel.hytale.component.ArchetypeChunk;
-import com.hypixel.hytale.component.CommandBuffer;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.component.dependency.Dependency;
 import com.hypixel.hytale.component.dependency.Order;
@@ -10,27 +8,18 @@ import com.hypixel.hytale.component.query.Query;
 import com.hypixel.hytale.component.system.QuerySystem;
 import com.hypixel.hytale.component.system.tick.TickingSystem;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
-import dev.hytalemodding.impulse.api.SpaceId;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsBodyRegistrationResource;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsBodyRegistrationResource.BodyRegistrationPublication;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsEventResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsProfilingResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRestoreStatusResource;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResource;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceCompatibilityIndexResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSnapshotResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsStepSchedulerResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsStepSchedulerResource.CompletedStep;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsStepSchedulerResource.StepInput;
 import dev.hytalemodding.impulse.core.internal.systems.binding.TargetBindingSystem;
-import dev.hytalemodding.impulse.core.plugin.components.BodyComponent;
 import dev.hytalemodding.impulse.core.plugin.snapshots.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.core.plugin.snapshots.PhysicsSnapshotFrame;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
-import java.util.UUID;
-import java.util.function.BiConsumer;
 import javax.annotation.Nonnull;
 
 /**
@@ -57,13 +46,8 @@ public final class CompletedStepPublicationSystem extends TickingSystem<PhysicsS
                 .markFailed(message != null ? message : "PhysicsStore owner-lane step failed");
             throw new IllegalStateException("PhysicsStore owner-lane step failed", failure);
         }
-        PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
         PhysicsSnapshotResource snapshot = store.getResource(PhysicsSnapshotResource.getResourceType());
-        PhysicsBodyRegistrationResource registrations = store.getResource(
-            PhysicsBodyRegistrationResource.getResourceType());
         PhysicsProfilingResource profiling = store.getResource(PhysicsProfilingResource.getResourceType());
-        PhysicsSpaceCompatibilityIndexResource compatibility = store.getResource(
-            PhysicsSpaceCompatibilityIndexResource.getResourceType());
         profiling.recordStep(completed.stepSubmitNanos(),
             completed.spaces(),
             completed.substeps(),
@@ -83,13 +67,6 @@ public final class CompletedStepPublicationSystem extends TickingSystem<PhysicsS
             frameDt,
             bodies);
         snapshot.publish(frame);
-        publishRegistrations(store,
-            systemIndex,
-            runtime,
-            compatibility,
-            snapshot,
-            registrations,
-            profiling);
         profiling.recordSnapshot(completed.snapshotNanos(), bodies.size());
         store.getResource(PhysicsEventResource.getResourceType())
             .publishStepFrame(frame.sequence(),
@@ -99,73 +76,6 @@ public final class CompletedStepPublicationSystem extends TickingSystem<PhysicsS
                 completed.snapshotNanos(),
                 completed.physicsEvents(),
                 completed.droppedBackendEventCount());
-    }
-
-    private static void publishRegistrations(@Nonnull Store<PhysicsStore> store,
-        int systemIndex,
-        @Nonnull PhysicsRuntimeResource runtime,
-        @Nonnull PhysicsSpaceCompatibilityIndexResource compatibility,
-        @Nonnull PhysicsSnapshotResource snapshot,
-        @Nonnull PhysicsBodyRegistrationResource registrations,
-        @Nonnull PhysicsProfilingResource profiling) {
-        long generation = runtime.getRegistrationTopologyGeneration();
-        if (registrations.isCurrent(generation)) {
-            profiling.recordRegistrationPublication(0L, false);
-            return;
-        }
-        long startNanos = profiling.isEnabled() ? System.nanoTime() : 0L;
-        registrations.publish(generation,
-            collectRegistrations(store,
-                systemIndex,
-                runtime,
-                compatibility,
-                snapshot));
-        long publicationNanos = profiling.isEnabled()
-            ? System.nanoTime() - startNanos
-            : 0L;
-        profiling.recordRegistrationPublication(publicationNanos, true);
-    }
-
-    @Nonnull
-    private static List<BodyRegistrationPublication> collectRegistrations(
-        @Nonnull Store<PhysicsStore> store,
-        int systemIndex,
-        @Nonnull PhysicsRuntimeResource runtime,
-        @Nonnull PhysicsSpaceCompatibilityIndexResource compatibility,
-        @Nonnull PhysicsSnapshotResource snapshot) {
-        List<BodyRegistrationPublication> registrations =
-            new ArrayList<>(snapshot.getLatestFrame().bodies().size());
-        BiConsumer<ArchetypeChunk<PhysicsStore>, CommandBuffer<PhysicsStore>> collector =
-            (chunk, _) -> collectRegistrations(runtime,
-                compatibility,
-                snapshot,
-                registrations,
-                chunk);
-        store.forEachChunk(systemIndex, collector);
-        return registrations;
-    }
-
-    private static void collectRegistrations(@Nonnull PhysicsRuntimeResource runtime,
-        @Nonnull PhysicsSpaceCompatibilityIndexResource compatibility,
-        @Nonnull PhysicsSnapshotResource snapshot,
-        @Nonnull List<BodyRegistrationPublication> registrations,
-        @Nonnull ArchetypeChunk<PhysicsStore> chunk) {
-        for (int index = 0; index < chunk.size(); index++) {
-            UUID rowUuid = PhysicsStoreSystemSupport.rowUuid(chunk, index);
-            if (PhysicsStoreSystemSupport.isNil(rowUuid)) {
-                continue;
-            }
-            var rowRef = chunk.getReferenceTo(index);
-            BodyComponent body = chunk.getComponent(index, BodyComponent.getComponentType());
-            if (body != null && snapshot.containsBody(rowUuid)) {
-                SpaceId spaceId = compatibility.getSpaceId(body.getSpaceUuid());
-                if (spaceId != null) {
-                    registrations.add(new BodyRegistrationPublication(rowRef,
-                        rowUuid,
-                        spaceId));
-                }
-            }
-        }
     }
 
     @Nonnull

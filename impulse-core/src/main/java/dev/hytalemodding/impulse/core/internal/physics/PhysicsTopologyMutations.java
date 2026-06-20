@@ -4,7 +4,6 @@ import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsBodyRegistrationResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsEventResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsIdentityIndexResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResource;
@@ -324,7 +323,6 @@ public final class PhysicsTopologyMutations {
 
     private static void clearCopiedBodyState(@Nonnull Store<PhysicsStore> store) {
         store.getResource(PhysicsSnapshotResource.getResourceType()).clear();
-        store.getResource(PhysicsBodyRegistrationResource.getResourceType()).clear();
         store.getResource(PhysicsEventResource.getResourceType()).clear();
     }
 

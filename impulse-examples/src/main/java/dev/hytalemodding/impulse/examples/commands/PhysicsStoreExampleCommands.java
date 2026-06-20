@@ -28,6 +28,7 @@ import dev.hytalemodding.impulse.core.plugin.physics.PhysicsWorlds;
 import dev.hytalemodding.impulse.core.plugin.components.BodyCommandComponent;
 import dev.hytalemodding.impulse.core.plugin.components.DynamicsComponent;
 import dev.hytalemodding.impulse.core.plugin.components.TargetComponent;
+import dev.hytalemodding.impulse.core.plugin.components.UuidComponent;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsEventCollectionMode;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
 import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
@@ -261,9 +262,9 @@ final class PhysicsStoreExampleCommands {
 
         @Nullable
         private static UUID physicsStoreBodyUuid(@Nonnull Ref<PhysicsStore> bodyRef) {
-            return PhysicsBodies.bodyUuid(
-                bodyRef.getStore(),
-                bodyRef);
+            UuidComponent uuid = bodyRef.getStore().getComponent(bodyRef,
+                UuidComponent.getComponentType());
+            return uuid != null ? uuid.getUuid() : null;
         }
     }
 

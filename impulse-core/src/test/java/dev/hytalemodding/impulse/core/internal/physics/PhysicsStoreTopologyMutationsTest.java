@@ -26,11 +26,11 @@ import dev.hytalemodding.impulse.core.internal.registration.PhysicsComponentType
 import dev.hytalemodding.impulse.core.internal.resources.BackendBodyHandle;
 import dev.hytalemodding.impulse.core.internal.resources.BackendJointHandle;
 import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsBodyRegistrationResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsIdentityIndexResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsResourceTypes;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSnapshotResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceCompatibilityIndexResource;
 import dev.hytalemodding.impulse.core.internal.testsupport.TestInstanceFactory;
 import dev.hytalemodding.impulse.core.plugin.components.BodyComponent;
 import dev.hytalemodding.impulse.core.plugin.components.ColliderComponent;
@@ -41,6 +41,7 @@ import dev.hytalemodding.impulse.core.plugin.components.MaterialComponent;
 import dev.hytalemodding.impulse.core.plugin.components.ShapeComponent;
 import dev.hytalemodding.impulse.core.plugin.components.SpaceComponent;
 import dev.hytalemodding.impulse.core.plugin.physics.PhysicsEntities;
+import dev.hytalemodding.impulse.core.plugin.physics.PhysicsBodies;
 import dev.hytalemodding.impulse.core.plugin.physics.PhysicsJointEntities;
 import dev.hytalemodding.impulse.core.plugin.components.JointType;
 import dev.hytalemodding.impulse.core.plugin.snapshots.PhysicsBodySnapshot;
@@ -102,8 +103,6 @@ class PhysicsStoreTopologyMutationsTest {
                 PhysicsRuntimeResource.getResourceType());
             PhysicsSnapshotResource snapshots =
                 store.getResource(PhysicsSnapshotResource.getResourceType());
-            PhysicsBodyRegistrationResource registrations = store.getResource(
-                PhysicsBodyRegistrationResource.getResourceType());
             assertNull(identity.getByUuid(bodyAUuid));
             assertNull(identity.getByUuid(jointUuid));
             Ref<PhysicsStore> remainingBodyRef = identity.getByUuid(bodyBUuid);
@@ -115,8 +114,8 @@ class PhysicsStoreTopologyMutationsTest {
             assertEquals(0, space.runtime().jointCount(space.handle().value()));
             assertNull(snapshots.getBody(bodyAUuid));
             assertNotNull(snapshots.getBody(bodyBUuid));
-            assertFalse(registrations.hasBody(bodyAUuid));
-            assertNotNull(registrations.getBodySpaceId(bodyBUuid));
+            assertFalse(PhysicsBodies.isRegistered(store, bodyAUuid));
+            assertEquals(new SpaceId(42), PhysicsBodies.spaceId(store, bodyBUuid));
             assertFalse(bodyARef.isValid());
             assertFalse(jointRef.isValid());
             assertNotNull(store.getComponent(remainingBodyRef, BodyComponent.getComponentType()));
@@ -146,6 +145,8 @@ class PhysicsStoreTopologyMutationsTest {
         PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
         runtime.putRuntime(backendId, backendRuntime);
         runtime.putSpaceBinding(spaceUuid, spaceRef, backendId, spaceHandle);
+        store.getResource(PhysicsSpaceCompatibilityIndexResource.getResourceType())
+            .putSpace(new SpaceId(42), spaceUuid);
         return new BoundSpace(spaceRef, backendRuntime, spaceHandle, backendId);
     }
 
@@ -293,10 +294,6 @@ class PhysicsStoreTopologyMutationsTest {
                 0.05f,
                 List.of(snapshot(bodyARef, bodyAUuid, spaceUuid),
                     snapshot(bodyBRef, bodyBUuid, spaceUuid))));
-        store.getResource(PhysicsBodyRegistrationResource.getResourceType())
-            .publish(1L,
-                List.of(publication(bodyARef, bodyAUuid),
-                    publication(bodyBRef, bodyBUuid)));
     }
 
     @Nonnull
@@ -322,15 +319,6 @@ class PhysicsStoreTopologyMutationsTest {
             0.0f,
             0.0f,
             false);
-    }
-
-    @Nonnull
-    private static PhysicsBodyRegistrationResource.BodyRegistrationPublication publication(
-        @Nonnull Ref<PhysicsStore> bodyRef,
-        @Nonnull UUID bodyUuid) {
-        return new PhysicsBodyRegistrationResource.BodyRegistrationPublication(bodyRef,
-            bodyUuid,
-            new SpaceId(42));
     }
 
     private static void markCurrentThreadAsWorldThread(@Nonnull Store<PhysicsStore> store) {

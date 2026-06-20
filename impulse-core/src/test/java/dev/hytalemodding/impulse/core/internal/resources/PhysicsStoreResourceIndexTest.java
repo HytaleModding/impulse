@@ -1,7 +1,6 @@
 package dev.hytalemodding.impulse.core.internal.resources;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
@@ -16,7 +15,6 @@ import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackendRuntimeProvid
 import dev.hytalemodding.impulse.core.internal.resources.BackendBodyHandle;
 import dev.hytalemodding.impulse.core.internal.resources.BackendJointHandle;
 import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsBodyRegistrationResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSnapshotResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceCompatibilityIndexResource;
@@ -246,40 +244,6 @@ class PhysicsStoreResourceIndexTest {
         assertEquals(retained, resource.getBody(retainedBodyUuid));
         assertEquals(retained, resource.getBody(retainedBodyRef));
         assertEquals(List.of(retained), resource.getLatestFrame().bodies());
-    }
-
-    @Test
-    void bodyRegistrationResourceRemovesMultipleBodiesInOneBatch() {
-        PhysicsBodyRegistrationResource resource = new PhysicsBodyRegistrationResource();
-        UUID firstBodyUuid = UUID.fromString("00000000-0000-0000-0000-000000000019");
-        UUID secondBodyUuid = UUID.fromString("00000000-0000-0000-0000-000000000020");
-        UUID retainedBodyUuid = UUID.fromString("00000000-0000-0000-0000-000000000021");
-        Ref<PhysicsStore> firstBodyRef = new TestRef(19);
-        Ref<PhysicsStore> secondBodyRef = new TestRef(20);
-        Ref<PhysicsStore> retainedBodyRef = new TestRef(21);
-        SpaceId spaceId = new SpaceId(42);
-        resource.publish(7L,
-            List.of(new PhysicsBodyRegistrationResource.BodyRegistrationPublication(firstBodyRef,
-                    firstBodyUuid,
-                    spaceId),
-                new PhysicsBodyRegistrationResource.BodyRegistrationPublication(secondBodyRef,
-                    secondBodyUuid,
-                    spaceId),
-                new PhysicsBodyRegistrationResource.BodyRegistrationPublication(retainedBodyRef,
-                    retainedBodyUuid,
-                    spaceId)));
-
-        resource.removeBodies(List.of(firstBodyUuid, secondBodyUuid));
-
-        assertNull(resource.getBodySpaceId(firstBodyUuid));
-        assertNull(resource.getBodyUuid(firstBodyRef));
-        assertNull(resource.getBodySpaceId(secondBodyUuid));
-        assertNull(resource.getBodyUuid(secondBodyRef));
-        assertEquals(spaceId, resource.getBodySpaceId(retainedBodyUuid));
-        assertEquals(retainedBodyUuid, resource.getBodyUuid(retainedBodyRef));
-        assertEquals(List.of(retainedBodyUuid), List.copyOf(resource.getBodyUuids()));
-        assertEquals(1, resource.getBodyRegistrationCount());
-        assertNotNull(resource.getBodySpaceId(retainedBodyRef));
     }
 
     private static final class TestRef extends Ref<PhysicsStore> {

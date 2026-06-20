@@ -98,18 +98,6 @@ public final class PhysicsRuntimeProfiling {
             return snapshot.getSnapshotNanos();
         }
 
-        public long getRegistrationPublicationNanos() {
-            return snapshot.getRegistrationPublicationNanos();
-        }
-
-        public int getRegistrationPublicationRebuilds() {
-            return snapshot.getRegistrationPublicationRebuilds();
-        }
-
-        public int getRegistrationPublicationSkips() {
-            return snapshot.getRegistrationPublicationSkips();
-        }
-
         public long getStoreTickQueuedNanos() {
             return snapshot.getStoreTickQueuedNanos();
         }

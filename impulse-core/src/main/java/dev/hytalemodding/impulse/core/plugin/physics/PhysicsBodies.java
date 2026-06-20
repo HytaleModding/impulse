@@ -6,11 +6,12 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.internal.physics.PhysicsTopologyMutations;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsBodyRegistrationResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSnapshotResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceCompatibilityIndexResource;
 import dev.hytalemodding.impulse.core.plugin.components.BodyCommandComponent;
 import dev.hytalemodding.impulse.core.plugin.snapshots.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.core.plugin.snapshots.PhysicsSnapshotFrame;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Objects;
 import java.util.UUID;
@@ -27,46 +28,34 @@ public final class PhysicsBodies {
     }
 
     @Nullable
-    public static UUID bodyUuid(@Nonnull Store<PhysicsStore> store,
-        @Nonnull Ref<PhysicsStore> bodyRef) {
-        Store<PhysicsStore> checkedStore = requireWorldThread(store,
-            "read copied PhysicsStore body registration");
-        Ref<PhysicsStore> checkedRef = Objects.requireNonNull(bodyRef, "bodyRef");
-        if (!sameValidStore(checkedStore, checkedRef)) {
-            return null;
-        }
-        return checkedStore.getResource(PhysicsBodyRegistrationResource.getResourceType())
-            .getBodyUuid(checkedRef);
-    }
-
-    @Nullable
     public static SpaceId spaceId(@Nonnull Store<PhysicsStore> store,
         @Nonnull UUID bodyUuid) {
         Store<PhysicsStore> checkedStore = requireWorldThread(store,
-            "read copied PhysicsStore body registration");
-        return checkedStore.getResource(PhysicsBodyRegistrationResource.getResourceType())
-            .getBodySpaceId(Objects.requireNonNull(bodyUuid, "bodyUuid"));
+            "read copied PhysicsStore body space");
+        PhysicsBodySnapshot snapshot = snapshotResource(checkedStore)
+            .getBody(Objects.requireNonNull(bodyUuid, "bodyUuid"));
+        return spaceId(checkedStore, snapshot);
     }
 
     @Nullable
     public static SpaceId spaceId(@Nonnull Store<PhysicsStore> store,
         @Nonnull Ref<PhysicsStore> bodyRef) {
         Store<PhysicsStore> checkedStore = requireWorldThread(store,
-            "read copied PhysicsStore body registration");
+            "read copied PhysicsStore body space");
         Ref<PhysicsStore> checkedRef = Objects.requireNonNull(bodyRef, "bodyRef");
         if (!sameValidStore(checkedStore, checkedRef)) {
             return null;
         }
-        return checkedStore.getResource(PhysicsBodyRegistrationResource.getResourceType())
-            .getBodySpaceId(checkedRef);
+        return spaceId(checkedStore, snapshotResource(checkedStore).getBody(checkedRef));
     }
 
     public static boolean isRegistered(@Nonnull Store<PhysicsStore> store,
         @Nonnull UUID bodyUuid) {
         Store<PhysicsStore> checkedStore = requireWorldThread(store,
             "read copied PhysicsStore body registration");
-        return checkedStore.getResource(PhysicsBodyRegistrationResource.getResourceType())
-            .hasBody(Objects.requireNonNull(bodyUuid, "bodyUuid"));
+        PhysicsBodySnapshot snapshot = snapshotResource(checkedStore)
+            .getBody(Objects.requireNonNull(bodyUuid, "bodyUuid"));
+        return spaceId(checkedStore, snapshot) != null;
     }
 
     public static boolean isRegistered(@Nonnull Store<PhysicsStore> store,
@@ -77,31 +66,47 @@ public final class PhysicsBodies {
         if (!sameValidStore(checkedStore, checkedRef)) {
             return false;
         }
-        return checkedStore.getResource(PhysicsBodyRegistrationResource.getResourceType())
-            .hasBody(checkedRef);
+        return spaceId(checkedStore, snapshotResource(checkedStore).getBody(checkedRef)) != null;
     }
 
     @Nonnull
     public static Collection<UUID> bodyUuids(@Nonnull Store<PhysicsStore> store) {
         Store<PhysicsStore> checkedStore = requireWorldThread(store,
             "read copied PhysicsStore body registrations");
-        return checkedStore.getResource(PhysicsBodyRegistrationResource.getResourceType())
-            .getBodyUuids();
+        Collection<PhysicsBodySnapshot> bodies = snapshotFrame(checkedStore).bodies();
+        ArrayList<UUID> bodyUuids = new ArrayList<>(bodies.size());
+        for (PhysicsBodySnapshot body : bodies) {
+            if (spaceId(checkedStore, body) != null) {
+                bodyUuids.add(body.bodyUuid());
+            }
+        }
+        return bodyUuids;
     }
 
     public static int registrationCount(@Nonnull Store<PhysicsStore> store) {
         Store<PhysicsStore> checkedStore = requireWorldThread(store,
             "count copied PhysicsStore body registrations");
-        return checkedStore.getResource(PhysicsBodyRegistrationResource.getResourceType())
-            .getBodyRegistrationCount();
+        int count = 0;
+        for (PhysicsBodySnapshot body : snapshotFrame(checkedStore).bodies()) {
+            if (spaceId(checkedStore, body) != null) {
+                count++;
+            }
+        }
+        return count;
     }
 
     public static int registrationCount(@Nonnull Store<PhysicsStore> store,
         @Nonnull SpaceId spaceId) {
         Store<PhysicsStore> checkedStore = requireWorldThread(store,
             "count copied PhysicsStore body registrations");
-        return checkedStore.getResource(PhysicsBodyRegistrationResource.getResourceType())
-            .getBodyRegistrationCount(Objects.requireNonNull(spaceId, "spaceId"));
+        SpaceId checkedSpaceId = Objects.requireNonNull(spaceId, "spaceId");
+        int count = 0;
+        for (PhysicsBodySnapshot body : snapshotFrame(checkedStore).bodies()) {
+            if (checkedSpaceId.equals(spaceId(checkedStore, body))) {
+                count++;
+            }
+        }
+        return count;
     }
 
     @Nullable
@@ -224,5 +229,20 @@ public final class PhysicsBodies {
     private static boolean sameValidStore(@Nonnull Store<PhysicsStore> store,
         @Nonnull Ref<PhysicsStore> ref) {
         return ref.getStore() == store && ref.isValid();
+    }
+
+    @Nonnull
+    private static PhysicsSnapshotResource snapshotResource(@Nonnull Store<PhysicsStore> store) {
+        return store.getResource(PhysicsSnapshotResource.getResourceType());
+    }
+
+    @Nullable
+    private static SpaceId spaceId(@Nonnull Store<PhysicsStore> store,
+        @Nullable PhysicsBodySnapshot snapshot) {
+        if (snapshot == null) {
+            return null;
+        }
+        return store.getResource(PhysicsSpaceCompatibilityIndexResource.getResourceType())
+            .getSpaceId(snapshot.spaceUuid());
     }
 }

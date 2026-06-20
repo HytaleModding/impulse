@@ -10,7 +10,6 @@ import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.early.PhysicsStoreHooks;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkStoreTypes;
 import dev.hytalemodding.impulse.core.internal.persistence.PhysicsStoreHolderStorage;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsBodyRegistrationResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsEventResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsIdentityIndexResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsProfilingResource;
@@ -116,10 +115,6 @@ public final class PhysicsStoreRegistration {
             () -> cleanupResource(store,
                 PhysicsSnapshotResource.getResourceType(),
                 PhysicsSnapshotResource::clear));
-        failure = runShutdownCleanup(failure,
-            () -> cleanupResource(store,
-                PhysicsBodyRegistrationResource.getResourceType(),
-                PhysicsBodyRegistrationResource::clear));
         failure = runShutdownCleanup(failure,
             () -> cleanupResource(store,
                 PhysicsEventResource.getResourceType(),

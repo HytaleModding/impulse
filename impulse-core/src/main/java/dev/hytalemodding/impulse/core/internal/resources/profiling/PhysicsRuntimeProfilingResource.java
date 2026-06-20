@@ -203,40 +203,6 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
         int preStepDrainedMutations,
         long preStepDrainRunNanos,
         int lateMutationBacklogAtStep) {
-        recordStep(spaces,
-            substeps,
-            nanos,
-            bodySnapshots,
-            spatialIndexCells,
-            snapshotNanos,
-            storeTickQueuedNanos,
-            storeTickRunNanos,
-            storeTickCompletedNanos,
-            nativePhaseStats,
-            preStepDrainedMutations,
-            preStepDrainRunNanos,
-            lateMutationBacklogAtStep,
-            0L,
-            0,
-            0);
-    }
-
-    public synchronized void recordStep(int spaces,
-        int substeps,
-        long nanos,
-        int bodySnapshots,
-        int spatialIndexCells,
-        long snapshotNanos,
-        long storeTickQueuedNanos,
-        long storeTickRunNanos,
-        long storeTickCompletedNanos,
-        @Nonnull PhysicsStepPhaseStats nativePhaseStats,
-        int preStepDrainedMutations,
-        long preStepDrainRunNanos,
-        int lateMutationBacklogAtStep,
-        long registrationPublicationNanos,
-        int registrationPublicationRebuilds,
-        int registrationPublicationSkips) {
         StepSnapshot snapshot = new StepSnapshot();
         snapshot.recordTickSample();
         snapshot.setSpaces(spaces);
@@ -249,9 +215,6 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
         snapshot.setStoreTickRunNanos(storeTickRunNanos);
         snapshot.recordStoreTickStepInterval(recordStoreTickStepInterval(storeTickCompletedNanos));
         snapshot.setNativePhaseStats(nativePhaseStats);
-        snapshot.recordRegistrationPublication(registrationPublicationNanos,
-            registrationPublicationRebuilds,
-            registrationPublicationSkips);
         snapshot.recordPreStepDrain(Math.max(0, preStepDrainedMutations),
             Math.max(0L, preStepDrainRunNanos),
             Math.max(0, lateMutationBacklogAtStep));
@@ -455,9 +418,6 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
         private long tickNanos;
         @Setter
         private long snapshotNanos;
-        private long registrationPublicationNanos;
-        private int registrationPublicationRebuilds;
-        private int registrationPublicationSkips;
         @Setter
         private long storeTickQueuedNanos;
         @Setter
@@ -505,9 +465,6 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
             spatialIndexCells = other.spatialIndexCells;
             tickNanos = other.tickNanos;
             snapshotNanos = other.snapshotNanos;
-            registrationPublicationNanos = other.registrationPublicationNanos;
-            registrationPublicationRebuilds = other.registrationPublicationRebuilds;
-            registrationPublicationSkips = other.registrationPublicationSkips;
             storeTickQueuedNanos = other.storeTickQueuedNanos;
             storeTickRunNanos = other.storeTickRunNanos;
             preStepDrainedMutations = other.preStepDrainedMutations;
@@ -546,9 +503,6 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
             spatialIndexCells += other.spatialIndexCells;
             tickNanos += other.tickNanos;
             snapshotNanos += other.snapshotNanos;
-            registrationPublicationNanos += other.registrationPublicationNanos;
-            registrationPublicationRebuilds += other.registrationPublicationRebuilds;
-            registrationPublicationSkips += other.registrationPublicationSkips;
             storeTickQueuedNanos += other.storeTickQueuedNanos;
             storeTickRunNanos += other.storeTickRunNanos;
             preStepDrainedMutations += other.preStepDrainedMutations;
@@ -592,9 +546,6 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
             spatialIndexCells = 0;
             tickNanos = 0L;
             snapshotNanos = 0L;
-            registrationPublicationNanos = 0L;
-            registrationPublicationRebuilds = 0;
-            registrationPublicationSkips = 0;
             storeTickQueuedNanos = 0L;
             storeTickRunNanos = 0L;
             preStepDrainedMutations = 0;
@@ -645,14 +596,6 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
             preStepDrainRunNanos = Math.max(0L, drainRunNanos);
             lateMutationBacklogAtStep = Math.max(0, lateBacklog);
             maxLateMutationBacklogAtStep = lateMutationBacklogAtStep;
-        }
-
-        public void recordRegistrationPublication(long nanos,
-            int rebuilds,
-            int skips) {
-            registrationPublicationNanos = Math.max(0L, nanos);
-            registrationPublicationRebuilds = Math.max(0, rebuilds);
-            registrationPublicationSkips = Math.max(0, skips);
         }
 
         private void retainPreStepDrainMaxima(@Nonnull StepSnapshot snapshot) {

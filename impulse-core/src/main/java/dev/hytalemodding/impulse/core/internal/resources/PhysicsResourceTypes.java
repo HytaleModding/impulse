@@ -28,9 +28,6 @@ public final class PhysicsResourceTypes {
     @Nullable
     private static ResourceType<PhysicsStore, PhysicsSnapshotResource> snapshotResourceType;
     @Nullable
-    private static ResourceType<PhysicsStore, PhysicsBodyRegistrationResource>
-        bodyRegistrationResourceType;
-    @Nullable
     private static ResourceType<PhysicsStore, PhysicsEventResource> eventResourceType;
     @Nullable
     private static ResourceType<PhysicsStore, PhysicsStoreReadQueueResource> readQueueResourceType;
@@ -67,9 +64,6 @@ public final class PhysicsResourceTypes {
         snapshotResourceType = registry.registerResource(
             PhysicsSnapshotResource.class,
             PhysicsSnapshotResource::new);
-        bodyRegistrationResourceType = registry.registerResource(
-            PhysicsBodyRegistrationResource.class,
-            PhysicsBodyRegistrationResource::new);
         eventResourceType = registry.registerResource(
             PhysicsEventResource.class,
             PhysicsEventResource::new);
@@ -119,12 +113,6 @@ public final class PhysicsResourceTypes {
     @Nonnull
     public static ResourceType<PhysicsStore, PhysicsSnapshotResource> snapshotResourceType() {
         return snapshotResourceType;
-    }
-
-    @Nonnull
-    public static ResourceType<PhysicsStore, PhysicsBodyRegistrationResource>
-        bodyRegistrationResourceType() {
-        return bodyRegistrationResourceType;
     }
 
     @Nonnull

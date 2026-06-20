@@ -286,15 +286,11 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
             SpaceStats stats = SpaceStats.collect(physicsStore, collisionStreaming, spaceId);
             double avgStepMs = averageMillis(step.getTickNanos(), step.getTickSamples());
             double avgSnapshotMs = averageMillis(step.getSnapshotNanos(), step.getTickSamples());
-            double avgRegistrationPublicationMs = averageMillis(
-                step.getRegistrationPublicationNanos(),
-                step.getTickSamples());
             double avgSyncMs = averageMillis(sync.getTickNanos(), sync.getTickSamples());
             double avgTerrainMs = averageMillis(collisionProfilingSnapshot.getTickNanos(),
                 collisionProfilingSnapshot.getTickSamples());
             double totalMs = avgStepMs
                 + avgSnapshotMs
-                + avgRegistrationPublicationMs
                 + avgSyncMs
                 + avgTerrainMs;
             StageHealth health = assessHealth(count,
@@ -308,7 +304,6 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
                 observedTickRate,
                 avgStepMs,
                 avgSnapshotMs,
-                avgRegistrationPublicationMs,
                 avgSyncMs,
                 avgTerrainMs,
                 totalMs,
@@ -794,7 +789,6 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
                                double observedTickRate,
                                double avgStepMs,
                                double avgSnapshotMs,
-                               double avgRegistrationPublicationMs,
                                double avgSyncMs,
                                double avgTerrainMs,
                                double totalMs,
@@ -828,7 +822,6 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
         private static StageReport failedPreflight(int count, @Nonnull String reason) {
             StageHealth health = new StageHealth(StageStatus.STOP, reason);
             return new StageReport(count,
-                0.0,
                 0.0,
                 0.0,
                 0.0,
@@ -869,9 +862,8 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
                 + " reason=" + health.reason()
                 + " tps=" + format(observedTickRate)
                 + " totalMs=" + format(totalMs)
-                + " step/snapshot/registration/sync/terrainMs=" + format(avgStepMs)
+                + " step/snapshot/sync/terrainMs=" + format(avgStepMs)
                 + "/" + format(avgSnapshotMs)
-                + "/" + format(avgRegistrationPublicationMs)
                 + "/" + format(avgSyncMs)
                 + "/" + format(avgTerrainMs)
                 + " bodies dynamic/physicsChunk=" + dynamicBodies
