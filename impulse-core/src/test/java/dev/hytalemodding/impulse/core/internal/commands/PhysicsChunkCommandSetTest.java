@@ -4,22 +4,22 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.hypixel.hytale.server.core.command.system.AbstractCommand;
-import dev.hytalemodding.impulse.core.internal.modules.physicschunk.commands.PhysicsChunkCommandContributions;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.commands.PhysicsChunkCommandSet;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
-class PhysicsChunkCommandContributionRegistryTest {
+class PhysicsChunkCommandSetTest {
 
     @AfterEach
     void resetRegistry() {
-        ImpulseCommandContributionRegistry.resetForTests();
+        ImpulseCommandTreeRegistry.resetForTests();
     }
 
     @Test
-    void physicsChunkContributesCommandsUnderImpulseRoot() {
-        PhysicsChunkCommandContributions.register();
+    void physicsChunkRegistersCommandSetUnderImpulseRoot() {
+        PhysicsChunkCommandSet.register();
 
-        ImpulseCommand root = ImpulseCommandContributionRegistry.createRootCommandForTests();
+        ImpulseCommand root = ImpulseCommandTreeRegistry.createRootCommandForTests();
 
         AbstractCommand physicsChunk = root.getSubCommands().get("physicschunk");
         assertTrue(root.getSubCommands().containsKey("physicschunk"));
@@ -29,17 +29,17 @@ class PhysicsChunkCommandContributionRegistryTest {
     }
 
     @Test
-    void physicsChunkContributionsAreIdempotentAndRemovable() {
-        PhysicsChunkCommandContributions.register();
-        PhysicsChunkCommandContributions.register();
+    void physicsChunkCommandSetIsIdempotentAndRemovable() {
+        PhysicsChunkCommandSet.register();
+        PhysicsChunkCommandSet.register();
 
-        ImpulseCommand contributed = ImpulseCommandContributionRegistry.createRootCommandForTests();
-        assertTrue(contributed.getSubCommands().containsKey("physicschunk"));
-        assertTrue(settings(contributed).getSubCommands().containsKey("collision-lod"));
+        ImpulseCommand registered = ImpulseCommandTreeRegistry.createRootCommandForTests();
+        assertTrue(registered.getSubCommands().containsKey("physicschunk"));
+        assertTrue(settings(registered).getSubCommands().containsKey("collision-lod"));
 
-        PhysicsChunkCommandContributions.unregister();
+        PhysicsChunkCommandSet.unregister();
 
-        ImpulseCommand removed = ImpulseCommandContributionRegistry.createRootCommandForTests();
+        ImpulseCommand removed = ImpulseCommandTreeRegistry.createRootCommandForTests();
         assertFalse(removed.getSubCommands().containsKey("physicschunk"));
         assertFalse(settings(removed).getSubCommands().containsKey("collision-lod"));
     }

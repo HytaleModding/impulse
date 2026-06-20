@@ -15,14 +15,14 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /**
- * Central contribution point for the sealed {@code /impulse} command tree.
+ * Central registry for the sealed {@code /impulse} command tree.
  */
-public final class ImpulseCommandContributionRegistry {
+public final class ImpulseCommandTreeRegistry {
 
     private static final HytaleLogger LOGGER = HytaleLogger.get("Impulse");
-    private static final Map<String, Supplier<? extends AbstractCommand>> ROOT_CONTRIBUTIONS =
+    private static final Map<String, Supplier<? extends AbstractCommand>> ROOT_COMMANDS =
         new LinkedHashMap<>();
-    private static final Map<String, Supplier<? extends AbstractCommand>> SETTINGS_CONTRIBUTIONS =
+    private static final Map<String, Supplier<? extends AbstractCommand>> SETTINGS_COMMANDS =
         new LinkedHashMap<>();
 
     @Nullable
@@ -30,7 +30,7 @@ public final class ImpulseCommandContributionRegistry {
     @Nullable
     private static CommandRegistration commandRegistration;
 
-    private ImpulseCommandContributionRegistry() {
+    private ImpulseCommandTreeRegistry() {
     }
 
     public static synchronized void register(@Nonnull CommandRegistry registry) {
@@ -46,52 +46,52 @@ public final class ImpulseCommandContributionRegistry {
         commandRegistry = null;
     }
 
-    public static synchronized void addRootSubCommand(@Nonnull String id,
+    public static synchronized void registerRootSubCommand(@Nonnull String id,
         @Nonnull Supplier<? extends AbstractCommand> supplier) {
-        if (ROOT_CONTRIBUTIONS.containsKey(id)) {
+        if (ROOT_COMMANDS.containsKey(id)) {
             return;
         }
-        ROOT_CONTRIBUTIONS.put(id, Objects.requireNonNull(supplier, "supplier"));
+        ROOT_COMMANDS.put(id, Objects.requireNonNull(supplier, "supplier"));
         rebuildIfRegistered();
     }
 
-    public static synchronized void addRootAndSettingsSubCommands(
+    public static synchronized void registerRootAndSettingsSubCommands(
         @Nonnull String rootId,
         @Nonnull Supplier<? extends AbstractCommand> rootSupplier,
         @Nonnull String settingsId,
         @Nonnull Supplier<? extends AbstractCommand> settingsSupplier) {
-        boolean changed = addContribution(ROOT_CONTRIBUTIONS, rootId, rootSupplier);
-        changed |= addContribution(SETTINGS_CONTRIBUTIONS, settingsId, settingsSupplier);
+        boolean changed = addCommand(ROOT_COMMANDS, rootId, rootSupplier);
+        changed |= addCommand(SETTINGS_COMMANDS, settingsId, settingsSupplier);
         if (changed) {
             rebuildIfRegistered();
         }
     }
 
-    public static synchronized void removeRootSubCommand(@Nonnull String id) {
-        if (ROOT_CONTRIBUTIONS.remove(id) != null) {
+    public static synchronized void unregisterRootSubCommand(@Nonnull String id) {
+        if (ROOT_COMMANDS.remove(id) != null) {
             rebuildIfRegistered();
         }
     }
 
-    public static synchronized void addSettingsSubCommand(@Nonnull String id,
+    public static synchronized void registerSettingsSubCommand(@Nonnull String id,
         @Nonnull Supplier<? extends AbstractCommand> supplier) {
-        if (SETTINGS_CONTRIBUTIONS.containsKey(id)) {
+        if (SETTINGS_COMMANDS.containsKey(id)) {
             return;
         }
-        SETTINGS_CONTRIBUTIONS.put(id, Objects.requireNonNull(supplier, "supplier"));
+        SETTINGS_COMMANDS.put(id, Objects.requireNonNull(supplier, "supplier"));
         rebuildIfRegistered();
     }
 
-    public static synchronized void removeSettingsSubCommand(@Nonnull String id) {
-        if (SETTINGS_CONTRIBUTIONS.remove(id) != null) {
+    public static synchronized void unregisterSettingsSubCommand(@Nonnull String id) {
+        if (SETTINGS_COMMANDS.remove(id) != null) {
             rebuildIfRegistered();
         }
     }
 
-    public static synchronized void removeRootAndSettingsSubCommands(@Nonnull String rootId,
+    public static synchronized void unregisterRootAndSettingsSubCommands(@Nonnull String rootId,
         @Nonnull String settingsId) {
-        boolean changed = ROOT_CONTRIBUTIONS.remove(rootId) != null;
-        changed |= SETTINGS_CONTRIBUTIONS.remove(settingsId) != null;
+        boolean changed = ROOT_COMMANDS.remove(rootId) != null;
+        changed |= SETTINGS_COMMANDS.remove(settingsId) != null;
         if (changed) {
             rebuildIfRegistered();
         }
@@ -108,8 +108,8 @@ public final class ImpulseCommandContributionRegistry {
         }
         commandRegistration = null;
         commandRegistry = null;
-        ROOT_CONTRIBUTIONS.clear();
-        SETTINGS_CONTRIBUTIONS.clear();
+        ROOT_COMMANDS.clear();
+        SETTINGS_COMMANDS.clear();
     }
 
     private static void rebuildIfRegistered() {
@@ -118,14 +118,14 @@ public final class ImpulseCommandContributionRegistry {
         }
     }
 
-    private static boolean addContribution(
-        @Nonnull Map<String, Supplier<? extends AbstractCommand>> contributions,
+    private static boolean addCommand(
+        @Nonnull Map<String, Supplier<? extends AbstractCommand>> commands,
         @Nonnull String id,
         @Nonnull Supplier<? extends AbstractCommand> supplier) {
-        if (contributions.containsKey(id)) {
+        if (commands.containsKey(id)) {
             return false;
         }
-        contributions.put(id, Objects.requireNonNull(supplier, "supplier"));
+        commands.put(id, Objects.requireNonNull(supplier, "supplier"));
         return true;
     }
 
@@ -148,13 +148,13 @@ public final class ImpulseCommandContributionRegistry {
 
     @Nonnull
     private static ImpulseCommand createRootCommand() {
-        List<AbstractCommand> settingsContributions = new ArrayList<>(SETTINGS_CONTRIBUTIONS.size());
-        for (Supplier<? extends AbstractCommand> supplier : SETTINGS_CONTRIBUTIONS.values()) {
-            settingsContributions.add(supplier.get());
+        List<AbstractCommand> settingsCommands = new ArrayList<>(SETTINGS_COMMANDS.size());
+        for (Supplier<? extends AbstractCommand> supplier : SETTINGS_COMMANDS.values()) {
+            settingsCommands.add(supplier.get());
         }
-        ImpulseCommand command = new ImpulseCommand(settingsContributions);
-        for (Supplier<? extends AbstractCommand> supplier : ROOT_CONTRIBUTIONS.values()) {
-            command.addRootContribution(supplier.get());
+        ImpulseCommand command = new ImpulseCommand(settingsCommands);
+        for (Supplier<? extends AbstractCommand> supplier : ROOT_COMMANDS.values()) {
+            command.registerRootCommand(supplier.get());
         }
         return command;
     }

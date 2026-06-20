@@ -12,7 +12,7 @@ public class SettingsCommand extends AbstractCommandCollection {
         addSubCommand(new SolverSettingsCommand());
     }
 
-    public void addContribution(@Nonnull AbstractCommand command) {
+    public void registerSettingsCommand(@Nonnull AbstractCommand command) {
         addSubCommand(command);
     }
 }

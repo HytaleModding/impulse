@@ -1,21 +1,21 @@
 package dev.hytalemodding.impulse.core.internal.modules.physicschunk.commands;
 
-import dev.hytalemodding.impulse.core.internal.commands.ImpulseCommandContributionRegistry;
+import dev.hytalemodding.impulse.core.internal.commands.ImpulseCommandTreeRegistry;
 
 /**
- * Command contributions owned by the PhysicsChunk subplugin.
+ * Command set owned by the PhysicsChunk subplugin.
  */
-public final class PhysicsChunkCommandContributions {
+public final class PhysicsChunkCommandSet {
 
     private static final String PHYSICS_CHUNK_ROOT_COMMAND_ID = "physicschunk.root";
     private static final String COLLISION_LOD_SETTINGS_COMMAND_ID =
         "physicschunk.settings.collision-lod";
 
-    private PhysicsChunkCommandContributions() {
+    private PhysicsChunkCommandSet() {
     }
 
     public static void register() {
-        ImpulseCommandContributionRegistry.addRootAndSettingsSubCommands(
+        ImpulseCommandTreeRegistry.registerRootAndSettingsSubCommands(
             PHYSICS_CHUNK_ROOT_COMMAND_ID,
             PhysicsChunkCommand::new,
             COLLISION_LOD_SETTINGS_COMMAND_ID,
@@ -23,7 +23,7 @@ public final class PhysicsChunkCommandContributions {
     }
 
     public static void unregister() {
-        ImpulseCommandContributionRegistry.removeRootAndSettingsSubCommands(
+        ImpulseCommandTreeRegistry.unregisterRootAndSettingsSubCommands(
             PHYSICS_CHUNK_ROOT_COMMAND_ID,
             COLLISION_LOD_SETTINGS_COMMAND_ID);
     }

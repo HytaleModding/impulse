@@ -16,21 +16,21 @@ public class ImpulseCommand extends AbstractCommandCollection {
         this(List.of());
     }
 
-    ImpulseCommand(@Nonnull Collection<? extends AbstractCommand> settingsContributions) {
+    ImpulseCommand(@Nonnull Collection<? extends AbstractCommand> settingsCommands) {
         super("impulse", "Impulse runtime commands");
         addSubCommand(new BackendCommand());
         addSubCommand(new CleanCommand());
         addSubCommand(new DebugCommand());
         addSubCommand(new PerfCommand());
         SettingsCommand settingsCommand = new SettingsCommand();
-        for (AbstractCommand command : settingsContributions) {
-            settingsCommand.addContribution(command);
+        for (AbstractCommand command : settingsCommands) {
+            settingsCommand.registerSettingsCommand(command);
         }
         addSubCommand(settingsCommand);
         addSubCommand(new SpaceCommand());
     }
 
-    void addRootContribution(@Nonnull AbstractCommand command) {
+    void registerRootCommand(@Nonnull AbstractCommand command) {
         addSubCommand(command);
     }
 

@@ -6,16 +6,16 @@ import com.hypixel.hytale.server.core.command.system.AbstractCommand;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
-class ImpulseCommandContributionRegistryTest {
+class ImpulseCommandTreeRegistryTest {
 
     @AfterEach
     void resetRegistry() {
-        ImpulseCommandContributionRegistry.resetForTests();
+        ImpulseCommandTreeRegistry.resetForTests();
     }
 
     @Test
     void coreRootDoesNotOwnPhysicsChunkCommandsByDefault() {
-        ImpulseCommand root = ImpulseCommandContributionRegistry.createRootCommandForTests();
+        ImpulseCommand root = ImpulseCommandTreeRegistry.createRootCommandForTests();
 
         assertFalse(root.getSubCommands().containsKey("physicschunk"));
         assertFalse(settings(root).getSubCommands().containsKey("collision-lod"));

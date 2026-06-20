@@ -14,7 +14,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.BackendId;
 import dev.hytalemodding.impulse.api.Impulse;
 import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntimeProvider;
-import dev.hytalemodding.impulse.core.internal.commands.ImpulseCommandContributionRegistry;
+import dev.hytalemodding.impulse.core.internal.commands.ImpulseCommandTreeRegistry;
 import dev.hytalemodding.impulse.core.internal.modules.ImpulseSubPluginRegistration;
 import dev.hytalemodding.impulse.core.internal.registration.PhysicsComponentTypeRegistry;
 import dev.hytalemodding.impulse.core.internal.registration.PhysicsStoreRegistration;
@@ -69,7 +69,7 @@ public final class ImpulsePlugin extends JavaPlugin {
 
     @Override
     protected void shutdown() {
-        ImpulseCommandContributionRegistry.unregister();
+        ImpulseCommandTreeRegistry.unregister();
     }
 
     /**
@@ -157,7 +157,7 @@ public final class ImpulsePlugin extends JavaPlugin {
 
     private void registerCommands() {
         CommandRegistry commandRegistry = getCommandRegistry();
-        ImpulseCommandContributionRegistry.register(commandRegistry);
+        ImpulseCommandTreeRegistry.register(commandRegistry);
     }
 
 }
