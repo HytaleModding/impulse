@@ -14,6 +14,7 @@ import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkCollisionMu
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkCollisionPayloadResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResetResult;
 import dev.hytalemodding.impulse.core.internal.modules.control.PhysicsControlRuntimeStates;
+import dev.hytalemodding.impulse.core.internal.physics.PhysicsStoreRowCleanup.BodyEntityRemoval;
 import dev.hytalemodding.impulse.core.plugin.physics.PhysicsThreading;
 import dev.hytalemodding.impulse.core.plugin.components.BodyComponent;
 import dev.hytalemodding.impulse.core.plugin.components.JointComponent;
@@ -59,7 +60,7 @@ public final class PhysicsTopologyMutations {
         TopologyCounts removed = countBackendTopology(runtime);
         List<RowRemoval> removals = collectRows(store, null, null, null, null);
         removeRuntimeRows(runtime, identity, removals);
-        removeRows(store, removals);
+        removeRows(store, removals, false);
         clearCopiedBodyState(store);
         store.getResource(PhysicsChunkCollisionMutationQueueResource.getResourceType()).clear();
         store.getResource(PhysicsChunkCollisionPayloadResource.getResourceType()).clear();
@@ -271,16 +272,27 @@ public final class PhysicsTopologyMutations {
 
     private static void removeRows(@Nonnull Store<PhysicsStore> store,
         @Nonnull List<RowRemoval> removals) {
+        removeRows(store, removals, true);
+    }
+
+    private static void removeRows(@Nonnull Store<PhysicsStore> store,
+        @Nonnull List<RowRemoval> removals,
+        boolean clearCopiedState) {
         boolean removedAny = false;
-        for (RowRemoval removal : removals.stream()
+        List<RowRemoval> orderedRemovals = removals.stream()
             .sorted((first, second) -> Integer.compare(second.ref().getIndex(),
                 first.ref().getIndex()))
-            .toList()) {
+            .toList();
+        if (clearCopiedState) {
+            PhysicsStoreRowCleanup.clearBodyCopiedState(store,
+                bodyEntityRemovals(orderedRemovals));
+        }
+        for (RowRemoval removal : orderedRemovals) {
             if (!removal.ref().isValid()) {
                 continue;
             }
             if (removal.kind() == RowKind.BODY) {
-                PhysicsStoreRowCleanup.removeBodyEntity(store,
+                PhysicsStoreRowCleanup.removeBodyEntityRow(store,
                     removal.rowUuid(),
                     removal.ref(),
                     removal.payloadResourceKey());
@@ -294,6 +306,20 @@ public final class PhysicsTopologyMutations {
         if (removedAny) {
             PhysicsStoreRowCleanup.refreshIdentityAndRuntimeRefs(store);
         }
+    }
+
+    @Nonnull
+    private static List<BodyEntityRemoval> bodyEntityRemovals(
+        @Nonnull List<RowRemoval> removals) {
+        List<BodyEntityRemoval> bodyRemovals = new ArrayList<>();
+        for (RowRemoval removal : removals) {
+            if (removal.kind() == RowKind.BODY && removal.ref().isValid()) {
+                bodyRemovals.add(new BodyEntityRemoval(removal.rowUuid(),
+                    removal.ref(),
+                    removal.payloadResourceKey()));
+            }
+        }
+        return bodyRemovals;
     }
 
     private static void clearCopiedBodyState(@Nonnull Store<PhysicsStore> store) {

@@ -83,20 +83,10 @@ public final class PhysicsStoreRowCleanup {
     public static void clearBodyCopiedState(@Nonnull Store<PhysicsStore> store,
         @Nonnull UUID bodyUuid,
         @Nonnull Ref<PhysicsStore> bodyRef) {
-        PhysicsControlRuntimeStates.clearControlled(bodyRef);
-        store.getResource(PhysicsSnapshotResource.getResourceType()).removeBody(bodyUuid);
-        store.getResource(PhysicsBodyRegistrationResource.getResourceType()).removeBody(bodyUuid);
+        clearBodyCopiedState(store, List.of(new BodyEntityRemoval(bodyUuid, bodyRef, null)));
     }
 
-    public static void removeBodyEntity(@Nonnull Store<PhysicsStore> store,
-        @Nonnull UUID bodyUuid,
-        @Nonnull Ref<PhysicsStore> bodyRef,
-        @Nullable String payloadResourceKey) {
-        clearBodyCopiedState(store, bodyUuid, bodyRef);
-        removeBodyEntityAfterCopiedStateCleared(store, bodyUuid, bodyRef, payloadResourceKey);
-    }
-
-    public static void removeBodyEntities(@Nonnull Store<PhysicsStore> store,
+    public static void clearBodyCopiedState(@Nonnull Store<PhysicsStore> store,
         @Nonnull Collection<BodyEntityRemoval> removals) {
         Objects.requireNonNull(removals, "removals");
         if (removals.isEmpty()) {
@@ -111,16 +101,32 @@ public final class PhysicsStoreRowCleanup {
         store.getResource(PhysicsSnapshotResource.getResourceType()).removeBodies(bodyUuids);
         store.getResource(PhysicsBodyRegistrationResource.getResourceType())
             .removeBodies(bodyUuids);
+    }
+
+    public static void removeBodyEntity(@Nonnull Store<PhysicsStore> store,
+        @Nonnull UUID bodyUuid,
+        @Nonnull Ref<PhysicsStore> bodyRef,
+        @Nullable String payloadResourceKey) {
+        clearBodyCopiedState(store, bodyUuid, bodyRef);
+        removeBodyEntityRow(store, bodyUuid, bodyRef, payloadResourceKey);
+    }
+
+    public static void removeBodyEntities(@Nonnull Store<PhysicsStore> store,
+        @Nonnull Collection<BodyEntityRemoval> removals) {
+        Objects.requireNonNull(removals, "removals");
+        if (removals.isEmpty()) {
+            return;
+        }
+        clearBodyCopiedState(store, removals);
         for (BodyEntityRemoval removal : removals) {
-            removeBodyEntityAfterCopiedStateCleared(store,
+            removeBodyEntityRow(store,
                 removal.bodyUuid(),
                 removal.bodyRef(),
                 removal.payloadResourceKey());
         }
     }
 
-    private static void removeBodyEntityAfterCopiedStateCleared(
-        @Nonnull Store<PhysicsStore> store,
+    static void removeBodyEntityRow(@Nonnull Store<PhysicsStore> store,
         @Nonnull UUID bodyUuid,
         @Nonnull Ref<PhysicsStore> bodyRef,
         @Nullable String payloadResourceKey) {

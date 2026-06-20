@@ -9,6 +9,7 @@ import com.hypixel.hytale.component.system.tick.TickingSystem;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntime;
 import dev.hytalemodding.impulse.core.internal.physics.PhysicsStoreRowCleanup;
+import dev.hytalemodding.impulse.core.internal.physics.PhysicsStoreRowCleanup.BodyEntityRemoval;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsIdentityIndexResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRestoreStatusResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResource;
@@ -70,7 +71,7 @@ public final class StaleBodyRemovalSystem extends TickingSystem<PhysicsStore> {
             return;
         }
         List<BoundBody> orderedBodies = currentBodyRefs(identity, staleBodies);
-        boolean removedAny = false;
+        List<BodyEntityRemoval> bodyEntityRemovals = new ArrayList<>(orderedBodies.size());
         for (BoundBody body : orderedBodies) {
             try {
                 PhysicsStoreRowCleanup.removeRuntimeBody(runtime,
@@ -79,16 +80,14 @@ public final class StaleBodyRemovalSystem extends TickingSystem<PhysicsStore> {
                     body.bodyRef(),
                     body.backendRuntime());
             } catch (RuntimeException exception) {
+                removeBodyEntities(store, bodyEntityRemovals);
                 restore.markFailed("PhysicsStore body " + body.bodyUuid()
                     + " failed backend removal: " + exception.getMessage());
                 return;
             }
-            PhysicsStoreRowCleanup.removeBodyEntity(store, body.bodyUuid(), body.bodyRef(), null);
-            removedAny = true;
+            bodyEntityRemovals.add(new BodyEntityRemoval(body.bodyUuid(), body.bodyRef(), null));
         }
-        if (removedAny) {
-            PhysicsStoreRowCleanup.refreshIdentityAndRuntimeRefs(store);
-        }
+        removeBodyEntities(store, bodyEntityRemovals);
     }
 
     private static boolean removeDependentJoints(@Nonnull Store<PhysicsStore> store,
@@ -123,6 +122,15 @@ public final class StaleBodyRemovalSystem extends TickingSystem<PhysicsStore> {
             PhysicsStoreRowCleanup.refreshIdentityAndRuntimeRefs(store);
         }
         return true;
+    }
+
+    private static void removeBodyEntities(@Nonnull Store<PhysicsStore> store,
+        @Nonnull List<BodyEntityRemoval> removals) {
+        if (removals.isEmpty()) {
+            return;
+        }
+        PhysicsStoreRowCleanup.removeBodyEntities(store, removals);
+        PhysicsStoreRowCleanup.refreshIdentityAndRuntimeRefs(store);
     }
 
     @Nonnull
