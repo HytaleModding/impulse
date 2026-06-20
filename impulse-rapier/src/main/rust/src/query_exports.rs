@@ -120,7 +120,10 @@ pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_getCon
         if max_contacts <= 0 {
             Vec::new()
         } else {
-            contact_values(space_handle, (max_contacts as usize).min(MAX_CONTACT_POINTS))
+            contact_values(
+                space_handle,
+                (max_contacts as usize).min(MAX_CONTACT_POINTS),
+            )
         }
     });
     float_array_or_null(&env, &values)

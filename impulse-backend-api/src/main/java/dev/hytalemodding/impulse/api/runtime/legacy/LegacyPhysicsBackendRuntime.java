@@ -86,6 +86,25 @@ public final class LegacyPhysicsBackendRuntime implements PhysicsBackendRuntime 
     }
 
     @Override
+    public void close() {
+        RuntimeException failure = null;
+        for (Integer spaceId : new ArrayList<>(spaces.keySet())) {
+            try {
+                destroySpace(spaceId);
+            } catch (RuntimeException exception) {
+                if (failure == null) {
+                    failure = exception;
+                } else {
+                    failure.addSuppressed(exception);
+                }
+            }
+        }
+        if (failure != null) {
+            throw failure;
+        }
+    }
+
+    @Override
     public void step(int spaceId, float dt) {
         requireSpace(spaceId).space.step(dt);
     }

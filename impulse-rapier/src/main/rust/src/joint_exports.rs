@@ -1,5 +1,49 @@
 use super::*;
 
+enum JointMutationFailure {
+    StaleJoint(jlong),
+    StaleImpulseJoint(jlong),
+}
+
+fn throw_joint_mutation_failure(
+    env: &mut JNIEnv<'_>,
+    operation: &str,
+    failure: JointMutationFailure,
+) {
+    let message = match failure {
+        JointMutationFailure::StaleJoint(joint_id) => {
+            format!("Rapier native {operation} failed: stale joint handle {joint_id}")
+        }
+        JointMutationFailure::StaleImpulseJoint(joint_id) => {
+            format!("Rapier native {operation} failed: stale impulse joint for joint {joint_id}")
+        }
+    };
+    let _ = env.throw_new("java/lang/IllegalStateException", message);
+}
+
+fn with_attached_joint_mutation<F>(
+    env: &mut JNIEnv<'_>,
+    operation: &str,
+    space_handle: jlong,
+    joint_id: jlong,
+    f: F,
+) where
+    F: FnOnce(&mut NativeSpace, JointEntry) -> Result<(), JointMutationFailure>,
+{
+    let result = with_space_checked(space_handle, |space| {
+        let entry = space
+            .joint(joint_id)
+            .ok_or(JointMutationFailure::StaleJoint(joint_id))?;
+        f(space, entry)
+    });
+
+    match result {
+        Ok(Ok(())) => {}
+        Ok(Err(failure)) => throw_joint_mutation_failure(env, operation, failure),
+        Err(failure) => throw_native_space_failure(env, operation, failure),
+    }
+}
+
 #[no_mangle]
 pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_addJointNative(
     _env: JNIEnv,
@@ -101,35 +145,50 @@ pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_jointH
 
 #[no_mangle]
 pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_removeJointNative(
-    _env: JNIEnv,
+    mut env: JNIEnv,
     _class: JClass,
     space_handle: jlong,
     joint_id: jlong,
 ) {
-    with_space(space_handle, (), |space| {
-        if let Some(entry) = space.joints.remove(&joint_id) {
+    with_attached_joint_mutation(
+        &mut env,
+        "remove joint",
+        space_handle,
+        joint_id,
+        |space, entry| {
+            if space.impulse_joints.get(entry.joint).is_none() {
+                return Err(JointMutationFailure::StaleImpulseJoint(joint_id));
+            }
+            space.joints.remove(&joint_id);
             space.impulse_joints.remove(entry.joint, true);
-        }
-    });
+            Ok(())
+        },
+    );
 }
 
 #[no_mangle]
 pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_setJointEnabledNative(
-    _env: JNIEnv,
+    mut env: JNIEnv,
     _class: JClass,
     space_handle: jlong,
     joint_id: jlong,
     enabled: jboolean,
 ) {
-    with_space(space_handle, (), |space| {
-        if let Some(mut entry) = space.joint(joint_id) {
+    with_attached_joint_mutation(
+        &mut env,
+        "set joint enabled",
+        space_handle,
+        joint_id,
+        |space, mut entry| {
             entry.enabled = bool_from_jboolean(enabled);
-            if let Some(joint) = space.impulse_joints.get_mut(entry.joint, true) {
-                joint.data.set_enabled(entry.enabled);
-            }
+            let Some(joint) = space.impulse_joints.get_mut(entry.joint, true) else {
+                return Err(JointMutationFailure::StaleImpulseJoint(joint_id));
+            };
+            joint.data.set_enabled(entry.enabled);
             space.joints.insert(joint_id, entry);
-        }
-    });
+            Ok(())
+        },
+    );
 }
 
 #[no_mangle]
@@ -149,15 +208,19 @@ pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_isJoin
 
 #[no_mangle]
 pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_setJointLimitsNative(
-    _env: JNIEnv,
+    mut env: JNIEnv,
     _class: JClass,
     space_handle: jlong,
     joint_id: jlong,
     lower_limit: jfloat,
     upper_limit: jfloat,
 ) {
-    with_space(space_handle, (), |space| {
-        if let Some(entry) = space.joint(joint_id) {
+    with_attached_joint_mutation(
+        &mut env,
+        "set joint limits",
+        space_handle,
+        joint_id,
+        |space, entry| {
             let lower_limit = finite_or(lower_limit, 0.0);
             let upper_limit = finite_or(upper_limit, 0.0);
             let limits = if lower_limit <= upper_limit {
@@ -165,24 +228,26 @@ pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_setJoi
             } else {
                 [upper_limit, lower_limit]
             };
-            if let Some(joint) = space.impulse_joints.get_mut(entry.joint, true) {
-                match entry.joint_type {
-                    JOINT_HINGE => {
-                        joint.data.set_limits(JointAxis::AngX, limits);
-                    }
-                    JOINT_SLIDER => {
-                        joint.data.set_limits(JointAxis::LinX, limits);
-                    }
-                    _ => {}
+            let Some(joint) = space.impulse_joints.get_mut(entry.joint, true) else {
+                return Err(JointMutationFailure::StaleImpulseJoint(joint_id));
+            };
+            match entry.joint_type {
+                JOINT_HINGE => {
+                    joint.data.set_limits(JointAxis::AngX, limits);
                 }
+                JOINT_SLIDER => {
+                    joint.data.set_limits(JointAxis::LinX, limits);
+                }
+                _ => {}
             }
-        }
-    });
+            Ok(())
+        },
+    );
 }
 
 #[no_mangle]
 pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_setJointMotorNative(
-    _env: JNIEnv,
+    mut env: JNIEnv,
     _class: JClass,
     space_handle: jlong,
     joint_id: jlong,
@@ -190,35 +255,41 @@ pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_setJoi
     target_velocity: jfloat,
     max_force: jfloat,
 ) {
-    with_space(space_handle, (), |space| {
-        if let Some(entry) = space.joint(joint_id) {
-            if let Some(joint) = space.impulse_joints.get_mut(entry.joint, true) {
-                let target_velocity = if bool_from_jboolean(enabled) {
-                    finite_or(target_velocity, 0.0)
-                } else {
-                    0.0
-                };
-                let max_force = if bool_from_jboolean(enabled) {
-                    finite_nonnegative(max_force)
-                } else {
-                    0.0
-                };
-                match entry.joint_type {
-                    JOINT_HINGE => {
-                        joint
-                            .data
-                            .set_motor_velocity(JointAxis::AngX, target_velocity, 1.0);
-                        joint.data.set_motor_max_force(JointAxis::AngX, max_force);
-                    }
-                    JOINT_SLIDER => {
-                        joint
-                            .data
-                            .set_motor_velocity(JointAxis::LinX, target_velocity, 1.0);
-                        joint.data.set_motor_max_force(JointAxis::LinX, max_force);
-                    }
-                    _ => {}
+    with_attached_joint_mutation(
+        &mut env,
+        "set joint motor",
+        space_handle,
+        joint_id,
+        |space, entry| {
+            let Some(joint) = space.impulse_joints.get_mut(entry.joint, true) else {
+                return Err(JointMutationFailure::StaleImpulseJoint(joint_id));
+            };
+            let target_velocity = if bool_from_jboolean(enabled) {
+                finite_or(target_velocity, 0.0)
+            } else {
+                0.0
+            };
+            let max_force = if bool_from_jboolean(enabled) {
+                finite_nonnegative(max_force)
+            } else {
+                0.0
+            };
+            match entry.joint_type {
+                JOINT_HINGE => {
+                    joint
+                        .data
+                        .set_motor_velocity(JointAxis::AngX, target_velocity, 1.0);
+                    joint.data.set_motor_max_force(JointAxis::AngX, max_force);
                 }
+                JOINT_SLIDER => {
+                    joint
+                        .data
+                        .set_motor_velocity(JointAxis::LinX, target_velocity, 1.0);
+                    joint.data.set_motor_max_force(JointAxis::LinX, max_force);
+                }
+                _ => {}
             }
-        }
-    });
+            Ok(())
+        },
+    );
 }

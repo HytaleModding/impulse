@@ -1,6 +1,7 @@
 package dev.hytalemodding.impulse.core.internal.resources;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
@@ -12,9 +13,12 @@ import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntime;
 import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackendRuntimeProvider;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.ChunkCollisionMutation;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.ChunkCollisionPayload;
 import dev.hytalemodding.impulse.core.internal.resources.BackendBodyHandle;
 import dev.hytalemodding.impulse.core.internal.resources.BackendJointHandle;
 import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkCollisionMutationQueueResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSnapshotResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceCompatibilityIndexResource;
@@ -327,8 +331,9 @@ class PhysicsStoreResourceIndexTest {
 
         resource.publish(frame);
 
-        assertEquals(frame, resource.getLatestFrame());
-        assertEquals(body, resource.getBody(bodyUuid));
+        assertNotSame(frame, resource.getLatestFrame());
+        assertSnapshotEquals(body, resource.getBody(bodyUuid));
+        assertNotSame(body, resource.getBody(bodyUuid));
         assertNull(resource.getBody(UUID.randomUUID()));
 
         resource.clear();
@@ -358,9 +363,50 @@ class PhysicsStoreResourceIndexTest {
         assertNull(resource.getBody(firstBodyRef));
         assertNull(resource.getBody(secondBodyUuid));
         assertNull(resource.getBody(secondBodyRef));
-        assertEquals(retained, resource.getBody(retainedBodyUuid));
-        assertEquals(retained, resource.getBody(retainedBodyRef));
-        assertEquals(List.of(retained), resource.getLatestFrame().bodies());
+        assertSnapshotEquals(retained, resource.getBody(retainedBodyUuid));
+        assertSnapshotEquals(retained, resource.getBody(retainedBodyRef));
+        List<PhysicsBodySnapshot> retainedBodies = resource.getLatestFrame().bodies();
+        assertEquals(1, retainedBodies.size());
+        assertSnapshotEquals(retained, retainedBodies.getFirst());
+    }
+
+    @Test
+    void chunkCollisionQueueKeepsOnlyLatestMutationPerSourceBeforeDrain() {
+        PhysicsChunkCollisionMutationQueueResource queue =
+            new PhysicsChunkCollisionMutationQueueResource();
+        UUID spaceUuid = UUID.fromString("00000000-0000-0000-0000-000000000025");
+        ChunkCollisionPayload firstPayload = chunkPayload(1.0);
+        ChunkCollisionPayload secondPayload = chunkPayload(2.0);
+
+        queue.enqueue(ChunkCollisionMutation.upsert(spaceUuid,
+            "0:1:2",
+            0,
+            1,
+            2,
+            "chunk-collision/first",
+            firstPayload));
+        queue.enqueue(ChunkCollisionMutation.upsert(spaceUuid,
+            "3:4:5",
+            3,
+            4,
+            5,
+            "chunk-collision/other",
+            firstPayload));
+        queue.enqueue(ChunkCollisionMutation.upsert(spaceUuid,
+            "0:1:2",
+            0,
+            1,
+            2,
+            "chunk-collision/second",
+            secondPayload));
+
+        assertEquals(2, queue.size());
+        List<ChunkCollisionMutation> drained = queue.drain();
+
+        assertEquals(2, drained.size());
+        assertEquals("3:4:5", drained.get(0).sourceKey());
+        assertEquals("0:1:2", drained.get(1).sourceKey());
+        assertSame(secondPayload, drained.get(1).payload());
     }
 
     private static final class TestRef extends Ref<PhysicsStore> {
@@ -388,5 +434,44 @@ class PhysicsStoreResourceIndexTest {
             new Vector3f(),
             0.0f,
             false);
+    }
+
+    private static ChunkCollisionPayload chunkPayload(double centerX) {
+        return new ChunkCollisionPayload(1.0f,
+            1.0f,
+            1.0f,
+            new int[0],
+            List.of(new ChunkCollisionPayload.BoxPayload(centerX,
+                0.0,
+                0.0,
+                0.5,
+                0.5,
+                0.5)),
+            List.of(),
+            false,
+            List.of());
+    }
+
+    private static void assertSnapshotEquals(PhysicsBodySnapshot expected,
+        PhysicsBodySnapshot actual) {
+        assertEquals(expected.bodyRef(), actual.bodyRef());
+        assertEquals(expected.bodyUuid(), actual.bodyUuid());
+        assertEquals(expected.spaceUuid(), actual.spaceUuid());
+        assertEquals(expected.bodyType(), actual.bodyType());
+        assertEquals(expected.positionX(), actual.positionX());
+        assertEquals(expected.positionY(), actual.positionY());
+        assertEquals(expected.positionZ(), actual.positionZ());
+        assertEquals(expected.rotationX(), actual.rotationX());
+        assertEquals(expected.rotationY(), actual.rotationY());
+        assertEquals(expected.rotationZ(), actual.rotationZ());
+        assertEquals(expected.rotationW(), actual.rotationW());
+        assertEquals(expected.linearVelocityX(), actual.linearVelocityX());
+        assertEquals(expected.linearVelocityY(), actual.linearVelocityY());
+        assertEquals(expected.linearVelocityZ(), actual.linearVelocityZ());
+        assertEquals(expected.angularVelocityX(), actual.angularVelocityX());
+        assertEquals(expected.angularVelocityY(), actual.angularVelocityY());
+        assertEquals(expected.angularVelocityZ(), actual.angularVelocityZ());
+        assertEquals(expected.centerOfMassOffsetY(), actual.centerOfMassOffsetY());
+        assertEquals(expected.sleeping(), actual.sleeping());
     }
 }

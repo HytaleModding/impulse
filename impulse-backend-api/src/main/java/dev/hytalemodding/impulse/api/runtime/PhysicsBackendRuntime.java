@@ -9,11 +9,15 @@ import javax.annotation.Nonnull;
 /**
  * Store tick backend runtime port using backend-local numeric ids and primitive payloads.
  */
-public interface PhysicsBackendRuntime {
+public interface PhysicsBackendRuntime extends AutoCloseable {
 
     int createSpace(@Nonnull SpaceId requestedId);
 
     void destroySpace(int spaceId);
+
+    @Override
+    default void close() {
+    }
 
     void step(int spaceId, float dt);
 

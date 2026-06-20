@@ -32,16 +32,18 @@ pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_destro
 
 #[no_mangle]
 pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_setGravityNative(
-    _env: JNIEnv,
+    mut env: JNIEnv,
     _class: JClass,
     space_handle: jlong,
     x: jfloat,
     y: jfloat,
     z: jfloat,
 ) {
-    with_space(space_handle, (), |space| {
+    if let Err(failure) = with_space_checked(space_handle, |space| {
         space.gravity = finite_vector_or_zero(x, y, z);
-    });
+    }) {
+        throw_native_space_failure(&mut env, "set gravity", failure);
+    }
 }
 
 #[no_mangle]
@@ -444,7 +446,7 @@ fn long_array_or_null(env: &JNIEnv<'_>, values: &[jlong]) -> jni::sys::jlongArra
 
 #[no_mangle]
 pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_setSolverTuningNative(
-    _env: JNIEnv,
+    mut env: JNIEnv,
     _class: JClass,
     space_handle: jlong,
     solver_iterations: jint,
@@ -452,28 +454,32 @@ pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_setSol
     stabilization_iterations: jint,
     min_island_size: jint,
 ) {
-    with_space(space_handle, (), |space| {
+    if let Err(failure) = with_space_checked(space_handle, |space| {
         space.set_solver_tuning(
             positive_usize(solver_iterations),
             positive_usize(internal_pgs_iterations),
             non_negative_usize(stabilization_iterations),
             positive_usize(min_island_size),
         );
-    });
+    }) {
+        throw_native_space_failure(&mut env, "set solver tuning", failure);
+    }
 }
 
 #[no_mangle]
 pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_setDynamicSleepTuningNative(
-    _env: JNIEnv,
+    mut env: JNIEnv,
     _class: JClass,
     space_handle: jlong,
     linear_threshold: jfloat,
     angular_threshold: jfloat,
     time_until_sleep: jfloat,
 ) {
-    with_space(space_handle, (), |space| {
+    if let Err(failure) = with_space_checked(space_handle, |space| {
         space.set_dynamic_sleep_tuning(linear_threshold, angular_threshold, time_until_sleep);
-    });
+    }) {
+        throw_native_space_failure(&mut env, "set dynamic sleep tuning", failure);
+    }
 }
 
 fn positive_usize(value: jint) -> usize {

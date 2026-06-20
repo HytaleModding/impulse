@@ -5,11 +5,10 @@ import com.hypixel.hytale.component.ResourceType;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.ChunkCollisionMutation;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkLifecycle;
-import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Objects;
-import java.util.Queue;
 import java.util.function.Predicate;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -22,7 +21,8 @@ public final class PhysicsChunkCollisionMutationQueueResource implements Resourc
     @Nullable
     private static ResourceType<PhysicsStore, PhysicsChunkCollisionMutationQueueResource> resourceType;
     @Nonnull
-    private final Queue<ChunkCollisionMutation> mutations = new ArrayDeque<>();
+    private final LinkedHashMap<MutationKey, ChunkCollisionMutation> mutations =
+        new LinkedHashMap<>();
     private long lifecycleGeneration = PhysicsChunkLifecycle.generation();
     private long settingsGeneration = PhysicsChunkSettingsIndexResource.INITIAL_GENERATION;
 
@@ -30,8 +30,11 @@ public final class PhysicsChunkCollisionMutationQueueResource implements Resourc
     }
 
     public synchronized void enqueue(@Nonnull ChunkCollisionMutation mutation) {
-        mutations.add(Objects.requireNonNull(mutation, "mutation")
-            .stamped(lifecycleGeneration, settingsGeneration));
+        ChunkCollisionMutation stamped = Objects.requireNonNull(mutation, "mutation")
+            .stamped(lifecycleGeneration, settingsGeneration);
+        MutationKey key = new MutationKey(stamped.spaceUuid(), stamped.sourceKey());
+        mutations.remove(key);
+        mutations.put(key, stamped);
     }
 
     public synchronized void updateStamp(long lifecycleGeneration, long settingsGeneration) {
@@ -41,11 +44,8 @@ public final class PhysicsChunkCollisionMutationQueueResource implements Resourc
 
     @Nonnull
     public synchronized List<ChunkCollisionMutation> drain() {
-        List<ChunkCollisionMutation> drained = new ArrayList<>(mutations.size());
-        ChunkCollisionMutation mutation;
-        while ((mutation = mutations.poll()) != null) {
-            drained.add(mutation);
-        }
+        List<ChunkCollisionMutation> drained = new ArrayList<>(mutations.values());
+        mutations.clear();
         return drained;
     }
 
@@ -56,7 +56,7 @@ public final class PhysicsChunkCollisionMutationQueueResource implements Resourc
     public synchronized int removeIf(@Nonnull Predicate<ChunkCollisionMutation> predicate) {
         Objects.requireNonNull(predicate, "predicate");
         int before = mutations.size();
-        mutations.removeIf(predicate);
+        mutations.entrySet().removeIf(entry -> predicate.test(entry.getValue()));
         return before - mutations.size();
     }
 
@@ -68,7 +68,7 @@ public final class PhysicsChunkCollisionMutationQueueResource implements Resourc
     @Override
     public synchronized PhysicsChunkCollisionMutationQueueResource clone() {
         PhysicsChunkCollisionMutationQueueResource copy = new PhysicsChunkCollisionMutationQueueResource();
-        copy.mutations.addAll(mutations);
+        copy.mutations.putAll(mutations);
         copy.lifecycleGeneration = lifecycleGeneration;
         copy.settingsGeneration = settingsGeneration;
         return copy;
@@ -86,5 +86,8 @@ public final class PhysicsChunkCollisionMutationQueueResource implements Resourc
 
     public static void clearResourceType() {
         resourceType = null;
+    }
+
+    private record MutationKey(@Nonnull java.util.UUID spaceUuid, @Nonnull String sourceKey) {
     }
 }
