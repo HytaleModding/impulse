@@ -17,6 +17,7 @@ import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.internal.physics.PhysicsStoreRowCleanup.BodyEntityRemoval;
 import dev.hytalemodding.impulse.core.internal.registration.PhysicsComponentTypeRegistry;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsBodyRegistrationResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsIdentityIndexResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsResourceTypes;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSnapshotResource;
 import dev.hytalemodding.impulse.core.internal.testsupport.TestInstanceFactory;
@@ -79,6 +80,40 @@ class PhysicsStoreRowCleanupTest {
             assertEquals(1, registrations.getBodyRegistrationCount());
             assertNotNull(store.getComponent(firstBodyRef, UuidComponent.getComponentType()));
             assertNotNull(store.getComponent(secondBodyRef, UuidComponent.getComponentType()));
+        } finally {
+            registry.removeStore(store);
+            registry.shutdown();
+        }
+    }
+
+    @Test
+    void refreshIdentityAndRuntimeRefsRebuildsLargeUuidIndexWithoutParallelMapWrites() {
+        ComponentRegistry<PhysicsStore> registry = new ComponentRegistry<>();
+        ComponentRegistryProxy<PhysicsStore> proxy =
+            new ComponentRegistryProxy<>(new ArrayList<>(), registry);
+        PhysicsComponentTypeRegistry.registerComponentTypes(proxy);
+        PhysicsResourceTypes.registerResourceTypes(proxy);
+        Store<PhysicsStore> store = registry.addStore(
+            new PhysicsStore(TestInstanceFactory.world("row-cleanup-refresh-large-index")),
+            EmptyResourceStorage.get());
+        try {
+            markCurrentThreadAsWorldThread(store);
+            List<UUID> bodyUuids = new ArrayList<>();
+            for (int index = 0; index < 6000; index++) {
+                UUID bodyUuid = uuid(1000L + index);
+                bodyUuids.add(bodyUuid);
+                addIdentityRow(store, bodyUuid);
+            }
+
+            for (int index = 0; index < 20; index++) {
+                PhysicsStoreRowCleanup.refreshIdentityAndRuntimeRefs(store);
+            }
+
+            PhysicsIdentityIndexResource identity = store.getResource(
+                PhysicsIdentityIndexResource.getResourceType());
+            for (UUID bodyUuid : bodyUuids) {
+                assertNotNull(identity.getByUuid(bodyUuid));
+            }
         } finally {
             registry.removeStore(store);
             registry.shutdown();

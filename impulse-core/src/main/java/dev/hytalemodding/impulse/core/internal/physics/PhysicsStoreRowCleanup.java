@@ -20,6 +20,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -148,17 +149,20 @@ public final class PhysicsStoreRowCleanup {
         PhysicsIdentityIndexResource identity =
             store.getResource(PhysicsIdentityIndexResource.getResourceType());
         PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
-        identity.clearUuidRefs();
-        store.getExternalData().clearUuidIndex();
+        ConcurrentLinkedQueue<UuidRef> uuidRefs = new ConcurrentLinkedQueue<>();
         store.forEachEntityParallel(UuidComponent.getComponentType(), (index, chunk, _) -> {
             UuidComponent uuid = chunk.getComponent(index, UuidComponent.getComponentType());
-            if (uuid == null) {
-                return;
+            if (uuid != null) {
+                uuidRefs.add(new UuidRef(uuid.getUuid(), chunk.getReferenceTo(index)));
             }
-            Ref<PhysicsStore> ref = chunk.getReferenceTo(index);
-            identity.putUuid(uuid.getUuid(), ref);
-            store.getExternalData().putRefForUUID(uuid.getUuid(), ref);
         });
+        // The identity maps are fastutil/Hytale mutable maps; rebuild them on one thread.
+        identity.clearUuidRefs();
+        store.getExternalData().clearUuidIndex();
+        for (UuidRef uuidRef : uuidRefs) {
+            identity.putUuid(uuidRef.uuid(), uuidRef.ref());
+            store.getExternalData().putRefForUUID(uuidRef.uuid(), uuidRef.ref());
+        }
         runtime.refreshRowRefs(identity);
     }
 
@@ -187,6 +191,15 @@ public final class PhysicsStoreRowCleanup {
         public BodyEntityRemoval {
             Objects.requireNonNull(bodyUuid, "bodyUuid");
             Objects.requireNonNull(bodyRef, "bodyRef");
+        }
+    }
+
+    private record UuidRef(@Nonnull UUID uuid,
+                           @Nonnull Ref<PhysicsStore> ref) {
+
+        private UuidRef {
+            Objects.requireNonNull(uuid, "uuid");
+            Objects.requireNonNull(ref, "ref");
         }
     }
 }
