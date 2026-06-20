@@ -67,7 +67,7 @@ subprojects {
     }
 }
 
-val backendProjectPaths = setOf(":impulse-rapier")
+val backendProjectPaths = setOf(":impulse-jolt", ":impulse-rapier")
 val stagedBackendJarDirectory = layout.projectDirectory.dir("run/mods/impulse-backends")
 val stagedEarlyPluginJarDirectory = layout.projectDirectory.dir("run/earlyplugins")
 val physicsStoreEarlyPluginEnabled = providers.gradleProperty("impulse.physicsStoreEarlyPlugin")
@@ -137,6 +137,7 @@ tasks.register("packageBackendPlatformJars") {
     group = "build"
     description = "Packages all per-platform and universal backend provider jars"
     dependsOn(
+        ":impulse-jolt:packageJoltBackendPlatformJars",
         ":impulse-rapier:packageRapierBackendPlatformJars"
     )
 }
@@ -147,6 +148,7 @@ tasks.register("headlessTest") {
     dependsOn(
         ":impulse-backend-api:test",
         ":impulse-native-loader:test",
+        ":impulse-jolt:test",
         ":impulse-rapier:test",
         ":impulse-core:test",
         ":impulse-examples:test",
@@ -166,6 +168,7 @@ gradle.projectsEvaluated {
 
         val runTask = this as JavaExec
         runTask.standardInput = System.`in`
+        runTask.jvmArgs("--enable-native-access=ALL-UNNAMED")
 
         // hytale-gradle can omit project resources from run task classpaths.
         val toolRuntimeClasspaths = hytaleToolProjectPaths.map { path ->
