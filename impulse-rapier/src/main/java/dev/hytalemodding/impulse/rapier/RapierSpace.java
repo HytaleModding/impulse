@@ -622,7 +622,22 @@ public final class RapierSpace implements PhysicsSpace {
     @Override
     public List<PhysicsContact> getContacts() {
         ensureOpen();
-        float[] raw = RapierNative.getContactsNative(nativeSpaceHandle);
+        return contactsFromRaw(RapierNative.getContactsNative(nativeSpaceHandle));
+    }
+
+    @Nonnull
+    @Override
+    public List<PhysicsContact> getContacts(int maxContacts) {
+        ensureOpen();
+        if (maxContacts <= 0) {
+            return List.of();
+        }
+        return contactsFromRaw(RapierNative.getContactsLimitedNative(nativeSpaceHandle,
+            maxContacts));
+    }
+
+    @Nonnull
+    private List<PhysicsContact> contactsFromRaw(@Nonnull float[] raw) {
         List<PhysicsContact> contacts = new ArrayList<>(raw.length / CONTACT_FLOATS);
         for (int i = 0; i + CONTACT_FLOATS <= raw.length; i += CONTACT_FLOATS) {
             RapierBody bodyA = bodiesByHandle.get(rawBitFloatPairToLong(raw[i], raw[i + 1]));

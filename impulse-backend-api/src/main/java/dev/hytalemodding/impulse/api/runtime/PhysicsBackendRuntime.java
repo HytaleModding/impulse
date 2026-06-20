@@ -189,6 +189,53 @@ public interface PhysicsBackendRuntime {
 
     int contacts(int spaceId, @Nonnull BackendContactSink sink);
 
+    default int contacts(int spaceId, int maxContacts, @Nonnull BackendContactSink sink) {
+        if (maxContacts <= 0) {
+            return 0;
+        }
+        class BoundedContactSink implements BackendContactSink {
+
+            private int count;
+
+            @Override
+            public void accept(long bodyAId,
+                long bodyBId,
+                float pointAX,
+                float pointAY,
+                float pointAZ,
+                float pointBX,
+                float pointBY,
+                float pointBZ,
+                float normalBX,
+                float normalBY,
+                float normalBZ,
+                float distance,
+                float impulse) {
+                if (count >= maxContacts) {
+                    return;
+                }
+                sink.accept(bodyAId,
+                    bodyBId,
+                    pointAX,
+                    pointAY,
+                    pointAZ,
+                    pointBX,
+                    pointBY,
+                    pointBZ,
+                    normalBX,
+                    normalBY,
+                    normalBZ,
+                    distance,
+                    impulse);
+                count++;
+            }
+        }
+
+        BoundedContactSink bounded = new BoundedContactSink();
+        contacts(spaceId, bounded);
+        return bounded.count;
+    }
+
     int contactCount(int spaceId);
 
     void runtimeStats(int spaceId, @Nonnull BackendRuntimeStatsSink sink);

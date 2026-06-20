@@ -243,6 +243,8 @@ final class RapierNative {
 
     static native float[] getContactsNative(long spaceHandle);
 
+    static native float[] getContactsLimitedNative(long spaceHandle, int maxContacts);
+
     static native long addJointNative(long spaceHandle,
         int jointType,
         long bodyA,

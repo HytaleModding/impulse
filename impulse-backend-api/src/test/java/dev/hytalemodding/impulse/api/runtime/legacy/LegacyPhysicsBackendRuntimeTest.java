@@ -10,14 +10,17 @@ import dev.hytalemodding.impulse.api.BackendId;
 import dev.hytalemodding.impulse.api.PhysicsBackend;
 import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
+import dev.hytalemodding.impulse.api.PhysicsContact;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.api.capability.PhysicsVoxelTerrainCapability;
+import dev.hytalemodding.impulse.api.runtime.BackendContactSink;
 import dev.hytalemodding.impulse.api.runtime.BackendBodySnapshotSink;
 import dev.hytalemodding.impulse.api.runtime.BackendJointType;
 import dev.hytalemodding.impulse.api.runtime.BackendRuntimeCodes;
 import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackend;
+import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackend.InMemoryPhysicsSpace;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -26,6 +29,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import javax.annotation.Nonnull;
+import org.joml.Vector3f;
 import org.junit.jupiter.api.Test;
 
 class LegacyPhysicsBackendRuntimeTest {
@@ -130,6 +134,46 @@ class LegacyPhysicsBackendRuntimeTest {
     }
 
     @Test
+    void boundedContactsTruncateLegacyContactList() {
+        FakePhysicsBackend backend = new FakePhysicsBackend("impulse:test-contacts");
+        LegacyPhysicsBackendRuntime runtime = new LegacyPhysicsBackendRuntime(backend);
+        int spaceId = runtime.createSpace(new SpaceId(9101));
+        long bodyAId = createBox(runtime, spaceId, 0.0f);
+        long bodyBId = createBox(runtime, spaceId, 2.0f);
+        InMemoryPhysicsSpace space = backend.createdSpaces().getFirst();
+        PhysicsBody bodyA = space.getBodies().get(0);
+        PhysicsBody bodyB = space.getBodies().get(1);
+        space.addContact(contact(bodyA, bodyB, 0.0f));
+        space.addContact(contact(bodyA, bodyB, 1.0f));
+        space.addContact(contact(bodyA, bodyB, 2.0f));
+        CountingContactSink sink = new CountingContactSink();
+
+        int emitted = runtime.contacts(spaceId, 2, sink);
+
+        assertEquals(2, emitted);
+        assertEquals(2, sink.count());
+        assertEquals(bodyAId, sink.firstBodyAId());
+        assertEquals(bodyBId, sink.firstBodyBId());
+    }
+
+    @Test
+    void boundedContactsRejectNonPositiveLimitWithoutEmittingContacts() {
+        FakePhysicsBackend backend = new FakePhysicsBackend("impulse:test-zero-contacts");
+        LegacyPhysicsBackendRuntime runtime = new LegacyPhysicsBackendRuntime(backend);
+        int spaceId = runtime.createSpace(new SpaceId(9102));
+        createBox(runtime, spaceId, 0.0f);
+        createBox(runtime, spaceId, 2.0f);
+        InMemoryPhysicsSpace space = backend.createdSpaces().getFirst();
+        space.addContact(contact(space.getBodies().get(0), space.getBodies().get(1), 0.0f));
+        CountingContactSink sink = new CountingContactSink();
+
+        int emitted = runtime.contacts(spaceId, 0, sink);
+
+        assertEquals(0, emitted);
+        assertEquals(0, sink.count());
+    }
+
+    @Test
     void createSpaceRejectsLegacyBackendThatReturnsDifferentExplicitId() {
         LegacyPhysicsBackendRuntime runtime =
             new LegacyPhysicsBackendRuntime(new MismatchedExplicitSpaceBackend("impulse:test-mismatch"));
@@ -214,11 +258,87 @@ class LegacyPhysicsBackendRuntimeTest {
             backend.combineCalls());
     }
 
+    private static long createBox(@Nonnull LegacyPhysicsBackendRuntime runtime,
+        int spaceId,
+        float positionX) {
+        return runtime.createBody(spaceId,
+            BackendRuntimeCodes.SHAPE_BOX,
+            0.5f,
+            0.5f,
+            0.5f,
+            0.0f,
+            0.0f,
+            BackendRuntimeCodes.AXIS_Y,
+            0.0f,
+            1.0f,
+            BackendRuntimeCodes.bodyTypeCode(PhysicsBodyType.DYNAMIC),
+            positionX,
+            0.0f,
+            0.0f,
+            0.0f,
+            0.0f,
+            0.0f,
+            1.0f);
+    }
+
+    @Nonnull
+    private static PhysicsContact contact(@Nonnull PhysicsBody bodyA,
+        @Nonnull PhysicsBody bodyB,
+        float offset) {
+        return new PhysicsContact(bodyA,
+            bodyB,
+            new Vector3f(offset, 0.0f, 0.0f),
+            new Vector3f(offset, 1.0f, 0.0f),
+            new Vector3f(0.0f, 1.0f, 0.0f),
+            -0.1f,
+            1.0f);
+    }
+
     private record CombineCall(@Nonnull PhysicsBody bodyA,
                                @Nonnull PhysicsBody bodyB,
                                int shiftX,
                                int shiftY,
                                int shiftZ) {
+    }
+
+    private static final class CountingContactSink implements BackendContactSink {
+
+        private int count;
+        private long firstBodyAId = -1L;
+        private long firstBodyBId = -1L;
+
+        @Override
+        public void accept(long bodyAId,
+            long bodyBId,
+            float pointAX,
+            float pointAY,
+            float pointAZ,
+            float pointBX,
+            float pointBY,
+            float pointBZ,
+            float normalBX,
+            float normalBY,
+            float normalBZ,
+            float distance,
+            float impulse) {
+            if (count == 0) {
+                firstBodyAId = bodyAId;
+                firstBodyBId = bodyBId;
+            }
+            count++;
+        }
+
+        private int count() {
+            return count;
+        }
+
+        private long firstBodyAId() {
+            return firstBodyAId;
+        }
+
+        private long firstBodyBId() {
+            return firstBodyBId;
+        }
     }
 
     private static final class CapturedBodySnapshot implements BackendBodySnapshotSink {

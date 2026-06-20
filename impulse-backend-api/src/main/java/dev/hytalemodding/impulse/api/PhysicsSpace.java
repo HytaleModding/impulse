@@ -222,6 +222,18 @@ public interface PhysicsSpace {
     @Nonnull
     List<PhysicsContact> getContacts();
 
+    @Nonnull
+    default List<PhysicsContact> getContacts(int maxContacts) {
+        if (maxContacts <= 0) {
+            return List.of();
+        }
+        List<PhysicsContact> contacts = getContacts();
+        if (contacts.size() <= maxContacts) {
+            return contacts;
+        }
+        return List.copyOf(contacts.subList(0, maxContacts));
+    }
+
     /**
      * Returns the number of active contacts in this space.
      *

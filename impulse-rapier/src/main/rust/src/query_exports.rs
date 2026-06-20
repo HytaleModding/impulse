@@ -6,7 +6,6 @@ const MAX_RAYCAST_FLOATS: usize = RAYCAST_HIT_FLOATS * MAX_RAYCAST_HITS;
 
 const CONTACT_FLOATS: usize = 15;
 const MAX_CONTACT_POINTS: usize = 16_384;
-const MAX_CONTACT_FLOATS: usize = CONTACT_FLOATS * MAX_CONTACT_POINTS;
 
 fn append_bounded(values: &mut Vec<jfloat>, record: &[jfloat], max_floats: usize) -> bool {
     if record.len() > max_floats.saturating_sub(values.len()) {
@@ -104,12 +103,32 @@ pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_getCon
     _class: JClass,
     space_handle: jlong,
 ) -> jfloatArray {
-    let values = catch_jni_default(Vec::new(), || contact_values(space_handle));
+    let values = catch_jni_default(Vec::new(), || {
+        contact_values(space_handle, MAX_CONTACT_POINTS)
+    });
     float_array_or_null(&env, &values)
 }
 
-fn contact_values(space_handle: jlong) -> Vec<jfloat> {
+#[no_mangle]
+pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_getContactsLimitedNative(
+    env: JNIEnv,
+    _class: JClass,
+    space_handle: jlong,
+    max_contacts: jint,
+) -> jfloatArray {
+    let values = catch_jni_default(Vec::new(), || {
+        if max_contacts <= 0 {
+            Vec::new()
+        } else {
+            contact_values(space_handle, (max_contacts as usize).min(MAX_CONTACT_POINTS))
+        }
+    });
+    float_array_or_null(&env, &values)
+}
+
+fn contact_values(space_handle: jlong, max_contacts: usize) -> Vec<jfloat> {
     let mut values: Vec<jfloat> = Vec::new();
+    let max_floats = CONTACT_FLOATS * max_contacts.min(MAX_CONTACT_POINTS);
     with_space(space_handle, (), |space| {
         'contacts: for pair in space.narrow_phase.contact_pairs() {
             let Some(body_a_id) = space.collider_to_body_id.get(&pair.collider1) else {
@@ -144,7 +163,7 @@ fn contact_values(space_handle: jlong) -> Vec<jfloat> {
                             contact.dist,
                             contact.warmstart_impulse,
                         ],
-                        MAX_CONTACT_FLOATS,
+                        max_floats,
                     ) {
                         break 'contacts;
                     }

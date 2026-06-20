@@ -538,6 +538,39 @@ public final class LegacyPhysicsBackendRuntime implements PhysicsBackendRuntime 
     }
 
     @Override
+    public int contacts(int spaceId, int maxContacts, @Nonnull BackendContactSink sink) {
+        if (maxContacts <= 0) {
+            return 0;
+        }
+        SpaceState state = requireSpace(spaceId);
+        int contacts = 0;
+        for (PhysicsContact contact : state.space.getContacts(maxContacts)) {
+            Long bodyAId = state.bodyIdsByBody.get(contact.bodyA());
+            Long bodyBId = state.bodyIdsByBody.get(contact.bodyB());
+            if (bodyAId != null && bodyBId != null) {
+                Vector3f pointOnA = contact.pointOnA();
+                Vector3f pointOnB = contact.pointOnB();
+                Vector3f normalOnB = contact.normalOnB();
+                sink.accept(bodyAId,
+                    bodyBId,
+                    pointOnA.x,
+                    pointOnA.y,
+                    pointOnA.z,
+                    pointOnB.x,
+                    pointOnB.y,
+                    pointOnB.z,
+                    normalOnB.x,
+                    normalOnB.y,
+                    normalOnB.z,
+                    contact.distance(),
+                    contact.impulse());
+                contacts++;
+            }
+        }
+        return contacts;
+    }
+
+    @Override
     public int contactCount(int spaceId) {
         return requireSpace(spaceId).space.contactCount();
     }
