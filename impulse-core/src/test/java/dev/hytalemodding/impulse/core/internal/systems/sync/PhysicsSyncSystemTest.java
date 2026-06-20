@@ -8,7 +8,7 @@ import dev.hytalemodding.impulse.core.internal.math.PhysicsVisualPoseMath;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.BodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.BodyAttachmentComponent.AttachmentLifecycle;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.BodyAttachmentComponent.TransformAuthority;
-import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
+import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.settings.PhysicsVisualSyncSettings;
 import java.util.UUID;
 import org.joml.Quaterniond;
 import org.joml.Quaternionf;
@@ -20,9 +20,9 @@ class PhysicsSyncSystemTest {
 
     @Test
     void visualPredictionSecondsClampToConfiguredWindow() {
-        PhysicsSpaceSettings settings = PhysicsSpaceSettings.defaults();
-        settings.getVisualSyncSettings().setVisualSnapshotPredictionEnabled(true);
-        settings.getVisualSyncSettings().setVisualSnapshotPredictionMaxSeconds(0.05f);
+        PhysicsVisualSyncSettings settings = new PhysicsVisualSyncSettings();
+        settings.setVisualSnapshotPredictionEnabled(true);
+        settings.setVisualSnapshotPredictionMaxSeconds(0.05f);
 
         assertEquals(0.05f,
             PhysicsSyncPolicy.visualPredictionSeconds(settings,
@@ -33,13 +33,13 @@ class PhysicsSyncSystemTest {
 
     @Test
     void visualPredictionSecondsStayZeroWhenDisabledOrMissingFrame() {
-        PhysicsSpaceSettings settings = PhysicsSpaceSettings.defaults();
-        settings.getVisualSyncSettings().setVisualSnapshotPredictionEnabled(true);
+        PhysicsVisualSyncSettings settings = new PhysicsVisualSyncSettings();
+        settings.setVisualSnapshotPredictionEnabled(true);
 
         assertEquals(0.0f,
             PhysicsSyncPolicy.visualPredictionSeconds(settings, 1_100_000_000L, 0L),
             0.0001f);
-        settings.getVisualSyncSettings().setVisualSnapshotPredictionEnabled(false);
+        settings.setVisualSnapshotPredictionEnabled(false);
         assertEquals(0.0f,
             PhysicsSyncPolicy.visualPredictionSeconds(settings,
                 1_100_000_000L,

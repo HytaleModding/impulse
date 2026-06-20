@@ -11,7 +11,6 @@ import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsBackendExtensionId;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsExtensionSettingValue;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsExtensionSettings;
-import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.Objects;
@@ -53,10 +52,6 @@ public final class ExtensionSettingsComponent implements Component<PhysicsStore>
     @Nonnull
     public Entry[] entries() {
         return copyEntries(entries);
-    }
-
-    public void copyTo(@Nonnull PhysicsSpaceSettings settings) {
-        copyTo(settings.getExtensionSettings());
     }
 
     public void copyTo(@Nonnull PhysicsExtensionSettings settings) {

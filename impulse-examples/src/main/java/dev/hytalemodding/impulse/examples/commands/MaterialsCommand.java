@@ -13,7 +13,6 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.BodyEntityDescriptor;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
 import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
 import java.util.UUID;
@@ -92,14 +91,14 @@ public class MaterialsCommand extends AbstractAsyncPlayerCommand {
         float friction,
         float speed) {
         UUID bodyUuid = UUID.randomUUID();
-        BodyEntityDescriptor descriptor = ExamplePhysicsUtils.bodyEntity(spaceRef,
+        var bodyHolder = ExamplePhysicsUtils.bodyEntity(spaceRef,
             bodyUuid,
             ExamplePhysicsUtils.toVector3f(position),
             PhysicsShapeSpec.sphere(0.5f),
             1.0f,
             RigidBodySpawnSettings.material(friction, restitution),
             new Vector3f(speed, 0.0f, 0.0f));
-        Ref<PhysicsStore> bodyRef = ExamplePhysicsUtils.addPhysicsStoreBody(world, descriptor);
+        Ref<PhysicsStore> bodyRef = ExamplePhysicsUtils.addPhysicsStoreBody(world, bodyHolder);
         store.addEntity(ExamplePhysicsUtils.attachedPhysicsBlockEntityHolder(
             time,
             bodyRef,

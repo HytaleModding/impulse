@@ -4,7 +4,6 @@ module dev.hytalemodding.impulse.core {
     requires static jsr305;
     requires static crucible;
 
-    exports dev.hytalemodding.impulse.core.plugin.body;
     exports dev.hytalemodding.impulse.core.plugin.codec;
     exports dev.hytalemodding.impulse.core.plugin.components;
     exports dev.hytalemodding.impulse.core.plugin.events;
@@ -16,8 +15,7 @@ module dev.hytalemodding.impulse.core {
     exports dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components;
     exports dev.hytalemodding.impulse.core.plugin.modules.physicschunk.settings;
     exports dev.hytalemodding.impulse.core.plugin.persistence;
-    exports dev.hytalemodding.impulse.core.plugin.physicsstore;
-    exports dev.hytalemodding.impulse.core.plugin.resources;
+    exports dev.hytalemodding.impulse.core.plugin.physics;
     exports dev.hytalemodding.impulse.core.plugin.settings;
     exports dev.hytalemodding.impulse.core.plugin.simulation;
     exports dev.hytalemodding.impulse.core.plugin.simulation.view;

@@ -93,13 +93,24 @@ public final class PersistentPhysicsStorePreflight {
                     + " has invalid chunk collision restitution");
             }
             try {
-                space.toSettings();
+                validateSpaceComponents(space);
             } catch (RuntimeException exception) {
                 errors.add("PhysicsStore space " + uuid + " has invalid space settings: "
                     + exception.getMessage());
             }
         }
         return seen;
+    }
+
+    private static void validateSpaceComponents(@Nonnull PersistentSpaceDto space) {
+        space.getChunkCollisionSettings();
+        space.getChunkCollisionMaterial();
+        space.getChunkCollisionFilter();
+        space.getSolverSettings();
+        space.getVisualSyncSettings();
+        space.getVisualMaterializationSettings();
+        space.getCollisionLodSettings();
+        space.getExtensionSettings();
     }
 
     @Nonnull

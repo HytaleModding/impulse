@@ -3,7 +3,7 @@ package dev.hytalemodding.impulse.core.internal.resources;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import dev.hytalemodding.impulse.core.plugin.settings.PhysicsEventCollectionMode;
+import dev.hytalemodding.impulse.core.plugin.events.PhysicsEventCollectionMode;
 import org.junit.jupiter.api.Test;
 
 class PhysicsEventCollectionModeTest {

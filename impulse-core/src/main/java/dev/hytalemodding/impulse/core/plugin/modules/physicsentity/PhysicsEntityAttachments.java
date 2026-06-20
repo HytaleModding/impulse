@@ -42,6 +42,7 @@ public final class PhysicsEntityAttachments {
     public static Collection<Ref<EntityStore>> attachments(@Nonnull Store<EntityStore> store,
         @Nonnull UUID bodyUuid) {
         requireAvailable();
+        assert PhysicsProjectionIndexResource.getResourceType() != null;
         return requireWorldThread(store, "read PhysicsStore body attachments")
             .getResource(PhysicsProjectionIndexResource.getResourceType())
             .getAttachments(Objects.requireNonNull(bodyUuid, "bodyUuid"));
@@ -51,6 +52,7 @@ public final class PhysicsEntityAttachments {
     public static Collection<Ref<EntityStore>> attachments(@Nonnull Store<EntityStore> store,
         @Nonnull Ref<PhysicsStore> bodyRef) {
         requireAvailable();
+        assert PhysicsProjectionIndexResource.getResourceType() != null;
         return requireWorldThread(store, "read PhysicsStore body attachments")
             .getResource(PhysicsProjectionIndexResource.getResourceType())
             .getAttachments(Objects.requireNonNull(bodyRef, "bodyRef"));
@@ -61,6 +63,7 @@ public final class PhysicsEntityAttachments {
         @Nonnull UUID bodyUuid,
         @Nullable Ref<PhysicsStore> bodyRef) {
         requireAvailable();
+        assert PhysicsProjectionIndexResource.getResourceType() != null;
         PhysicsProjectionIndexResource projection =
             requireWorldThread(store, "read PhysicsStore body attachments")
                 .getResource(PhysicsProjectionIndexResource.getResourceType());
@@ -72,6 +75,7 @@ public final class PhysicsEntityAttachments {
     public static boolean hasAttachments(@Nonnull Store<EntityStore> store,
         @Nonnull UUID bodyUuid) {
         requireAvailable();
+        assert PhysicsProjectionIndexResource.getResourceType() != null;
         return requireWorldThread(store, "check PhysicsStore body attachments")
             .getResource(PhysicsProjectionIndexResource.getResourceType())
             .hasAttachments(Objects.requireNonNull(bodyUuid, "bodyUuid"));
@@ -80,6 +84,7 @@ public final class PhysicsEntityAttachments {
     public static boolean hasAttachments(@Nonnull Store<EntityStore> store,
         @Nonnull Ref<PhysicsStore> bodyRef) {
         requireAvailable();
+        assert PhysicsProjectionIndexResource.getResourceType() != null;
         return requireWorldThread(store, "check PhysicsStore body attachments")
             .getResource(PhysicsProjectionIndexResource.getResourceType())
             .hasAttachments(Objects.requireNonNull(bodyRef, "bodyRef"));
@@ -89,6 +94,7 @@ public final class PhysicsEntityAttachments {
         @Nonnull UUID bodyUuid,
         @Nullable Ref<PhysicsStore> bodyRef) {
         requireAvailable();
+        assert PhysicsProjectionIndexResource.getResourceType() != null;
         PhysicsProjectionIndexResource projection =
             requireWorldThread(store, "check PhysicsStore body attachments")
                 .getResource(PhysicsProjectionIndexResource.getResourceType());
@@ -101,6 +107,7 @@ public final class PhysicsEntityAttachments {
     public static Ref<EntityStore> generatedVisualProxy(@Nonnull Store<EntityStore> store,
         @Nonnull UUID bodyUuid) {
         requireAvailable();
+        assert PhysicsProjectionIndexResource.getResourceType() != null;
         return requireWorldThread(store, "read PhysicsStore generated visual proxy")
             .getResource(PhysicsProjectionIndexResource.getResourceType())
             .getGeneratedVisualProxy(Objects.requireNonNull(bodyUuid, "bodyUuid"));
@@ -110,6 +117,7 @@ public final class PhysicsEntityAttachments {
     public static Ref<EntityStore> generatedVisualProxy(@Nonnull Store<EntityStore> store,
         @Nonnull Ref<PhysicsStore> bodyRef) {
         requireAvailable();
+        assert PhysicsProjectionIndexResource.getResourceType() != null;
         return requireWorldThread(store, "read PhysicsStore generated visual proxy")
             .getResource(PhysicsProjectionIndexResource.getResourceType())
             .getGeneratedVisualProxy(Objects.requireNonNull(bodyRef, "bodyRef"));

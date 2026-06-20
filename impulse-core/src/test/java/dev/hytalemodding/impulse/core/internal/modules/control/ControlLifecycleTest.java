@@ -8,13 +8,17 @@ import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.ComponentRegistry;
 import com.hypixel.hytale.component.EmptyResourceStorage;
 import com.hypixel.hytale.component.Store;
+import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
+import com.hypixel.hytale.server.core.util.thread.TickingThread;
 import dev.hytalemodding.impulse.core.internal.modules.control.components.PhysicsControlSessionComponent;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.testsupport.TestInstanceFactory;
 import dev.hytalemodding.impulse.core.plugin.modules.control.ImpulseControllableComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.control.PhysicsControlSessions;
+import java.lang.reflect.Method;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -56,15 +60,22 @@ class ControlLifecycleTest {
     @Test
     void disablingLifecycleClearsRegisteredControlledBodies() {
         ControlLifecycle.enable();
-        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
-        Ref<PhysicsStore> bodyRef = new TestPhysicsRef(7);
-        resource.markBodyControlled(bodyRef);
+        World world = TestInstanceFactory.world("control-physics-world");
+        ComponentRegistry<PhysicsStore> registry = new ComponentRegistry<>();
+        Store<PhysicsStore> store = registry.addStore(
+            new PhysicsStore(world),
+            EmptyResourceStorage.get());
+        Ref<PhysicsStore> bodyRef = new TestPhysicsRef(store, 7);
 
-        assertTrue(resource.isBodyControlled(bodyRef));
+        runOnWorldThread(world, () -> {
+            PhysicsControlRuntimeStates.markControlled(bodyRef);
+            assertTrue(PhysicsControlRuntimeStates.isControlled(bodyRef));
+        });
 
         ControlLifecycle.disable();
 
-        assertFalse(resource.isBodyControlled(bodyRef));
+        runOnWorldThread(world, () -> assertFalse(PhysicsControlRuntimeStates.isControlled(bodyRef)));
+        registry.shutdown();
     }
 
     @Test
@@ -102,13 +113,32 @@ class ControlLifecycleTest {
 
     private static final class TestPhysicsRef extends Ref<PhysicsStore> {
 
-        private TestPhysicsRef(int index) {
-            super(null, index);
+        private TestPhysicsRef(Store<PhysicsStore> store, int index) {
+            super(store, index);
         }
 
         @Override
         public boolean isValid() {
             return true;
+        }
+    }
+
+    private static void runOnWorldThread(@Nonnull World world, @Nonnull Runnable task) {
+        setThread(world, Thread.currentThread());
+        try {
+            task.run();
+        } finally {
+            setThread(world, null);
+        }
+    }
+
+    private static void setThread(@Nonnull World world, @Nullable Thread thread) {
+        try {
+            Method setThread = TickingThread.class.getDeclaredMethod("setThread", Thread.class);
+            setThread.setAccessible(true);
+            setThread.invoke(world, thread);
+        } catch (ReflectiveOperationException exception) {
+            throw new AssertionError("Failed to bind test world thread", exception);
         }
     }
 }

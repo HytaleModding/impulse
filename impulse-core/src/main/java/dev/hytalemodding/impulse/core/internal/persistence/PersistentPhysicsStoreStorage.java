@@ -7,7 +7,6 @@ import com.hypixel.hytale.server.core.util.BsonUtil;
 import java.nio.file.Path;
 import java.util.concurrent.CompletionException;
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import org.bson.BsonDocument;
 
 /**
@@ -23,7 +22,7 @@ public final class PersistentPhysicsStoreStorage {
 
     @Nonnull
     public static LoadResult load(@Nonnull Store<PhysicsStore> store) {
-        Path file = fileOrNull(store.getExternalData());
+        Path file = file(store.getExternalData());
         if (file == null) {
             return LoadResult.missing();
         }
@@ -49,13 +48,8 @@ public final class PersistentPhysicsStoreStorage {
 
     @Nonnull
     static Path file(@Nonnull PhysicsStore physicsStore) {
-        return physicsStore.getWorld().getSavePath().resolve(RESOURCE_DIRECTORY).resolve(FILE_NAME);
-    }
-
-    @Nullable
-    private static Path fileOrNull(@Nonnull PhysicsStore physicsStore) {
         Path savePath = physicsStore.getWorld().getSavePath();
-        return savePath != null ? savePath.resolve(RESOURCE_DIRECTORY).resolve(FILE_NAME) : null;
+        return savePath.resolve(RESOURCE_DIRECTORY).resolve(FILE_NAME);
     }
 
     public record LoadResult(boolean present,

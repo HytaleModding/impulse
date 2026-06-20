@@ -2,7 +2,6 @@ package dev.hytalemodding.impulse.core.internal.systems.sync;
 
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRuntimeState;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsVisualRuntime.BodyVisualInterestState;
-import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.settings.PhysicsVisualSyncSettings;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.settings.VisualOcclusionMode;
 import java.util.List;
@@ -61,7 +60,7 @@ public final class PhysicsSyncPolicy {
     }
 
     @Nonnull
-    static SyncRangeTier resolveRangeTier(@Nullable PhysicsSpaceSettings settings,
+    static SyncRangeTier resolveRangeTier(@Nullable PhysicsVisualSyncSettings settings,
         @Nullable BodyVisualInterestState visualInterestState,
         boolean rangeLimitedVisual,
         boolean controlled,
@@ -76,18 +75,18 @@ public final class PhysicsSyncPolicy {
         if (settings == null) {
             return SyncRangeTier.NEAR;
         }
-        if (settings.getVisualSyncSettings().getVisualOcclusionMode() == VisualOcclusionMode.CULL
+        if (settings.getVisualOcclusionMode() == VisualOcclusionMode.CULL
             && visualInterestState != null
-            && visualInterestState.hasFreshRaycast(settings.getVisualSyncSettings().getVisualOcclusionCacheTicks())
+            && visualInterestState.hasFreshRaycast(settings.getVisualOcclusionCacheTicks())
             && !visualInterestState.isRaycastVisible()) {
             // Materialization owns the raycast budget; sync only consumes fresh CULL results.
             return SyncRangeTier.FAR;
         }
 
-        float fullRadiusSquared = square(settings.getVisualSyncSettings().getVisualFullSyncRadius());
-        float maxRadiusSquared = square(settings.getVisualSyncSettings().getVisualMaxSyncRadius());
+        float fullRadiusSquared = square(settings.getVisualFullSyncRadius());
+        float maxRadiusSquared = square(settings.getVisualMaxSyncRadius());
         float nearestDistanceSquared = Float.MAX_VALUE;
-        boolean visibilityCulling = settings.getVisualSyncSettings().isVisualVisibilityCullingEnabled();
+        boolean visibilityCulling = settings.isVisualVisibilityCullingEnabled();
         for (PlayerInterest playerInterest : playerInterests) {
             float distanceSquared = playerInterest.position().distanceSquared(visualPosition);
             if (distanceSquared <= fullRadiusSquared
@@ -103,7 +102,7 @@ public final class PhysicsSyncPolicy {
 
     @Nonnull
     static SyncDecision resolveSyncDecision(@Nonnull PhysicsBodyRuntimeState.BodySyncState syncState,
-        @Nullable PhysicsSpaceSettings settings,
+        @Nullable PhysicsVisualSyncSettings settings,
         @Nonnull Vector3f position,
         @Nonnull Quaternionf rotation,
         boolean sleeping,
@@ -116,8 +115,9 @@ public final class PhysicsSyncPolicy {
         if (sleeping != syncState.isSleeping()) {
             return SyncDecision.TRANSITION;
         }
+        PhysicsVisualSyncSettings visualSyncSettings = settingsOrDefault(settings);
         if (rangeTier == SyncRangeTier.FAR
-            && (settings == null || settings.getVisualSyncSettings().isVisualFarSyncCutoffEnabled())) {
+            && visualSyncSettings.isVisualFarSyncCutoffEnabled()) {
             return SyncDecision.SKIP_VISUAL_RANGE;
         }
         if (sleeping && rangeTier != SyncRangeTier.NEAR) {
@@ -131,15 +131,13 @@ public final class PhysicsSyncPolicy {
         if (rangeTier == SyncRangeTier.FAR && !controlled) {
             positionThresholdSquared = MID_RANGE_POSITION_SYNC_THRESHOLD_SQUARED;
             rotationDotThreshold = MID_RANGE_ROTATION_SYNC_DOT_THRESHOLD;
-            keepaliveSeconds = intervalSeconds(settings.getVisualSyncSettings().getVisualFarSyncIntervalTicks());
-            minimumIntervalTicks = settings.getVisualSyncSettings().getVisualFarSyncIntervalTicks();
+            keepaliveSeconds = intervalSeconds(visualSyncSettings.getVisualFarSyncIntervalTicks());
+            minimumIntervalTicks = visualSyncSettings.getVisualFarSyncIntervalTicks();
         } else if (rangeTier == SyncRangeTier.MID && !controlled) {
             positionThresholdSquared = MID_RANGE_POSITION_SYNC_THRESHOLD_SQUARED;
             rotationDotThreshold = MID_RANGE_ROTATION_SYNC_DOT_THRESHOLD;
             keepaliveSeconds = MID_RANGE_KEEPALIVE_SECONDS;
-            minimumIntervalTicks = settings != null
-                ? settings.getVisualSyncSettings().getVisualMidSyncIntervalTicks()
-                : PhysicsVisualSyncSettings.DEFAULT_VISUAL_MID_SYNC_INTERVAL_TICKS;
+            minimumIntervalTicks = visualSyncSettings.getVisualMidSyncIntervalTicks();
         } else {
             positionThresholdSquared = lowSpeed && !controlled
                 ? LOW_SPEED_POSITION_SYNC_THRESHOLD_SQUARED : POSITION_SYNC_THRESHOLD_SQUARED;
@@ -205,17 +203,23 @@ public final class PhysicsSyncPolicy {
         return ticks * SECONDS_PER_TICK;
     }
 
-    static float visualPredictionSeconds(@Nullable PhysicsSpaceSettings settings,
+    static float visualPredictionSeconds(@Nullable PhysicsVisualSyncSettings settings,
         long currentNanos,
         long snapshotAppliedNanos) {
         if (settings == null
-            || !settings.getVisualSyncSettings().isVisualSnapshotPredictionEnabled()
+            || !settings.isVisualSnapshotPredictionEnabled()
             || currentNanos <= snapshotAppliedNanos
             || snapshotAppliedNanos <= 0L) {
             return 0.0f;
         }
         float ageSeconds = (currentNanos - snapshotAppliedNanos) / 1_000_000_000.0f;
-        return Math.min(ageSeconds, settings.getVisualSyncSettings().getVisualSnapshotPredictionMaxSeconds());
+        return Math.min(ageSeconds, settings.getVisualSnapshotPredictionMaxSeconds());
+    }
+
+    @Nonnull
+    private static PhysicsVisualSyncSettings settingsOrDefault(
+        @Nullable PhysicsVisualSyncSettings settings) {
+        return settings != null ? settings : new PhysicsVisualSyncSettings();
     }
 
     public record PlayerInterest(@Nonnull Vector3f position, @Nonnull Vector3f direction) {

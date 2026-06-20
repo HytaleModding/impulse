@@ -18,7 +18,6 @@ import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.Vi
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.ChunkCollisionSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.settings.EntityChunkBoundaryMode;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.settings.PhysicsChunkCollisionSettings;
-import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import java.util.Objects;
 import java.util.UUID;
 import javax.annotation.Nonnull;
@@ -426,18 +425,6 @@ public final class PersistentSpaceDto {
     @Nonnull
     public ExtensionSettingsComponent getExtensionSettings() {
         return extensionSettings.clone();
-    }
-
-    @Nonnull
-    public PhysicsSpaceSettings toSettings() {
-        PhysicsSpaceSettings settings = PhysicsSpaceSettings.defaults();
-        getChunkCollisionSettings().copyTo(settings);
-        solverSettings.copyTo(settings);
-        visualSyncSettings.copyTo(settings);
-        visualMaterializationSettings.copyTo(settings);
-        collisionLodSettings.copyTo(settings);
-        extensionSettings.copyTo(settings);
-        return settings;
     }
 
     @Nonnull

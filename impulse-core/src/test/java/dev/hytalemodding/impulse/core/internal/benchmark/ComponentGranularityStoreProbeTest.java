@@ -96,6 +96,10 @@ class ComponentGranularityStoreProbeTest {
             long checksum = iterate(store, required);
             long iterateNanos = System.nanoTime() - iterateStart;
 
+            long targetedIterateStart = System.nanoTime();
+            long targetedChecksum = iterate(store, List.of(required.getFirst()));
+            long targetedIterateNanos = System.nanoTime() - targetedIterateStart;
+
             long mutateStart = System.nanoTime();
             replaceComponent(store, required.getFirst(), refs);
             long mutateNanos = System.nanoTime() - mutateStart;
@@ -103,19 +107,32 @@ class ComponentGranularityStoreProbeTest {
             int entityCount = store.getEntityCount();
             int archetypeChunkCount = store.getArchetypeChunkCount();
             int archetypeDataCount = store.collectArchetypeChunkData().length;
+            int requiredPayloadInts = required.stream().mapToInt(ComponentSpec::payloadInts).sum();
+            long optionalInstances = optional != null
+                ? ((long) (entities - 1) / OPTIONAL_STRIDE) + 1L
+                : 0L;
+            long componentInstances = (long) entities * required.size() + optionalInstances;
+            long payloadBytes = ((long) entities * requiredPayloadInts
+                + optionalInstances * (optional != null ? optional.payloadInts() : 0))
+                * Integer.BYTES;
 
             return new ScenarioResult(name,
                 entities,
                 entityCount,
                 required.size(),
                 optionalFragmentation ? 1 : 0,
+                requiredPayloadInts,
+                componentInstances,
+                payloadBytes,
                 Math.max(0L, heapAfterAdd - heapBefore),
                 addNanos,
                 iterateNanos,
+                targetedIterateNanos,
                 mutateNanos,
                 archetypeChunkCount,
                 archetypeDataCount,
-                checksum);
+                checksum,
+                targetedChecksum);
         } finally {
             registry.removeStore(store);
             registry.shutdown();
@@ -200,16 +217,17 @@ class ComponentGranularityStoreProbeTest {
     @Nonnull
     private static ComponentSpec<OptionalComponent> optional(
         @Nonnull ComponentRegistry<BenchmarkWorld> registry) {
-        return spec(registry, OptionalComponent.class, OptionalComponent::new);
+        return spec(registry, OptionalComponent.class, OptionalComponent::new, 1);
     }
 
     @Nonnull
     private static <T extends ProbeComponent> ComponentSpec<T> spec(
         @Nonnull ComponentRegistry<BenchmarkWorld> registry,
         @Nonnull Class<T> typeClass,
-        @Nonnull IntFunction<T> factory) {
+        @Nonnull IntFunction<T> factory,
+        int payloadInts) {
         return new ComponentSpec<>(registry.registerComponent(typeClass,
-            () -> factory.apply(0)), factory);
+            () -> factory.apply(0)), factory, payloadInts);
     }
 
     private static int intProperty(@Nonnull String name, int defaultValue) {
@@ -251,7 +269,10 @@ class ComponentGranularityStoreProbeTest {
             @Override
             List<ComponentSpec<? extends ProbeComponent>> registerRequired(
                 @Nonnull ComponentRegistry<BenchmarkWorld> registry) {
-                return List.of(spec(registry, GroupedComponent.class, GroupedComponent::new));
+                return List.of(spec(registry,
+                    GroupedComponent.class,
+                    GroupedComponent::new,
+                    35));
             }
         },
         DOMAIN_SPLIT {
@@ -260,13 +281,13 @@ class ComponentGranularityStoreProbeTest {
             List<ComponentSpec<? extends ProbeComponent>> registerRequired(
                 @Nonnull ComponentRegistry<BenchmarkWorld> registry) {
                 return List.of(
-                    spec(registry, DomainComponentA.class, DomainComponentA::new),
-                    spec(registry, DomainComponentB.class, DomainComponentB::new),
-                    spec(registry, DomainComponentC.class, DomainComponentC::new),
-                    spec(registry, DomainComponentD.class, DomainComponentD::new),
-                    spec(registry, DomainComponentE.class, DomainComponentE::new),
-                    spec(registry, DomainComponentF.class, DomainComponentF::new),
-                    spec(registry, DomainComponentG.class, DomainComponentG::new));
+                    spec(registry, DomainComponentA.class, DomainComponentA::new, 5),
+                    spec(registry, DomainComponentB.class, DomainComponentB::new, 5),
+                    spec(registry, DomainComponentC.class, DomainComponentC::new, 5),
+                    spec(registry, DomainComponentD.class, DomainComponentD::new, 5),
+                    spec(registry, DomainComponentE.class, DomainComponentE::new, 5),
+                    spec(registry, DomainComponentF.class, DomainComponentF::new, 5),
+                    spec(registry, DomainComponentG.class, DomainComponentG::new, 5));
             }
         },
         TINY {
@@ -275,36 +296,41 @@ class ComponentGranularityStoreProbeTest {
             List<ComponentSpec<? extends ProbeComponent>> registerRequired(
                 @Nonnull ComponentRegistry<BenchmarkWorld> registry) {
                 return List.of(
-                    spec(registry, TinyComponent01.class, TinyComponent01::new),
-                    spec(registry, TinyComponent02.class, TinyComponent02::new),
-                    spec(registry, TinyComponent03.class, TinyComponent03::new),
-                    spec(registry, TinyComponent04.class, TinyComponent04::new),
-                    spec(registry, TinyComponent05.class, TinyComponent05::new),
-                    spec(registry, TinyComponent06.class, TinyComponent06::new),
-                    spec(registry, TinyComponent07.class, TinyComponent07::new),
-                    spec(registry, TinyComponent08.class, TinyComponent08::new),
-                    spec(registry, TinyComponent09.class, TinyComponent09::new),
-                    spec(registry, TinyComponent10.class, TinyComponent10::new),
-                    spec(registry, TinyComponent11.class, TinyComponent11::new),
-                    spec(registry, TinyComponent12.class, TinyComponent12::new),
-                    spec(registry, TinyComponent13.class, TinyComponent13::new),
-                    spec(registry, TinyComponent14.class, TinyComponent14::new),
-                    spec(registry, TinyComponent15.class, TinyComponent15::new),
-                    spec(registry, TinyComponent16.class, TinyComponent16::new),
-                    spec(registry, TinyComponent17.class, TinyComponent17::new),
-                    spec(registry, TinyComponent18.class, TinyComponent18::new),
-                    spec(registry, TinyComponent19.class, TinyComponent19::new),
-                    spec(registry, TinyComponent20.class, TinyComponent20::new),
-                    spec(registry, TinyComponent21.class, TinyComponent21::new),
-                    spec(registry, TinyComponent22.class, TinyComponent22::new),
-                    spec(registry, TinyComponent23.class, TinyComponent23::new),
-                    spec(registry, TinyComponent24.class, TinyComponent24::new),
-                    spec(registry, TinyComponent25.class, TinyComponent25::new),
-                    spec(registry, TinyComponent26.class, TinyComponent26::new),
-                    spec(registry, TinyComponent27.class, TinyComponent27::new),
-                    spec(registry, TinyComponent28.class, TinyComponent28::new),
-                    spec(registry, TinyComponent29.class, TinyComponent29::new),
-                    spec(registry, TinyComponent30.class, TinyComponent30::new));
+                    spec(registry, TinyComponent01.class, TinyComponent01::new, 1),
+                    spec(registry, TinyComponent02.class, TinyComponent02::new, 1),
+                    spec(registry, TinyComponent03.class, TinyComponent03::new, 1),
+                    spec(registry, TinyComponent04.class, TinyComponent04::new, 1),
+                    spec(registry, TinyComponent05.class, TinyComponent05::new, 1),
+                    spec(registry, TinyComponent06.class, TinyComponent06::new, 1),
+                    spec(registry, TinyComponent07.class, TinyComponent07::new, 1),
+                    spec(registry, TinyComponent08.class, TinyComponent08::new, 1),
+                    spec(registry, TinyComponent09.class, TinyComponent09::new, 1),
+                    spec(registry, TinyComponent10.class, TinyComponent10::new, 1),
+                    spec(registry, TinyComponent11.class, TinyComponent11::new, 1),
+                    spec(registry, TinyComponent12.class, TinyComponent12::new, 1),
+                    spec(registry, TinyComponent13.class, TinyComponent13::new, 1),
+                    spec(registry, TinyComponent14.class, TinyComponent14::new, 1),
+                    spec(registry, TinyComponent15.class, TinyComponent15::new, 1),
+                    spec(registry, TinyComponent16.class, TinyComponent16::new, 1),
+                    spec(registry, TinyComponent17.class, TinyComponent17::new, 1),
+                    spec(registry, TinyComponent18.class, TinyComponent18::new, 1),
+                    spec(registry, TinyComponent19.class, TinyComponent19::new, 1),
+                    spec(registry, TinyComponent20.class, TinyComponent20::new, 1),
+                    spec(registry, TinyComponent21.class, TinyComponent21::new, 1),
+                    spec(registry, TinyComponent22.class, TinyComponent22::new, 1),
+                    spec(registry, TinyComponent23.class, TinyComponent23::new, 1),
+                    spec(registry, TinyComponent24.class, TinyComponent24::new, 1),
+                    spec(registry, TinyComponent25.class, TinyComponent25::new, 1),
+                    spec(registry, TinyComponent26.class, TinyComponent26::new, 1),
+                    spec(registry, TinyComponent27.class, TinyComponent27::new, 1),
+                    spec(registry, TinyComponent28.class, TinyComponent28::new, 1),
+                    spec(registry, TinyComponent29.class, TinyComponent29::new, 1),
+                    spec(registry, TinyComponent30.class, TinyComponent30::new, 1),
+                    spec(registry, TinyComponent31.class, TinyComponent31::new, 1),
+                    spec(registry, TinyComponent32.class, TinyComponent32::new, 1),
+                    spec(registry, TinyComponent33.class, TinyComponent33::new, 1),
+                    spec(registry, TinyComponent34.class, TinyComponent34::new, 1),
+                    spec(registry, TinyComponent35.class, TinyComponent35::new, 1));
             }
         };
 
@@ -315,7 +341,8 @@ class ComponentGranularityStoreProbeTest {
 
     private record ComponentSpec<T extends ProbeComponent>(
         @Nonnull ComponentType<BenchmarkWorld, T> type,
-        @Nonnull IntFunction<T> factory) {
+        @Nonnull IntFunction<T> factory,
+        int payloadInts) {
     }
 
     private record ScenarioResult(@Nonnull String name,
@@ -323,13 +350,18 @@ class ComponentGranularityStoreProbeTest {
                                   int storeEntityCount,
                                   int requiredComponents,
                                   int optionalComponents,
+                                  int requiredPayloadInts,
+                                  long componentInstances,
+                                  long payloadBytes,
                                   long heapBytes,
                                   long addNanos,
                                   long iterateNanos,
+                                  long targetedIterateNanos,
                                   long mutateNanos,
                                   int archetypeChunkCount,
                                   int archetypeDataCount,
-                                  long iterationChecksum) {
+                                  long iterationChecksum,
+                                  long targetedIterationChecksum) {
 
         @Nonnull
         static String tsv(@Nonnull List<ScenarioResult> results) {
@@ -338,14 +370,23 @@ class ComponentGranularityStoreProbeTest {
                 "entities",
                 "requiredComponents",
                 "optionalComponents",
+                "requiredPayloadInts",
+                "componentInstances",
+                "payloadBytes",
+                "payloadBytesPerEntity",
                 "heapBytes",
                 "bytesPerEntity",
+                "measuredOverheadBytes",
+                "overheadBytesPerEntity",
+                "bytesPerComponentInstance",
                 "addNsPerEntity",
                 "iterateNsPerEntity",
+                "targetedIterateNsPerEntity",
                 "mutateNsPerEntity",
                 "archetypeChunkCount",
                 "archetypeDataCount",
-                "iterationChecksum");
+                "iterationChecksum",
+                "targetedIterationChecksum");
             String rows = results.stream()
                 .map(ScenarioResult::tsvRow)
                 .collect(Collectors.joining(System.lineSeparator()));
@@ -359,14 +400,23 @@ class ComponentGranularityStoreProbeTest {
                 Integer.toString(entities),
                 Integer.toString(requiredComponents),
                 Integer.toString(optionalComponents),
+                Integer.toString(requiredPayloadInts),
+                Long.toString(componentInstances),
+                Long.toString(payloadBytes),
+                Long.toString(payloadBytes / Math.max(1, entities)),
                 Long.toString(heapBytes),
                 Long.toString(heapBytes / Math.max(1, entities)),
+                Long.toString(Math.max(0L, heapBytes - payloadBytes)),
+                Long.toString(Math.max(0L, heapBytes - payloadBytes) / Math.max(1, entities)),
+                Long.toString(heapBytes / Math.max(1L, componentInstances)),
                 Long.toString(addNanos / Math.max(1, entities)),
                 Long.toString(iterateNanos / Math.max(1, entities)),
+                Long.toString(targetedIterateNanos / Math.max(1, entities)),
                 Long.toString(mutateNanos / Math.max(1, entities)),
                 Integer.toString(archetypeChunkCount),
                 Integer.toString(archetypeDataCount),
-                Long.toString(iterationChecksum));
+                Long.toString(iterationChecksum),
+                Long.toString(targetedIterationChecksum));
         }
     }
 
@@ -380,15 +430,7 @@ class ComponentGranularityStoreProbeTest {
 
     private abstract static class BaseComponent implements ProbeComponent {
 
-        private final int seed;
-
-        private BaseComponent(int seed) {
-            this.seed = seed;
-        }
-
-        protected final int seed() {
-            return seed;
-        }
+        protected abstract int seed();
 
         @Override
         public abstract BaseComponent clone();
@@ -396,45 +438,140 @@ class ComponentGranularityStoreProbeTest {
 
     private abstract static class GroupedBase extends BaseComponent {
 
+        private final int value00;
+        private final int value01;
+        private final int value02;
+        private final int value03;
+        private final int value04;
+        private final int value05;
+        private final int value06;
+        private final int value07;
+        private final int value08;
+        private final int value09;
+        private final int value10;
+        private final int value11;
+        private final int value12;
+        private final int value13;
+        private final int value14;
+        private final int value15;
+        private final int value16;
+        private final int value17;
+        private final int value18;
+        private final int value19;
+        private final int value20;
+        private final int value21;
+        private final int value22;
+        private final int value23;
+        private final int value24;
+        private final int value25;
+        private final int value26;
+        private final int value27;
+        private final int value28;
+        private final int value29;
+        private final int value30;
+        private final int value31;
+        private final int value32;
+        private final int value33;
+        private final int value34;
+
         private GroupedBase(int seed) {
-            super(seed);
+            value00 = seed;
+            value01 = seed + 1;
+            value02 = seed + 2;
+            value03 = seed + 3;
+            value04 = seed + 4;
+            value05 = seed + 5;
+            value06 = seed + 6;
+            value07 = seed + 7;
+            value08 = seed + 8;
+            value09 = seed + 9;
+            value10 = seed + 10;
+            value11 = seed + 11;
+            value12 = seed + 12;
+            value13 = seed + 13;
+            value14 = seed + 14;
+            value15 = seed + 15;
+            value16 = seed + 16;
+            value17 = seed + 17;
+            value18 = seed + 18;
+            value19 = seed + 19;
+            value20 = seed + 20;
+            value21 = seed + 21;
+            value22 = seed + 22;
+            value23 = seed + 23;
+            value24 = seed + 24;
+            value25 = seed + 25;
+            value26 = seed + 26;
+            value27 = seed + 27;
+            value28 = seed + 28;
+            value29 = seed + 29;
+            value30 = seed + 30;
+            value31 = seed + 31;
+            value32 = seed + 32;
+            value33 = seed + 33;
+            value34 = seed + 34;
+        }
+
+        @Override
+        protected int seed() {
+            return value00;
         }
 
         @Override
         public long checksum() {
-            long sum = 0L;
-            for (int i = 0; i < 30; i++) {
-                sum += seed() + i;
-            }
-            return sum;
+            return (long) value00 + value01 + value02 + value03 + value04
+                + value05 + value06 + value07 + value08 + value09
+                + value10 + value11 + value12 + value13 + value14
+                + value15 + value16 + value17 + value18 + value19
+                + value20 + value21 + value22 + value23 + value24
+                + value25 + value26 + value27 + value28 + value29
+                + value30 + value31 + value32 + value33 + value34;
         }
     }
 
     private abstract static class DomainBase extends BaseComponent {
 
+        private final int value0;
+        private final int value1;
+        private final int value2;
+        private final int value3;
+        private final int value4;
+
         private DomainBase(int seed) {
-            super(seed);
+            value0 = seed;
+            value1 = seed + 1;
+            value2 = seed + 2;
+            value3 = seed + 3;
+            value4 = seed + 4;
+        }
+
+        @Override
+        protected int seed() {
+            return value0;
         }
 
         @Override
         public long checksum() {
-            long sum = 0L;
-            for (int i = 0; i < 5; i++) {
-                sum += seed() + i;
-            }
-            return sum;
+            return (long) value0 + value1 + value2 + value3 + value4;
         }
     }
 
     private abstract static class TinyBase extends BaseComponent {
 
+        private final int value;
+
         private TinyBase(int seed) {
-            super(seed);
+            value = seed;
+        }
+
+        @Override
+        protected int seed() {
+            return value;
         }
 
         @Override
         public long checksum() {
-            return seed();
+            return value;
         }
     }
 
@@ -631,5 +768,30 @@ class ComponentGranularityStoreProbeTest {
     private static final class TinyComponent30 extends TinyBase {
         private TinyComponent30(int seed) { super(seed); }
         @Override public TinyComponent30 clone() { return new TinyComponent30(seed()); }
+    }
+
+    private static final class TinyComponent31 extends TinyBase {
+        private TinyComponent31(int seed) { super(seed); }
+        @Override public TinyComponent31 clone() { return new TinyComponent31(seed()); }
+    }
+
+    private static final class TinyComponent32 extends TinyBase {
+        private TinyComponent32(int seed) { super(seed); }
+        @Override public TinyComponent32 clone() { return new TinyComponent32(seed()); }
+    }
+
+    private static final class TinyComponent33 extends TinyBase {
+        private TinyComponent33(int seed) { super(seed); }
+        @Override public TinyComponent33 clone() { return new TinyComponent33(seed()); }
+    }
+
+    private static final class TinyComponent34 extends TinyBase {
+        private TinyComponent34(int seed) { super(seed); }
+        @Override public TinyComponent34 clone() { return new TinyComponent34(seed()); }
+    }
+
+    private static final class TinyComponent35 extends TinyBase {
+        private TinyComponent35(int seed) { super(seed); }
+        @Override public TinyComponent35 clone() { return new TinyComponent35(seed()); }
     }
 }

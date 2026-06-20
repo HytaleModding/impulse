@@ -15,10 +15,10 @@ import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.PhysicsRuntim
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.PhysicsRuntimeProfiling.SyncSnapshotView;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.PhysicsRuntimeProfiling.VisualSnapshotView;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkCollisionProfiling;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsDiagnostics;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsAsync;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsWorlds;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
+import dev.hytalemodding.impulse.core.plugin.physics.PhysicsDiagnostics;
+import dev.hytalemodding.impulse.core.plugin.physics.PhysicsAsync;
+import dev.hytalemodding.impulse.core.plugin.physics.PhysicsWorlds;
+import dev.hytalemodding.impulse.core.plugin.physics.PhysicsThreading;
 import dev.hytalemodding.impulse.core.plugin.simulation.SpaceSummary;
 import java.util.List;
 import java.util.Locale;

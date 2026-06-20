@@ -4,6 +4,8 @@ import com.hypixel.hytale.component.ComponentRegistryProxy;
 import com.hypixel.hytale.component.ResourceType;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsStoreResource;
+import dev.hytalemodding.impulse.core.internal.physics.resources.PhysicsDebugResource;
+
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -40,7 +42,7 @@ public final class PhysicsResourceTypes {
     private static ResourceType<PhysicsStore, PhysicsProfilingResource> profilingResourceType;
     @Nullable
     private static ResourceType<PhysicsStore,
-        dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsDebugResource> debugResourceType;
+            PhysicsDebugResource> debugResourceType;
 
     private PhysicsResourceTypes() {
     }
@@ -84,8 +86,8 @@ public final class PhysicsResourceTypes {
             PhysicsProfilingResource.class,
             PhysicsProfilingResource::new);
         debugResourceType = registry.registerResource(
-            dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsDebugResource.class,
-            dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsDebugResource::new);
+            PhysicsDebugResource.class,
+            PhysicsDebugResource::new);
     }
 
     @Nonnull
@@ -152,7 +154,7 @@ public final class PhysicsResourceTypes {
 
     @Nonnull
     public static ResourceType<PhysicsStore,
-        dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsDebugResource> debugResourceType() {
+            PhysicsDebugResource> debugResourceType() {
         return debugResourceType;
     }
 }

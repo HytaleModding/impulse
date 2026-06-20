@@ -3,7 +3,6 @@ package dev.hytalemodding.impulse.core.internal.resources;
 import com.hypixel.hytale.component.Resource;
 import com.hypixel.hytale.component.ResourceType;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import java.util.Set;
 import java.util.UUID;
@@ -15,10 +14,9 @@ import lombok.Setter;
 /**
  * Runtime-only debug overlay state for one world EntityStore.
  *
- * <p>This resource intentionally keeps transient debug session state out of
- * {@link PhysicsWorldResource}. Physics world state is persisted and shared
- * by gameplay systems, while debug subscriptions, cadence, and packet budgets
- * are temporary operational concerns.</p>
+ * <p>This resource intentionally keeps transient debug session state separate from
+ * PhysicsStore authority. Physics world state is persisted and shared by gameplay systems,
+ * while debug subscriptions, cadence, and packet budgets are temporary operational concerns.</p>
  */
 @Getter
 public class PhysicsDebugResource implements Resource<EntityStore> {

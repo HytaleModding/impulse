@@ -14,6 +14,7 @@ import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntime;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRestoreStatusResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
+import dev.hytalemodding.impulse.core.internal.systems.binding.SpaceBindingSystem;
 import dev.hytalemodding.impulse.core.plugin.components.ExtensionSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.components.SolverSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.components.SpaceComponent;
@@ -94,7 +95,7 @@ public final class SpaceSettingsApplicationSystem extends TickingSystem<PhysicsS
         return true;
     }
 
-    static void applyBackendSettings(@Nonnull PhysicsBackendRuntime runtime,
+    public static void applyBackendSettings(@Nonnull PhysicsBackendRuntime runtime,
         @Nonnull BackendSpaceHandle handle,
         @Nonnull SolverSettingsComponent solverSettings,
         @Nullable ExtensionSettingsComponent extensionSettings) {

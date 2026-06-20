@@ -13,7 +13,7 @@ import java.util.UUID;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-final class PhysicsStoreSystemSupport {
+public final class PhysicsStoreSystemSupport {
 
     static final UUID NIL_UUID = new UUID(0L, 0L);
     private PhysicsStoreSystemSupport() {
@@ -25,12 +25,12 @@ final class PhysicsStoreSystemSupport {
     }
 
     @Nonnull
-    static Query<PhysicsStore> uuidQuery() {
+    public static Query<PhysicsStore> uuidQuery() {
         return uuidType();
     }
 
     @Nonnull
-    static UUID rowUuid(@Nonnull ArchetypeChunk<PhysicsStore> chunk, int index) {
+    public static UUID rowUuid(@Nonnull ArchetypeChunk<PhysicsStore> chunk, int index) {
         UuidComponent uuid = chunk.getComponent(index, uuidType());
         return uuid != null ? uuid.getUuid() : NIL_UUID;
     }
@@ -41,7 +41,7 @@ final class PhysicsStoreSystemSupport {
         return uuid != null ? uuid.getUuid() : NIL_UUID;
     }
 
-    static boolean isNil(@Nonnull UUID uuid) {
+    public static boolean isNil(@Nonnull UUID uuid) {
         return NIL_UUID.equals(uuid);
     }
 
@@ -63,7 +63,7 @@ final class PhysicsStoreSystemSupport {
     }
 
     @Nullable
-    static Ref<PhysicsStore> resolvedRef(@Nonnull PhysicsIdentityIndexResource identity,
+    public static Ref<PhysicsStore> resolvedRef(@Nonnull PhysicsIdentityIndexResource identity,
         @Nonnull UUID uuid,
         @Nullable Ref<PhysicsStore> current) {
         if (isNil(uuid)) {

@@ -25,7 +25,9 @@ import dev.hytalemodding.impulse.core.internal.modules.physicschunk.ChunkCollisi
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.ChunkCollisionPayload.BoxPayload;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkLifecycle;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkCollisionDefaults;
-import dev.hytalemodding.impulse.core.internal.physicsstore.PhysicsStoreRowCleanup;
+import dev.hytalemodding.impulse.core.internal.physics.PhysicsStoreRowCleanup;
+import dev.hytalemodding.impulse.core.internal.systems.binding.BodyBindingSystem;
+import dev.hytalemodding.impulse.core.internal.systems.binding.SpaceBindingSystem;
 import dev.hytalemodding.impulse.core.plugin.components.BodyComponent;
 import dev.hytalemodding.impulse.core.plugin.components.ColliderComponent;
 import dev.hytalemodding.impulse.core.plugin.components.CollisionFilterComponent;
@@ -36,7 +38,7 @@ import dev.hytalemodding.impulse.core.plugin.components.TargetComponent;
 import dev.hytalemodding.impulse.core.plugin.components.UuidComponent;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.components.ChunkCollisionSourceComponent;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.components.ChunkCollisionSourceComponent.PartKind;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsEntities;
+import dev.hytalemodding.impulse.core.plugin.physics.PhysicsEntities;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -345,15 +347,17 @@ public final class ChunkCollisionMutationDrainSystem extends TickingSystem<Physi
         rows.sort((first, second) -> Integer.compare(second.ref().getIndex(),
             first.ref().getIndex()));
         boolean removedAny = false;
+        List<PhysicsStoreRowCleanup.BodyEntityRemoval> bodyEntityRemovals =
+            new ArrayList<>(rows.size());
         for (GeneratedRow row : rows) {
             PhysicsStoreRowCleanup.removeRuntimeBody(runtime, identity, row.uuid(), row.ref());
-            PhysicsStoreRowCleanup.removeBodyEntity(store,
-                row.uuid(),
+            bodyEntityRemovals.add(new PhysicsStoreRowCleanup.BodyEntityRemoval(row.uuid(),
                 row.ref(),
-                row.payloadResourceKey());
+                row.payloadResourceKey()));
             removedAny = true;
         }
         if (removedAny) {
+            PhysicsStoreRowCleanup.removeBodyEntities(store, bodyEntityRemovals);
             PhysicsStoreRowCleanup.refreshIdentityAndRuntimeRefs(store);
         }
     }

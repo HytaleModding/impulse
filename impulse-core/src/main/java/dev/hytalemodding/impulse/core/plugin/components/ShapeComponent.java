@@ -9,6 +9,8 @@ import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.PhysicsAxis;
 import dev.hytalemodding.impulse.api.ShapeType;
+import lombok.Getter;
+import lombok.Setter;
 import java.util.Objects;
 import javax.annotation.Nonnull;
 
@@ -61,13 +63,25 @@ public final class ShapeComponent implements Component<PhysicsStore> {
 
     @Nonnull
     private ShapeType shapeType = ShapeType.BOX;
+    @Setter
+    @Getter
     private float halfExtentX = 0.5f;
+    @Setter
+    @Getter
     private float halfExtentY = 0.5f;
+    @Setter
+    @Getter
     private float halfExtentZ = 0.5f;
+    @Setter
+    @Getter
     private float radius = 0.5f;
+    @Setter
+    @Getter
     private float halfHeight = 0.5f;
     @Nonnull
     private PhysicsAxis axis = PhysicsAxis.Y;
+    @Setter
+    @Getter
     private float groundY;
     @Nonnull
     private String resourceKey = "";
@@ -104,46 +118,6 @@ public final class ShapeComponent implements Component<PhysicsStore> {
         this.shapeType = Objects.requireNonNull(shapeType, "shapeType");
     }
 
-    public float getHalfExtentX() {
-        return halfExtentX;
-    }
-
-    public void setHalfExtentX(float halfExtentX) {
-        this.halfExtentX = halfExtentX;
-    }
-
-    public float getHalfExtentY() {
-        return halfExtentY;
-    }
-
-    public void setHalfExtentY(float halfExtentY) {
-        this.halfExtentY = halfExtentY;
-    }
-
-    public float getHalfExtentZ() {
-        return halfExtentZ;
-    }
-
-    public void setHalfExtentZ(float halfExtentZ) {
-        this.halfExtentZ = halfExtentZ;
-    }
-
-    public float getRadius() {
-        return radius;
-    }
-
-    public void setRadius(float radius) {
-        this.radius = radius;
-    }
-
-    public float getHalfHeight() {
-        return halfHeight;
-    }
-
-    public void setHalfHeight(float halfHeight) {
-        this.halfHeight = halfHeight;
-    }
-
     @Nonnull
     public PhysicsAxis getAxis() {
         return axis;
@@ -151,14 +125,6 @@ public final class ShapeComponent implements Component<PhysicsStore> {
 
     public void setAxis(@Nonnull PhysicsAxis axis) {
         this.axis = Objects.requireNonNull(axis, "axis");
-    }
-
-    public float getGroundY() {
-        return groundY;
-    }
-
-    public void setGroundY(float groundY) {
-        this.groundY = groundY;
     }
 
     @Nonnull

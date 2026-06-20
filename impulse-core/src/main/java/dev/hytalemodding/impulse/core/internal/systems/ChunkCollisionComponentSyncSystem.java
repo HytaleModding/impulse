@@ -18,6 +18,7 @@ import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkComponentSyncResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkComponentSyncResource.ChunkCollisionSurfaceComponents;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResource;
+import dev.hytalemodding.impulse.core.internal.systems.binding.BodyBindingSystem;
 import dev.hytalemodding.impulse.core.plugin.components.BodyComponent;
 import dev.hytalemodding.impulse.core.plugin.components.CollisionFilterComponent;
 import dev.hytalemodding.impulse.core.plugin.components.MaterialComponent;

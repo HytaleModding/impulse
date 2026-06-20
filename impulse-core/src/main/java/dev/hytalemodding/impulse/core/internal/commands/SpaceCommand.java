@@ -17,14 +17,14 @@ import dev.hytalemodding.impulse.api.Impulse;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntimeProvider;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsDiagnostics;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsAsync;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsBodies;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsSpaces;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
+import dev.hytalemodding.impulse.core.plugin.physics.PhysicsDiagnostics;
+import dev.hytalemodding.impulse.core.plugin.physics.PhysicsAsync;
+import dev.hytalemodding.impulse.core.plugin.physics.PhysicsBodies;
+import dev.hytalemodding.impulse.core.plugin.physics.PhysicsSpaces;
+import dev.hytalemodding.impulse.core.plugin.physics.PhysicsThreading;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkCollision;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkCollisionMode;
-import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.settings.PhysicsChunkCollisionSettings;
 import dev.hytalemodding.impulse.core.plugin.simulation.SpaceSummary;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -74,15 +74,16 @@ public class SpaceCommand extends AbstractCommandCollection {
                 return;
             }
 
-            PhysicsSpaceSettings settings = physicsChunkMode == PhysicsChunkCollisionMode.STREAMING
-                ? PhysicsSpaceSettings.streamingPhysicsChunk()
-                : PhysicsSpaceSettings.defaults();
-            settings.getPhysicsChunkCollisionSettings().setMode(physicsChunkMode);
-
             Store<PhysicsStore> physicsStore = PhysicsThreading.store(world);
             try {
                 Impulse.getRuntimeProvider(backendId);
-                SpaceId spaceId = PhysicsSpaces.create(physicsStore, backendId, settings);
+                SpaceId spaceId = PhysicsSpaces.create(physicsStore, backendId);
+                PhysicsChunkCollisionSettings chunkCollisionSettings =
+                    new PhysicsChunkCollisionSettings();
+                chunkCollisionSettings.setMode(physicsChunkMode);
+                PhysicsSpaces.putChunkCollisionSettings(physicsStore,
+                    spaceId,
+                    chunkCollisionSettings);
                 context.sendMessage(Message.raw("Created physics space id="
                     + spaceId.value()
                     + " backend=" + backendId.value()
@@ -117,10 +118,11 @@ public class SpaceCommand extends AbstractCommandCollection {
             @Nonnull List<SpaceSummary> summaries) {
             List<SpaceListEntry> spaces = summaries.stream()
                 .map(summary -> {
-                    PhysicsSpaceSettings settings = PhysicsSpaces.settings(physicsStore,
+                    PhysicsChunkCollisionSettings settings = PhysicsSpaces.chunkCollisionSettings(
+                        physicsStore,
                         summary.spaceId());
                     PhysicsChunkCollisionMode physicsChunkMode = settings != null
-                        ? settings.getPhysicsChunkCollisionSettings().getMode()
+                        ? settings.getMode()
                         : PhysicsChunkCollisionMode.NONE;
                     return new SpaceListEntry(summary.spaceId(),
                         summary.backendId().value(),

@@ -16,7 +16,6 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.core.internal.modules.physicsentity.PhysicsEntityTypeRegistry;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsProjectionIndexResource;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.testsupport.TestInstanceFactory;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.BodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.BodyAttachmentComponent.AttachmentLifecycle;
@@ -92,7 +91,7 @@ class PhysicsProjectionCleanupSystemTest {
     }
 
     @Test
-    void generatedProxyWithMissingBodyRefIsRemovedAndUnindexed() {
+    void generatedProxyWithMissingBodyRefIsPreservedWithoutPhysicsStoreAuthority() {
         ComponentRegistry<EntityStore> registry = new ComponentRegistry<>();
         Store<EntityStore> store = store(registry, "projection-cleanup-generated-missing-ref");
         try {
@@ -108,9 +107,10 @@ class PhysicsProjectionCleanupSystemTest {
 
             new PhysicsProjectionCleanupSystem().tick(0.0f, 0, store);
 
-            assertFalse(proxyRef.isValid());
-            assertFalse(projection.hasAttachments(bodyUuid));
-            assertNull(projection.getGeneratedVisualProxy(bodyUuid));
+            assertTrue(proxyRef.isValid());
+            assertNotNull(store.getComponent(proxyRef, BodyAttachmentComponent.getComponentType()));
+            assertTrue(projection.hasAttachments(bodyUuid));
+            assertNotNull(projection.getGeneratedVisualProxy(bodyUuid));
         } finally {
             registry.removeStore(store);
             registry.shutdown();
@@ -180,7 +180,6 @@ class PhysicsProjectionCleanupSystemTest {
         Store<EntityStore> store = registry.addStore(
             new EntityStore(TestInstanceFactory.world(worldName)),
             EmptyResourceStorage.get());
-        PhysicsWorldRuntimeResource.require(store);
         return store;
     }
 

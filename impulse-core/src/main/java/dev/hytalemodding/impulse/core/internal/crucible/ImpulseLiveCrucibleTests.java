@@ -12,20 +12,17 @@ import com.hypixel.hytale.server.core.modules.time.TimeResource;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
+import dev.hytalemodding.impulse.core.plugin.physics.PhysicsThreading;
 import dev.hytalemodding.impulse.api.SpaceId;
-import dev.hytalemodding.impulse.core.internal.physicsstore.PhysicsStoreSpaceMutations;
+import dev.hytalemodding.impulse.core.internal.physics.PhysicsSpaceMutations;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSnapshotResource;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.BodyEntityDescriptor;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsBodyEntities;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsEntities;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsSpaces;
+import dev.hytalemodding.impulse.core.plugin.physics.PhysicsBodyEntities;
+import dev.hytalemodding.impulse.core.plugin.physics.PhysicsSpaces;
 import dev.hytalemodding.impulse.core.plugin.snapshots.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.core.plugin.modules.control.ImpulseControllableComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.BodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.BodyAttachmentComponent.AttachmentLifecycle;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.BodyAttachmentComponent.TransformAuthority;
-import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
 import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
 import java.util.Comparator;
@@ -79,7 +76,7 @@ final class ImpulseLiveCrucibleTests {
                 context.wx(0),
                 context.wy(20),
                 context.wz(0));
-            PhysicsStoreSpaceMutations.putSpaceGravity(physicsStore,
+            PhysicsSpaceMutations.putSpaceGravity(physicsStore,
                 spaceId,
                 new Vector3f(0.0f, -9.81f, 0.0f));
             UUID bodyUuid = UUID.randomUUID();
@@ -129,9 +126,7 @@ final class ImpulseLiveCrucibleTests {
         if (existingSpaceId != null) {
             return existingSpaceId;
         }
-        return PhysicsSpaces.create(store,
-            CrucibleBackends.requireBackendId(),
-            PhysicsSpaceSettings.defaults());
+        return PhysicsSpaces.create(store, CrucibleBackends.requireBackendId());
     }
 
     private static void submitLiveBody(Store<PhysicsStore> store,
@@ -143,8 +138,7 @@ final class ImpulseLiveCrucibleTests {
         if (spaceRef == null) {
             throw new IllegalStateException("No PhysicsStore space ref for id=" + spaceId.value());
         }
-        BodyEntityDescriptor descriptor = PhysicsBodyEntities.dynamicBody(
-            spaceRef,
+        store.addEntity(PhysicsBodyEntities.dynamicBodyHolder(spaceRef,
             bodyUuid,
             new Vector3f((float) visualPosition.x,
                 (float) visualPosition.y,
@@ -152,16 +146,7 @@ final class ImpulseLiveCrucibleTests {
             PhysicsShapeSpec.box(0.5f, 0.5f, 0.5f),
             1.0f,
             RigidBodySpawnSettings.defaults(),
-            null);
-        store.addEntity(PhysicsEntities.bodyHolder(store,
-            descriptor.bodyUuid(),
-            descriptor.body(),
-            descriptor.dynamics(),
-            descriptor.target(),
-            descriptor.collider(),
-            descriptor.shape(),
-            descriptor.material(),
-            descriptor.filter()), AddReason.SPAWN);
+            null), AddReason.SPAWN);
     }
 
     private static Store<PhysicsStore> physicsStore(World world) {

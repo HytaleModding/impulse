@@ -29,6 +29,8 @@ import dev.hytalemodding.impulse.core.internal.resources.PhysicsIdentityIndexRes
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsResourceTypes;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRestoreStatusResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResource;
+import dev.hytalemodding.impulse.core.internal.systems.binding.BodyBindingSystem;
+import dev.hytalemodding.impulse.core.internal.systems.binding.SpaceBindingSystem;
 import dev.hytalemodding.impulse.core.internal.testsupport.TestInstanceFactory;
 import dev.hytalemodding.impulse.core.plugin.components.BodyComponent;
 import dev.hytalemodding.impulse.core.plugin.components.ColliderComponent;
@@ -38,7 +40,7 @@ import dev.hytalemodding.impulse.core.plugin.components.MaterialComponent;
 import dev.hytalemodding.impulse.core.plugin.components.ShapeComponent;
 import dev.hytalemodding.impulse.core.plugin.components.SpaceComponent;
 import dev.hytalemodding.impulse.core.plugin.components.TargetComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsEntities;
+import dev.hytalemodding.impulse.core.plugin.physics.PhysicsEntities;
 import java.util.ArrayList;
 import java.util.UUID;
 import javax.annotation.Nonnull;
@@ -70,6 +72,10 @@ class ChunkCollisionComponentSyncSystemTest {
             new PhysicsStore(TestInstanceFactory.world("chunk-collision-component-sync-test")),
             EmptyResourceStorage.get());
         try {
+            PhysicsRestoreStatusResource restore = store.getResource(
+                PhysicsRestoreStatusResource.getResourceType());
+            restore.markComplete();
+            restore.markHydrated();
             UUID spaceUuid = uuid(1);
             RuntimeFixture runtime = addBoundSpace(store,
                 spaceUuid,

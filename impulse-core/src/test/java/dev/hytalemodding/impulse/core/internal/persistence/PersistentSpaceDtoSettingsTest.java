@@ -10,9 +10,10 @@ import dev.hytalemodding.impulse.core.plugin.components.SolverSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.VisualMaterializationSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.VisualSyncSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkCollisionMode;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.ChunkCollisionSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.CollisionLodSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.settings.PhysicsChunkCollisionSettings;
-import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
+import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.settings.PhysicsVisualMaterializationSettings;
 import java.util.Objects;
 import java.util.UUID;
 import org.bson.BsonDocument;
@@ -23,15 +24,14 @@ class PersistentSpaceDtoSettingsTest {
 
     @Test
     void roundTripPreservesDetachedVisualCadenceSettingsAndPhysicsChunkKeys() {
-        PhysicsSpaceSettings original = PhysicsSpaceSettings.defaults();
-        original.getPhysicsChunkCollisionSettings().setMode(PhysicsChunkCollisionMode.STREAMING);
-        original.getPhysicsChunkCollisionSettings().setNativeVoxelCollisionEnabled(true);
-        original.getVisualMaterializationSettings().setDetachedVisualInterestRefreshIntervalTicks(7);
-        original.getVisualMaterializationSettings().setDetachedVisualCandidateRefreshIntervalTicks(9);
-        original.getVisualMaterializationSettings().setDetachedVisualVisibilityCheckIntervalTicks(11);
-
-        PhysicsChunkCollisionSettings chunkCollision =
-            original.getPhysicsChunkCollisionSettings();
+        PhysicsChunkCollisionSettings chunkCollision = new PhysicsChunkCollisionSettings();
+        chunkCollision.setMode(PhysicsChunkCollisionMode.STREAMING);
+        chunkCollision.setNativeVoxelCollisionEnabled(true);
+        PhysicsVisualMaterializationSettings visualMaterialization =
+            new PhysicsVisualMaterializationSettings();
+        visualMaterialization.setDetachedVisualInterestRefreshIntervalTicks(7);
+        visualMaterialization.setDetachedVisualCandidateRefreshIntervalTicks(9);
+        visualMaterialization.setDetachedVisualVisibilityCheckIntervalTicks(11);
         PersistentSpaceDto state = new PersistentSpaceDto(UUID.randomUUID(),
             "test:settings-persistence",
             new Vector3f(0.0f, -9.81f, 0.0f),
@@ -43,11 +43,11 @@ class PersistentSpaceDtoSettingsTest {
             chunkCollision.getTtlTicks(),
             0.85f,
             0.2f,
-            new SolverSettingsComponent(original.getSolverSettings()),
-            new VisualSyncSettingsComponent(original.getVisualSyncSettings()),
-            new VisualMaterializationSettingsComponent(original.getVisualMaterializationSettings()),
-            new CollisionLodSettingsComponent(original.getCollisionLodSettings()),
-            new ExtensionSettingsComponent(original.getExtensionSettings()));
+            new SolverSettingsComponent(),
+            new VisualSyncSettingsComponent(),
+            new VisualMaterializationSettingsComponent(visualMaterialization),
+            new CollisionLodSettingsComponent(),
+            new ExtensionSettingsComponent());
 
         BsonDocument encoded = PersistentSpaceDto.CODEC.encode(state, new ExtraInfo()).asDocument();
 
@@ -64,27 +64,28 @@ class PersistentSpaceDtoSettingsTest {
         assertEquals(0.85f, decodedState.getChunkCollisionFriction(), 0.0001f);
         assertEquals(0.2f, decodedState.getChunkCollisionRestitution(), 0.0001f);
 
-        PhysicsSpaceSettings decoded = decodedState.toSettings();
+        ChunkCollisionSettingsComponent decodedChunkCollision =
+            decodedState.getChunkCollisionSettings();
         assertEquals(PhysicsChunkCollisionMode.STREAMING,
-            decoded.getPhysicsChunkCollisionSettings().getMode());
-        assertTrue(decoded.getPhysicsChunkCollisionSettings().isNativeVoxelCollisionEnabled());
-        assertDetachedVisualCadence(decoded, 7, 9, 11);
+            decodedChunkCollision.getMode());
+        assertTrue(decodedChunkCollision.isNativeVoxelCollisionEnabled());
+        assertDetachedVisualCadence(decodedState.getVisualMaterializationSettings(), 7, 9, 11);
 
         PersistentSpaceDto copiedState = state.copy();
         assertEquals(0.85f, copiedState.getChunkCollisionFriction(), 0.0001f);
         assertEquals(0.2f, copiedState.getChunkCollisionRestitution(), 0.0001f);
 
-        PhysicsSpaceSettings copied = copiedState.toSettings();
+        ChunkCollisionSettingsComponent copiedChunkCollision =
+            copiedState.getChunkCollisionSettings();
         assertEquals(PhysicsChunkCollisionMode.STREAMING,
-            copied.getPhysicsChunkCollisionSettings().getMode());
-        assertTrue(copied.getPhysicsChunkCollisionSettings().isNativeVoxelCollisionEnabled());
-        assertDetachedVisualCadence(copied, 7, 9, 11);
+            copiedChunkCollision.getMode());
+        assertTrue(copiedChunkCollision.isNativeVoxelCollisionEnabled());
+        assertDetachedVisualCadence(copiedState.getVisualMaterializationSettings(), 7, 9, 11);
     }
 
     @Test
     void roundTripPreservesChunkCollisionFilter() {
-        PhysicsChunkCollisionSettings chunkCollision =
-            PhysicsSpaceSettings.defaults().getPhysicsChunkCollisionSettings();
+        PhysicsChunkCollisionSettings chunkCollision = new PhysicsChunkCollisionSettings();
         PersistentSpaceDto state = new PersistentSpaceDto(UUID.randomUUID(),
             "test:chunk-filter-persistence",
             new Vector3f(0.0f, -9.81f, 0.0f),
@@ -113,20 +114,19 @@ class PersistentSpaceDtoSettingsTest {
         assertEquals(0x03, decoded.getChunkCollisionMask());
         assertEquals(0x40, state.copy().getChunkCollisionGroup());
         assertEquals(0x03, state.copy().getChunkCollisionMask());
-        PhysicsSpaceSettings decodedSettings = decoded.toSettings();
         assertEquals(chunkCollision.getEntityChunkBoundaryMode(),
-            decodedSettings.getPhysicsChunkCollisionSettings().getEntityChunkBoundaryMode());
+            decoded.getChunkCollisionSettings().getEntityChunkBoundaryMode());
     }
 
-    private static void assertDetachedVisualCadence(PhysicsSpaceSettings settings,
+    private static void assertDetachedVisualCadence(VisualMaterializationSettingsComponent settings,
         int interestInterval,
         int candidateInterval,
         int visibilityInterval) {
         assertEquals(interestInterval,
-            settings.getVisualMaterializationSettings().getDetachedVisualInterestRefreshIntervalTicks());
+            settings.getDetachedVisualInterestRefreshIntervalTicks());
         assertEquals(candidateInterval,
-            settings.getVisualMaterializationSettings().getDetachedVisualCandidateRefreshIntervalTicks());
+            settings.getDetachedVisualCandidateRefreshIntervalTicks());
         assertEquals(visibilityInterval,
-            settings.getVisualMaterializationSettings().getDetachedVisualVisibilityCheckIntervalTicks());
+            settings.getDetachedVisualVisibilityCheckIntervalTicks());
     }
 }

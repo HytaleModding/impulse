@@ -8,7 +8,9 @@ import dev.hytalemodding.impulse.core.plugin.snapshots.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.core.plugin.snapshots.PhysicsSnapshotFrame;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -66,11 +68,27 @@ public final class PhysicsSnapshotResource implements Resource<PhysicsStore> {
     }
 
     public void removeBody(@Nonnull UUID bodyUuid) {
+        Objects.requireNonNull(bodyUuid, "bodyUuid");
+        removeBodies(List.of(bodyUuid));
+    }
+
+    public void removeBodies(@Nonnull Collection<UUID> bodyUuids) {
+        Objects.requireNonNull(bodyUuids, "bodyUuids");
         PublishedSnapshot current = snapshot;
-        if (!current.bodiesByUuid().containsKey(bodyUuid)) {
+        if (bodyUuids.isEmpty()) {
             return;
         }
-        snapshot = withoutBody(current, bodyUuid);
+        ObjectOpenHashSet<UUID> removedBodyUuids = new ObjectOpenHashSet<>(bodyUuids.size());
+        for (UUID bodyUuid : bodyUuids) {
+            Objects.requireNonNull(bodyUuid, "bodyUuid");
+            if (current.bodiesByUuid().containsKey(bodyUuid)) {
+                removedBodyUuids.add(bodyUuid);
+            }
+        }
+        if (removedBodyUuids.isEmpty()) {
+            return;
+        }
+        snapshot = withoutBodies(current, removedBodyUuids);
     }
 
     public void clear() {
@@ -78,15 +96,15 @@ public final class PhysicsSnapshotResource implements Resource<PhysicsStore> {
     }
 
     @Nonnull
-    private static PublishedSnapshot withoutBody(@Nonnull PublishedSnapshot current,
-        @Nonnull UUID bodyUuid) {
-        int bodyCount = Math.max(0, current.frame().bodies().size() - 1);
+    private static PublishedSnapshot withoutBodies(@Nonnull PublishedSnapshot current,
+        @Nonnull ObjectOpenHashSet<UUID> bodyUuids) {
+        int bodyCount = Math.max(0, current.frame().bodies().size() - bodyUuids.size());
         List<PhysicsBodySnapshot> bodies = new ArrayList<>(bodyCount);
         Map<UUID, PhysicsBodySnapshot> bodiesByUuid = new Object2ObjectOpenHashMap<>(bodyCount);
         Int2ObjectOpenHashMap<PhysicsBodySnapshot> bodiesByRowIndex =
             new Int2ObjectOpenHashMap<>(bodyCount);
         for (PhysicsBodySnapshot body : current.frame().bodies()) {
-            if (bodyUuid.equals(body.bodyUuid())) {
+            if (bodyUuids.contains(body.bodyUuid())) {
                 continue;
             }
             bodies.add(body);

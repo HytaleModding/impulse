@@ -29,9 +29,10 @@ import dev.hytalemodding.impulse.core.internal.modules.physicschunk.ChunkCollisi
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkLifecycle;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkCollisionDefaults;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkStoreTypes;
-import dev.hytalemodding.impulse.core.internal.physicsstore.PhysicsStoreTopologyMutations;
+import dev.hytalemodding.impulse.core.internal.physics.PhysicsTopologyMutations;
 import dev.hytalemodding.impulse.core.internal.registration.PhysicsComponentTypeRegistry;
 import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsBodyRegistrationResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkCollisionMutationQueueResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkCollisionPayloadResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkSettingsIndexResource;
@@ -40,6 +41,7 @@ import dev.hytalemodding.impulse.core.internal.resources.PhysicsIdentityIndexRes
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsResourceTypes;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRestoreStatusResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsSnapshotResource;
 import dev.hytalemodding.impulse.core.internal.testsupport.TestInstanceFactory;
 import dev.hytalemodding.impulse.core.plugin.components.BodyComponent;
 import dev.hytalemodding.impulse.core.plugin.components.CollisionFilterComponent;
@@ -53,7 +55,9 @@ import dev.hytalemodding.impulse.core.internal.modules.physicschunk.components.C
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.components.ChunkCollisionSourceComponent.PartKind;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkCollisionMode;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.settings.EntityChunkBoundaryMode;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsEntities;
+import dev.hytalemodding.impulse.core.plugin.physics.PhysicsEntities;
+import dev.hytalemodding.impulse.core.plugin.snapshots.PhysicsBodySnapshot;
+import dev.hytalemodding.impulse.core.plugin.snapshots.PhysicsSnapshotFrame;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -234,7 +238,7 @@ class ChunkCollisionMutationDrainSystemTest {
                 .get(payloadKey);
             assertVoxelOnlyPayload(retainedPayload);
 
-            PhysicsStoreTopologyMutations.destroyBody(store, detailUuid);
+            PhysicsTopologyMutations.destroyBody(store, detailUuid);
 
             assertSame(retainedPayload,
                 store.getResource(PhysicsChunkCollisionPayloadResource.getResourceType())
@@ -299,8 +303,19 @@ class ChunkCollisionMutationDrainSystemTest {
                 sourceKey,
                 PartKind.DETAIL_BOX,
                 0);
-            assertNotNull(identity.getByUuid(boxUuid));
-            assertNotNull(identity.getByUuid(detailUuid));
+            Ref<PhysicsStore> boxRef = identity.getByUuid(boxUuid);
+            Ref<PhysicsStore> detailRef = identity.getByUuid(detailUuid);
+            assertNotNull(boxRef);
+            assertNotNull(detailRef);
+            publishCopiedState(store, spaceUuid, boxUuid, boxRef, detailUuid, detailRef);
+            PhysicsSnapshotResource snapshots =
+                store.getResource(PhysicsSnapshotResource.getResourceType());
+            PhysicsBodyRegistrationResource registrations =
+                store.getResource(PhysicsBodyRegistrationResource.getResourceType());
+            assertNotNull(snapshots.getBody(boxUuid));
+            assertNotNull(snapshots.getBody(detailUuid));
+            assertTrue(registrations.hasBody(boxUuid));
+            assertTrue(registrations.hasBody(detailUuid));
 
             queue.enqueue(ChunkCollisionMutation.remove(spaceUuid, sourceKey, 5, 6, 7));
             new ChunkCollisionMutationDrainSystem().tick(0.0f, 0, store);
@@ -308,6 +323,10 @@ class ChunkCollisionMutationDrainSystemTest {
             assertEquals(0, queue.size());
             assertNull(identity.getByUuid(boxUuid));
             assertNull(identity.getByUuid(detailUuid));
+            assertNull(snapshots.getBody(boxUuid));
+            assertNull(snapshots.getBody(detailUuid));
+            assertFalse(registrations.hasBody(boxUuid));
+            assertFalse(registrations.hasBody(detailUuid));
             assertNull(store.getResource(PhysicsChunkCollisionPayloadResource.getResourceType())
                 .get(payloadKey));
             assertSoftSkipsEmpty(store);
@@ -613,6 +632,57 @@ class ChunkCollisionMutationDrainSystemTest {
     private static long settingsGeneration(@Nonnull Store<PhysicsStore> store) {
         return store.getResource(PhysicsChunkSettingsIndexResource.getResourceType())
             .generation();
+    }
+
+    private static void publishCopiedState(@Nonnull Store<PhysicsStore> store,
+        @Nonnull UUID spaceUuid,
+        @Nonnull UUID firstBodyUuid,
+        @Nonnull Ref<PhysicsStore> firstBodyRef,
+        @Nonnull UUID secondBodyUuid,
+        @Nonnull Ref<PhysicsStore> secondBodyRef) {
+        store.getResource(PhysicsSnapshotResource.getResourceType())
+            .publish(new PhysicsSnapshotFrame(1L,
+                0.05f,
+                List.of(snapshot(firstBodyRef, firstBodyUuid, spaceUuid),
+                    snapshot(secondBodyRef, secondBodyUuid, spaceUuid))));
+        store.getResource(PhysicsBodyRegistrationResource.getResourceType())
+            .publish(1L,
+                List.of(publication(firstBodyRef, firstBodyUuid),
+                    publication(secondBodyRef, secondBodyUuid)));
+    }
+
+    @Nonnull
+    private static PhysicsBodySnapshot snapshot(@Nonnull Ref<PhysicsStore> bodyRef,
+        @Nonnull UUID bodyUuid,
+        @Nonnull UUID spaceUuid) {
+        return PhysicsBodySnapshot.of(bodyRef,
+            bodyUuid,
+            spaceUuid,
+            PhysicsBodyType.STATIC,
+            0.0f,
+            0.0f,
+            0.0f,
+            0.0f,
+            0.0f,
+            0.0f,
+            1.0f,
+            0.0f,
+            0.0f,
+            0.0f,
+            0.0f,
+            0.0f,
+            0.0f,
+            0.0f,
+            false);
+    }
+
+    @Nonnull
+    private static PhysicsBodyRegistrationResource.BodyRegistrationPublication publication(
+        @Nonnull Ref<PhysicsStore> bodyRef,
+        @Nonnull UUID bodyUuid) {
+        return new PhysicsBodyRegistrationResource.BodyRegistrationPublication(bodyRef,
+            bodyUuid,
+            new SpaceId(42));
     }
 
     private static long previousGeneration(long generation) {

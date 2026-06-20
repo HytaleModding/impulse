@@ -21,10 +21,8 @@ import dev.hytalemodding.impulse.core.plugin.modules.control.ImpulseControllable
 import dev.hytalemodding.impulse.core.plugin.modules.control.PhysicsControlSessions;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.PhysicsEntityAttachments;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.BodyAttachmentComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.BodyEntityDescriptor;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsBodyEntities;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsEntities;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
+import dev.hytalemodding.impulse.core.plugin.physics.PhysicsBodyEntities;
+import dev.hytalemodding.impulse.core.plugin.physics.PhysicsThreading;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
 import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
 import java.util.UUID;
@@ -79,24 +77,14 @@ public class DropCommand extends AbstractAsyncPlayerCommand {
         PhysicsThreading.requireWorldThread(physicsStore,
             "spawn an example PhysicsStore body entity");
         UUID bodyUuid = UUID.randomUUID();
-        BodyEntityDescriptor descriptor = PhysicsBodyEntities.dynamicBody(space.spaceRef(),
+        Holder<PhysicsStore> bodyHolder = PhysicsBodyEntities.dynamicBodyHolder(space.spaceRef(),
             bodyUuid,
             toVector3f(position),
             PhysicsShapeSpec.box(0.5f, 0.5f, 0.5f),
             1.0f,
             RigidBodySpawnSettings.material(0.5f, 0.5f),
             null);
-        Ref<PhysicsStore> bodyRef = physicsStore.addEntity(
-            PhysicsEntities.bodyHolder(physicsStore,
-                descriptor.bodyUuid(),
-                descriptor.body(),
-                descriptor.dynamics(),
-                descriptor.target(),
-                descriptor.collider(),
-                descriptor.shape(),
-                descriptor.material(),
-                descriptor.filter()),
-            AddReason.SPAWN);
+        Ref<PhysicsStore> bodyRef = physicsStore.addEntity(bodyHolder, AddReason.SPAWN);
 
         assert bodyRef != null;
         store.addEntity(attachedPhysicsBlockEntityHolder(time,

@@ -3,7 +3,7 @@ package dev.hytalemodding.impulse.core.internal.modules.control;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
+import dev.hytalemodding.impulse.core.plugin.physics.PhysicsThreading;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Objects;

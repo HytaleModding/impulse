@@ -1,5 +1,6 @@
 package dev.hytalemodding.impulse.core.plugin.settings;
 
+import dev.hytalemodding.impulse.core.plugin.events.PhysicsEventCollectionMode;
 import lombok.Getter;
 import java.util.Objects;
 import javax.annotation.Nonnull;
@@ -9,7 +10,7 @@ import javax.annotation.Nonnull;
  *
  * <p>These values control how the world schedules and subdivides physics steps. They are not
  * per-space solver tuning; {@link PhysicsSolverSettings} remains part of
- * {@link PhysicsSpaceSettings} because solver parameters are applied to individual backend spaces.</p>
+ * per-space solver settings because solver parameters are applied to individual backend spaces.</p>
  */
 public class PhysicsWorldSettings {
 

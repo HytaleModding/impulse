@@ -7,7 +7,6 @@ import com.hypixel.hytale.component.Component;
 import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsComponentTypes;
-import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.settings.PhysicsVisualMaterializationSettings;
 import java.util.Objects;
 import javax.annotation.Nonnull;
@@ -166,10 +165,6 @@ public final class VisualMaterializationSettingsComponent implements Component<P
     @Nonnull
     public String getDetachedVisualBlockType() {
         return detachedVisualBlockType;
-    }
-
-    public void copyTo(@Nonnull PhysicsSpaceSettings settings) {
-        copyTo(settings.getVisualMaterializationSettings());
     }
 
     public void copyTo(@Nonnull PhysicsVisualMaterializationSettings target) {

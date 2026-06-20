@@ -21,18 +21,18 @@ import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkCollision;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkCollisionPrewarmStats;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsAsync;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsBodies;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsRaycasts;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsWorlds;
+import dev.hytalemodding.impulse.core.plugin.physics.PhysicsAsync;
+import dev.hytalemodding.impulse.core.plugin.physics.PhysicsBodies;
+import dev.hytalemodding.impulse.core.plugin.physics.PhysicsRaycasts;
+import dev.hytalemodding.impulse.core.plugin.physics.PhysicsWorlds;
 import dev.hytalemodding.impulse.core.plugin.components.BodyCommandComponent;
 import dev.hytalemodding.impulse.core.plugin.components.DynamicsComponent;
 import dev.hytalemodding.impulse.core.plugin.components.TargetComponent;
-import dev.hytalemodding.impulse.core.plugin.settings.PhysicsEventCollectionMode;
+import dev.hytalemodding.impulse.core.plugin.events.PhysicsEventCollectionMode;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
 import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
 import dev.hytalemodding.impulse.core.plugin.simulation.view.RaycastHitView;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
+import dev.hytalemodding.impulse.core.plugin.physics.PhysicsThreading;
 import dev.hytalemodding.impulse.examples.explosive.ExplosiveBlockComponent;
 import dev.hytalemodding.impulse.examples.explosive.ExplosiveBlockPolicy;
 import dev.hytalemodding.impulse.examples.explosive.ExplosiveFuseComponent;
@@ -168,20 +168,23 @@ final class PhysicsStoreExampleCommands {
                 return CompletableFuture.completedFuture(null);
             }
             Vector3f targetPosition = vector(spawn);
-            var bodyRef = ExamplePhysicsUtils.addPhysicsStoreBody(world,
-                ExamplePhysicsUtils.bodyEntity(spaceRef,
-                    bodyUuid,
-                    targetPosition,
-                    PhysicsShapeSpec.box(0.5f, 0.5f, 0.5f),
-                    0.0f,
-                    RigidBodySpawnSettings.material(0.5f, 0.2f),
-                    null),
+            Holder<PhysicsStore> bodyHolder = ExamplePhysicsUtils.bodyEntity(spaceRef,
+                bodyUuid,
+                targetPosition,
+                PhysicsShapeSpec.box(0.5f, 0.5f, 0.5f),
+                0.0f,
+                RigidBodySpawnSettings.material(0.5f, 0.2f),
+                null);
+            bodyHolder.tryRemoveComponent(DynamicsComponent.getComponentType());
+            bodyHolder.addComponent(DynamicsComponent.getComponentType(),
                 new DynamicsComponent(PhysicsBodyType.KINEMATIC,
                     0.0f,
                     0.0f,
                     0.0f,
-                    false),
-                target(targetPosition));
+                    false));
+            bodyHolder.tryRemoveComponent(TargetComponent.getComponentType());
+            bodyHolder.addComponent(TargetComponent.getComponentType(), target(targetPosition));
+            var bodyRef = ExamplePhysicsUtils.addPhysicsStoreBody(world, bodyHolder);
 
             TimeResource time = store.getResource(TimeResource.getResourceType());
             ExamplePhysicsUtils.attachBlockBody(store,

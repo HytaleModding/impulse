@@ -11,7 +11,6 @@ import dev.hytalemodding.impulse.core.plugin.components.PhysicsComponentTypes;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkCollisionMode;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.settings.EntityChunkBoundaryMode;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.settings.PhysicsChunkCollisionSettings;
-import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import java.util.Objects;
 import javax.annotation.Nonnull;
 
@@ -163,10 +162,6 @@ public class ChunkCollisionSettingsComponent implements Component<PhysicsStore> 
 
     public void setTtlTicks(int ttlTicks) {
         this.ttlTicks = ttlTicks;
-    }
-
-    public void copyTo(@Nonnull PhysicsSpaceSettings settings) {
-        copyTo(settings.getPhysicsChunkCollisionSettings());
     }
 
     public void copyTo(@Nonnull PhysicsChunkCollisionSettings settings) {

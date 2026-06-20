@@ -8,7 +8,7 @@ import com.hypixel.hytale.server.core.command.system.basecommands.AbstractAsyncW
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.core.plugin.persistence.PhysicsPersistence;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsAsync;
+import dev.hytalemodding.impulse.core.plugin.physics.PhysicsAsync;
 import dev.hytalemodding.impulse.core.plugin.persistence.PhysicsPersistence.RestoreRequestResult;
 import dev.hytalemodding.impulse.core.plugin.persistence.PhysicsPersistence.SaveResult;
 import dev.hytalemodding.impulse.core.plugin.persistence.PhysicsPersistence.Status;

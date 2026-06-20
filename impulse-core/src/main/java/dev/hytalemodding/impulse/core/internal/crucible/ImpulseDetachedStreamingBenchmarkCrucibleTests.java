@@ -22,17 +22,20 @@ import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunk
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkBuildOptions;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.profiling.PhysicsChunkProfilingResource;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.profiling.PhysicsChunkProfilingResource.Snapshot;
-import dev.hytalemodding.impulse.core.internal.physicsstore.PhysicsStoreSpaceMutations;
+import dev.hytalemodding.impulse.core.internal.physics.PhysicsSpaceMutations;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkCollisionMutationQueueResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsProfilingResource;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkCollisionPrewarmStats;
+import dev.hytalemodding.impulse.core.plugin.physics.PhysicsSpaces;
+import dev.hytalemodding.impulse.core.plugin.physics.PhysicsWorlds;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsBackendExtensionId;
-import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsExtensionSettings;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSolverSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepSchedulingMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkCollisionMode;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.settings.PhysicsChunkCollisionSettings;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
 import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
@@ -137,7 +140,6 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
         private final CrucibleContext context;
         private final StagePlan plan;
         private final World world;
-        private final PhysicsWorldRuntimeResource physics;
         private final Store<PhysicsStore> physicsStore;
         private final PhysicsProfilingResource physicsStoreProfiling;
         private final PhysicsRuntimeProfilingResource runtimeProfiling;
@@ -153,7 +155,6 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
             this.plan = plan;
             this.world = context.world();
             Store<EntityStore> store = world.getEntityStore().getStore();
-            this.physics = PhysicsWorldRuntimeResource.require(store);
             this.physicsStore = PhysicsStoreCrucibleSupport.physicsStore(world);
             this.physicsStoreProfiling = physicsStore.getResource(
                 PhysicsProfilingResource.getResourceType());
@@ -162,7 +163,7 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
                 PhysicsChunkProfilingResource.getResourceType());
             this.collisionStreaming = store.getResource(
                 PhysicsChunkCollisionStreamingResource.getResourceType());
-            this.previousWorldSettings = physics.getWorldSettings();
+            this.previousWorldSettings = PhysicsWorlds.settings(physicsStore);
             this.previousPhysicsStoreProfilingEnabled = physicsStoreProfiling.isEnabled();
         }
 
@@ -218,12 +219,12 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
                     "PhysicsChunk subplugin did not load"));
             }
 
-            PhysicsWorldSettings worldSettings = physics.getWorldSettings();
+            PhysicsWorldSettings worldSettings = PhysicsWorlds.settings(physicsStore);
             worldSettings.setStepMode(PhysicsStepMode.PROGRESSIVE_REFINEMENT);
             worldSettings.setStepSchedulingMode(PhysicsStepSchedulingMode.DROP_PENDING_DT);
             worldSettings.setSimulationSteps(1);
             worldSettings.setMaxStepDt(TARGET_MAX_STEP_DT);
-            physics.setWorldSettings(worldSettings);
+            PhysicsWorlds.putSettings(physicsStore, worldSettings);
 
             BenchmarkChunks chunks = benchmarkChunks(count);
             if (!areChunksReady(chunks)) {
@@ -242,21 +243,17 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
 
             int retained = retainChunks(chunks);
             configureMissingSectionDiagnostics(chunks);
-            PhysicsSpaceSettings settings = PhysicsSpaceSettings.defaults();
-            settings.getPhysicsChunkCollisionSettings().setMode(PhysicsChunkCollisionMode.STREAMING);
-            settings.getPhysicsChunkCollisionSettings().setBodyRadius(BODY_STREAMING_RADIUS);
-            settings.getSolverSettings().setSolverIterations(4);
-            settings.getSolverSettings().setStabilizationIterations(1);
-            settings.getExtensionSettings().setInt(RAPIER_SOLVER_EXTENSION_ID,
-                RAPIER_INTERNAL_PGS_ITERATIONS,
-                1);
-            settings.getExtensionSettings().setInt(RAPIER_SOLVER_EXTENSION_ID,
-                RAPIER_MIN_ISLAND_SIZE,
-                128);
-
-            SpaceId spaceId = physics.createSpace(CrucibleBackends.requireBackendId(),
-                world.getName(),
-                settings);
+            SpaceId spaceId = PhysicsSpaces.create(physicsStore,
+                CrucibleBackends.requireBackendId());
+            PhysicsSpaceMutations.putChunkCollisionSettings(physicsStore,
+                spaceId,
+                benchmarkChunkCollisionSettings());
+            PhysicsSpaceMutations.putSolverSettings(physicsStore,
+                spaceId,
+                benchmarkSolverSettings());
+            PhysicsSpaceMutations.putExtensionSettings(physicsStore,
+                spaceId,
+                benchmarkExtensionSettings());
             PrewarmStats prewarm = prewarmPhysicsChunkCollision(spaceId, count);
             spawnDetachedBodies(spaceId, count);
             physicsStoreProfiling.reset();
@@ -276,7 +273,7 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
                 return StageReport.failedPreflight(count, started.failureMessage());
             }
             SpaceId spaceId = started.spaceId();
-            if (spaceId == null || !physics.hasSpace(spaceId)) {
+            if (spaceId == null || !PhysicsSpaces.hasSpace(physicsStore, spaceId)) {
                 return StageReport.failedPreflight(count, "space disappeared during benchmark");
             }
 
@@ -361,17 +358,17 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
         }
 
         private void restoreStepSettings() {
-            physics.setWorldSettings(previousWorldSettings);
+            PhysicsWorlds.putSettings(physicsStore, previousWorldSettings);
             physicsStoreProfiling.setEnabled(previousPhysicsStoreProfilingEnabled);
         }
 
         private PrewarmStats prewarmPhysicsChunkCollision(@Nonnull SpaceId spaceId, int count) {
             BenchmarkLayout layout = BenchmarkLayout.flatGrid(count);
-            UUID spaceUuid = PhysicsStoreSpaceMutations.requireSpaceUuid(physicsStore, spaceId);
+            UUID spaceUuid = PhysicsSpaceMutations.requireSpaceUuid(physicsStore, spaceId);
             PhysicsChunkCollisionMutationQueueResource queue = physicsStore.getResource(
                 PhysicsChunkCollisionMutationQueueResource.getResourceType());
             PhysicsChunkBuildOptions buildOptions = PhysicsChunkBuildOptions.fromSettings(
-                physics.getSpaceSettings(spaceId).getPhysicsChunkCollisionSettings());
+                benchmarkChunkCollisionSettings());
             PhysicsChunkCollisionPrewarmStats stats = collisionStreaming.ensureAround(world,
                 spaceUuid,
                 queue,
@@ -383,6 +380,30 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
             return new PrewarmStats(stats.sectionTargets(),
                 stats.buildStats().sectionsBuilt(),
                 stats.buildStats().colliderBodies());
+        }
+
+        @Nonnull
+        private static PhysicsChunkCollisionSettings benchmarkChunkCollisionSettings() {
+            PhysicsChunkCollisionSettings settings = new PhysicsChunkCollisionSettings();
+            settings.setMode(PhysicsChunkCollisionMode.STREAMING);
+            settings.setBodyRadius(BODY_STREAMING_RADIUS);
+            return settings;
+        }
+
+        @Nonnull
+        private static PhysicsSolverSettings benchmarkSolverSettings() {
+            PhysicsSolverSettings settings = new PhysicsSolverSettings();
+            settings.setSolverIterations(4);
+            settings.setStabilizationIterations(1);
+            return settings;
+        }
+
+        @Nonnull
+        private static PhysicsExtensionSettings benchmarkExtensionSettings() {
+            PhysicsExtensionSettings settings = new PhysicsExtensionSettings();
+            settings.setInt(RAPIER_SOLVER_EXTENSION_ID, RAPIER_INTERNAL_PGS_ITERATIONS, 1);
+            settings.setInt(RAPIER_SOLVER_EXTENSION_ID, RAPIER_MIN_ISLAND_SIZE, 128);
+            return settings;
         }
 
         @Nonnull

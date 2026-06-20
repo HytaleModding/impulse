@@ -2,15 +2,14 @@ package dev.hytalemodding.impulse.core.internal.modules.physicsentity;
 
 import com.hypixel.hytale.component.ComponentRegistryProxy;
 import com.hypixel.hytale.component.ComponentType;
-import com.hypixel.hytale.component.ResourceType;
 import com.hypixel.hytale.component.SystemGroup;
 import com.hypixel.hytale.component.event.WorldEventType;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsBodySyncStateResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsDebugResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsProjectionIndexResource;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsVisualInterestResource;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource;
-import dev.hytalemodding.impulse.core.internal.systems.PhysicsWorldResourceAttachmentSystem;
 import dev.hytalemodding.impulse.core.internal.systems.debug.PhysicsDebugSystem;
 import dev.hytalemodding.impulse.core.internal.systems.publication.PhysicsStoreEventPublicationSystem;
 import dev.hytalemodding.impulse.core.internal.systems.sync.PhysicsBodyAttachmentIndexSystem;
@@ -19,7 +18,6 @@ import dev.hytalemodding.impulse.core.internal.systems.visual.PhysicsProjectionC
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsEventFramePublishedEvent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.BodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.GeneratedVisualProxyComponent;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import java.util.Objects;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -34,8 +32,6 @@ public final class PhysicsEntityTypeRegistry {
     @Nullable
     private static ComponentType<EntityStore, GeneratedVisualProxyComponent>
         generatedVisualProxyComponentType;
-    @Nullable
-    private static ResourceType<EntityStore, PhysicsWorldResource> physicsWorldResourceType;
     @Nullable
     private static WorldEventType<EntityStore, PhysicsEventFramePublishedEvent>
         physicsEventFramePublishedEventType;
@@ -57,8 +53,6 @@ public final class PhysicsEntityTypeRegistry {
     }
 
     public static void registerResourceTypes(@Nonnull ComponentRegistryProxy<EntityStore> registry) {
-        physicsWorldResourceType = registry.registerResource(PhysicsWorldResource.class,
-            PhysicsWorldRuntimeResource::new);
         PhysicsDebugResource.setResourceType(registry.registerResource(PhysicsDebugResource.class,
             PhysicsDebugResource::new));
         PhysicsRuntimeProfilingResource.setResourceType(registry.registerResource(
@@ -67,6 +61,12 @@ public final class PhysicsEntityTypeRegistry {
         PhysicsProjectionIndexResource.setResourceType(registry.registerResource(
             PhysicsProjectionIndexResource.class,
             PhysicsProjectionIndexResource::new));
+        PhysicsBodySyncStateResource.setResourceType(registry.registerResource(
+            PhysicsBodySyncStateResource.class,
+            PhysicsBodySyncStateResource::new));
+        PhysicsVisualInterestResource.setResourceType(registry.registerResource(
+            PhysicsVisualInterestResource.class,
+            PhysicsVisualInterestResource::new));
     }
 
     public static void registerEventTypes(@Nonnull ComponentRegistryProxy<EntityStore> registry) {
@@ -84,29 +84,30 @@ public final class PhysicsEntityTypeRegistry {
         registry.registerSystem(new PhysicsSyncSystem());
         registry.registerSystem(new PhysicsDebugSystem());
         registry.registerSystem(new PhysicsStoreEventPublicationSystem());
-        registry.registerSystem(new PhysicsWorldResourceAttachmentSystem());
     }
 
     public static void clearEntityStoreTypes() {
         bodyAttachmentComponentType = null;
         generatedVisualProxyComponentType = null;
-        physicsWorldResourceType = null;
         physicsEventFramePublishedEventType = null;
         persistenceRestoreGroup = null;
         PhysicsDebugResource.clearResourceType();
         PhysicsRuntimeProfilingResource.clearResourceType();
         PhysicsProjectionIndexResource.clearResourceType();
+        PhysicsBodySyncStateResource.clearResourceType();
+        PhysicsVisualInterestResource.clearResourceType();
     }
 
     public static boolean areEntityStoreTypesRegistered() {
         return bodyAttachmentComponentType != null
             && generatedVisualProxyComponentType != null
-            && physicsWorldResourceType != null
             && physicsEventFramePublishedEventType != null
             && persistenceRestoreGroup != null
             && PhysicsDebugResource.getResourceType() != null
             && PhysicsRuntimeProfilingResource.getResourceType() != null
-            && PhysicsProjectionIndexResource.getResourceType() != null;
+            && PhysicsProjectionIndexResource.getResourceType() != null
+            && PhysicsBodySyncStateResource.getResourceType() != null
+            && PhysicsVisualInterestResource.getResourceType() != null;
     }
 
     public static boolean isBodyAttachmentComponentTypeRegistered() {
@@ -128,12 +129,6 @@ public final class PhysicsEntityTypeRegistry {
     generatedVisualProxyComponentType() {
         return requireRegistered(generatedVisualProxyComponentType,
             "Impulse GeneratedVisualProxy component type is not registered");
-    }
-
-    @Nonnull
-    public static ResourceType<EntityStore, PhysicsWorldResource> physicsWorldResourceType() {
-        return requireRegistered(physicsWorldResourceType,
-            "Impulse PhysicsWorld resource type is not registered");
     }
 
     @Nonnull

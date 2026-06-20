@@ -15,18 +15,28 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
+import dev.hytalemodding.impulse.api.PhysicsAxis;
 import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
+import dev.hytalemodding.impulse.api.PhysicsBodyType;
+import dev.hytalemodding.impulse.api.PhysicsCollisionFilters;
 import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.PhysicsEntityAttachments;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.BodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.BodyAttachmentComponent.AttachmentLifecycle;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsDebugResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceCompatibilityIndexResource;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkCollision;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsBodies;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
+import dev.hytalemodding.impulse.core.plugin.physics.PhysicsBodies;
+import dev.hytalemodding.impulse.core.plugin.physics.PhysicsEntities;
+import dev.hytalemodding.impulse.core.plugin.physics.PhysicsSpaces;
+import dev.hytalemodding.impulse.core.plugin.physics.PhysicsThreading;
+import dev.hytalemodding.impulse.core.plugin.components.ColliderComponent;
+import dev.hytalemodding.impulse.core.plugin.components.CollisionFilterComponent;
+import dev.hytalemodding.impulse.core.plugin.components.DynamicsComponent;
+import dev.hytalemodding.impulse.core.plugin.components.MaterialComponent;
+import dev.hytalemodding.impulse.core.plugin.components.ShapeComponent;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.SectionCollisionGeometry.BoxCollider;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.systems.sync.PhysicsSyncSystem;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
@@ -44,6 +54,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Supplier;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.joml.Quaterniond;
 import org.joml.Vector3d;
 import org.joml.Vector3f;
@@ -87,7 +98,6 @@ public class PhysicsDebugSystem extends TickingSystem<EntityStore> {
     @Override
     public void tick(float dt, int index, @Nonnull Store<EntityStore> store) {
         World world = store.getExternalData().getWorld();
-        PhysicsWorldRuntimeResource resource = PhysicsWorldRuntimeResource.require(store);
         assert PhysicsDebugResource.getResourceType() != null;
         PhysicsDebugResource debug = store.getResource(PhysicsDebugResource.getResourceType());
 
@@ -132,7 +142,6 @@ public class PhysicsDebugSystem extends TickingSystem<EntityStore> {
                 int renderedBodies = renderEntityBodies(target,
                     store,
                     physicsStore,
-                    resource,
                     viewerPosition,
                     debug.getViewRadius(),
                     debugShapes,
@@ -142,7 +151,6 @@ public class PhysicsDebugSystem extends TickingSystem<EntityStore> {
                 renderDetachedBodies(target,
                     store,
                     physicsStore,
-                    resource,
                     viewerPosition,
                     debug.getViewRadius(),
                     debugShapes,
@@ -151,9 +159,9 @@ public class PhysicsDebugSystem extends TickingSystem<EntityStore> {
                     overlayLifetime);
             }
 
-            for (SpaceId spaceId : resource.getSpaceIds()) {
+            for (SpaceId spaceId : PhysicsSpaces.spaceIds(physicsStore)) {
                 if (overlayDue && debugShapes) {
-                    renderSpaceOnlyShapes(target, resource, spaceId, overlayLifetime);
+                    renderSpaceOnlyShapes(target, physicsStore, spaceId, overlayLifetime);
                 }
                 if (overlayDue && debugContacts) {
                     renderContacts(target,
@@ -220,7 +228,6 @@ public class PhysicsDebugSystem extends TickingSystem<EntityStore> {
     private int renderEntityBodies(@Nonnull Collection<PlayerRef> viewers,
         @Nonnull Store<EntityStore> store,
         @Nonnull Store<PhysicsStore> physicsStore,
-        @Nonnull PhysicsWorldRuntimeResource resource,
         @Nonnull Vector3d viewerPosition,
         double viewRadius,
         boolean debugShapes,
@@ -256,8 +263,8 @@ public class PhysicsDebugSystem extends TickingSystem<EntityStore> {
                     continue;
                 }
 
-                PhysicsBodySnapshot snapshot = resource.getBodySnapshotIfRegistered(bodyUuid,
-                    null);
+                PhysicsBodySnapshot snapshot = apiSnapshot(physicsStore,
+                    PhysicsBodies.snapshot(physicsStore, bodyUuid));
                 if (snapshot == null) {
                     continue;
                 }
@@ -290,7 +297,6 @@ public class PhysicsDebugSystem extends TickingSystem<EntityStore> {
     private static int renderDetachedBodies(@Nonnull Collection<PlayerRef> viewers,
         @Nonnull Store<EntityStore> store,
         @Nonnull Store<PhysicsStore> physicsStore,
-        @Nonnull PhysicsWorldRuntimeResource resource,
         @Nonnull Vector3d viewerPosition,
         double viewRadius,
         boolean debugShapes,
@@ -303,8 +309,8 @@ public class PhysicsDebugSystem extends TickingSystem<EntityStore> {
 
         RenderedBodyCount rendered = new RenderedBodyCount();
         double maxDistanceSquared = viewRadius * viewRadius;
-        for (SpaceId spaceId : resource.getSpaceIds()) {
-            resource.forEachIndexedBodySnapshot(spaceId, (bodyUuid, snapshot, _) -> {
+        for (SpaceId spaceId : PhysicsSpaces.spaceIds(physicsStore)) {
+            forEachBodySnapshot(physicsStore, spaceId, (bodyUuid, snapshot) -> {
                 if (rendered.hasReached(maxBodies)) {
                     return;
                 }
@@ -358,10 +364,10 @@ public class PhysicsDebugSystem extends TickingSystem<EntityStore> {
     }
 
     private static void renderSpaceOnlyShapes(@Nonnull Collection<PlayerRef> viewers,
-        @Nonnull PhysicsWorldRuntimeResource resource,
+        @Nonnull Store<PhysicsStore> physicsStore,
         @Nonnull SpaceId spaceId,
         float time) {
-        resource.forEachIndexedBodySnapshot(spaceId, (bodyUuid, snapshot, snapshotSpaceId) -> {
+        forEachBodySnapshot(physicsStore, spaceId, (_, snapshot) -> {
             if (snapshot.shapeType() != ShapeType.PLANE) {
                 return;
             }
@@ -376,6 +382,114 @@ public class PhysicsDebugSystem extends TickingSystem<EntityStore> {
                 rotation,
                 time);
         });
+    }
+
+    private static void forEachBodySnapshot(@Nonnull Store<PhysicsStore> physicsStore,
+        @Nonnull SpaceId spaceId,
+        @Nonnull BodySnapshotConsumer consumer) {
+        UUID spaceUuid = physicsStore
+            .getResource(PhysicsSpaceCompatibilityIndexResource.getResourceType())
+            .getSpaceUuid(spaceId);
+        if (spaceUuid == null) {
+            return;
+        }
+        for (dev.hytalemodding.impulse.core.plugin.snapshots.PhysicsBodySnapshot snapshot
+            : PhysicsBodies.snapshotFrame(physicsStore).bodies()) {
+            if (!spaceUuid.equals(snapshot.spaceUuid())) {
+                continue;
+            }
+            PhysicsBodySnapshot apiSnapshot = apiSnapshot(physicsStore, snapshot);
+            if (apiSnapshot != null) {
+                consumer.accept(snapshot.bodyUuid(), apiSnapshot);
+            }
+        }
+    }
+
+    @Nullable
+    private static PhysicsBodySnapshot apiSnapshot(@Nonnull Store<PhysicsStore> store,
+        @Nullable dev.hytalemodding.impulse.core.plugin.snapshots.PhysicsBodySnapshot snapshot) {
+        if (snapshot == null) {
+            return null;
+        }
+        Ref<PhysicsStore> ref = snapshot.bodyRef();
+        if (ref == null || ref.getStore() != store || !ref.isValid()) {
+            ref = PhysicsEntities.resolveRef(store, snapshot.bodyUuid());
+        }
+        boolean validRef = ref != null && ref.isValid();
+        DynamicsComponent dynamics = validRef
+            ? store.getComponent(ref, DynamicsComponent.getComponentType())
+            : null;
+        ColliderComponent collider = validRef
+            ? store.getComponent(ref, ColliderComponent.getComponentType())
+            : null;
+        MaterialComponent material = validRef
+            ? store.getComponent(ref, MaterialComponent.getComponentType())
+            : null;
+        CollisionFilterComponent filter = validRef
+            ? store.getComponent(ref, CollisionFilterComponent.getComponentType())
+            : null;
+        ShapeComponent shape = validRef
+            ? store.getComponent(ref, ShapeComponent.getComponentType())
+            : null;
+
+        Vector3f position = snapshot.position();
+        Quaterniond rotationD = new Quaterniond(snapshot.rotationX(),
+            snapshot.rotationY(),
+            snapshot.rotationZ(),
+            snapshot.rotationW());
+        org.joml.Quaternionf rotation = new org.joml.Quaternionf((float) rotationD.x,
+            (float) rotationD.y,
+            (float) rotationD.z,
+            (float) rotationD.w);
+        Vector3f linearVelocity = snapshot.linearVelocity();
+        Vector3f angularVelocity = snapshot.angularVelocity();
+        PhysicsBodyType bodyType = snapshot.bodyType();
+        ShapeType shapeType = shape != null ? shape.getShapeType() : ShapeType.UNKNOWN;
+        boolean hasBoxHalfExtents = shapeType == ShapeType.BOX && shape != null;
+
+        return PhysicsBodySnapshot.of(position.x,
+            position.y,
+            position.z,
+            rotation.x,
+            rotation.y,
+            rotation.z,
+            rotation.w,
+            linearVelocity.x,
+            linearVelocity.y,
+            linearVelocity.z,
+            angularVelocity.x,
+            angularVelocity.y,
+            angularVelocity.z,
+            bodyType,
+            snapshot.sleeping(),
+            collider != null && collider.isSensor(),
+            bodyType == PhysicsBodyType.DYNAMIC ? authoredMass(dynamics) : 0.0f,
+            material != null ? material.getFriction() : 0.5f,
+            material != null ? material.getRestitution() : 0.0f,
+            dynamics != null ? dynamics.getLinearDamping() : 0.0f,
+            dynamics != null ? dynamics.getAngularDamping() : 0.0f,
+            filter != null ? filter.getCollisionGroup() : PhysicsCollisionFilters.DYNAMIC_BODY,
+            filter != null ? filter.getCollisionMask() : PhysicsCollisionFilters.ALL,
+            dynamics != null && dynamics.isContinuousCollisionEnabled(),
+            snapshot.centerOfMassOffsetY(),
+            shapeType,
+            hasBoxHalfExtents,
+            hasBoxHalfExtents ? shape.getHalfExtentX() : 0.0f,
+            hasBoxHalfExtents ? shape.getHalfExtentY() : 0.0f,
+            hasBoxHalfExtents ? shape.getHalfExtentZ() : 0.0f,
+            shape != null ? shape.getRadius() : 0.0f,
+            shape != null ? shape.getHalfHeight() : 0.0f,
+            shape != null ? shape.getAxis() : PhysicsAxis.Y);
+    }
+
+    private static float authoredMass(@Nullable DynamicsComponent dynamics) {
+        return dynamics != null ? dynamics.getMass() : 1.0f;
+    }
+
+    @FunctionalInterface
+    private interface BodySnapshotConsumer {
+
+        void accept(@Nonnull UUID bodyUuid, @Nonnull PhysicsBodySnapshot snapshot);
     }
 
     private static void renderContacts(@Nonnull Collection<PlayerRef> viewers,

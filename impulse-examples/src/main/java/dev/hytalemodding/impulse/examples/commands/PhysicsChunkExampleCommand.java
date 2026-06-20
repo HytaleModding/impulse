@@ -16,7 +16,7 @@ import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkCo
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkCollisionBuildStats;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkCollisionPrewarmStats;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkCollisionStats;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
+import dev.hytalemodding.impulse.core.plugin.physics.PhysicsThreading;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;

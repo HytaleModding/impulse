@@ -13,6 +13,7 @@ import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.PhysicsCollisionFilters;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.internal.modules.control.components.PhysicsControlSessionComponent;
+import dev.hytalemodding.impulse.core.internal.physics.PhysicsSpaceMutations;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource.StepSnapshot;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource.SyncSnapshot;
@@ -20,15 +21,16 @@ import dev.hytalemodding.impulse.core.internal.modules.physicschunk.profiling.Ph
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.profiling.PhysicsChunkProfilingResource.Snapshot;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsProfilingResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsStepSchedulerResource;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsVisualInterestResource;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.BodyAttachmentComponent;
+import dev.hytalemodding.impulse.core.plugin.physics.PhysicsSpaces;
+import dev.hytalemodding.impulse.core.plugin.physics.PhysicsWorlds;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsBackendExtensionId;
-import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsExtensionSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSolverSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepSchedulingMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
-import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkCollisionMode;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
 import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
 import java.util.ArrayList;
@@ -137,7 +139,6 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
         private final MatrixPlan plan;
         private final World world;
         private final Store<EntityStore> store;
-        private final PhysicsWorldRuntimeResource physics;
         private final Store<PhysicsStore> physicsStore;
         private final PhysicsProfilingResource physicsStoreProfiling;
         private final PhysicsRuntimeProfilingResource runtimeProfiling;
@@ -153,14 +154,13 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
             this.plan = plan;
             this.world = context.world();
             this.store = world.getEntityStore().getStore();
-            this.physics = PhysicsWorldRuntimeResource.require(store);
             this.physicsStore = PhysicsStoreCrucibleSupport.physicsStore(world);
             this.physicsStoreProfiling = physicsStore.getResource(
                 PhysicsProfilingResource.getResourceType());
             this.runtimeProfiling = store.getResource(PhysicsRuntimeProfilingResource.getResourceType());
             this.collisionProfiling = store.getResource(
                 PhysicsChunkProfilingResource.getResourceType());
-            this.previousWorldSettings = physics.getWorldSettings();
+            this.previousWorldSettings = PhysicsWorlds.settings(physicsStore);
             this.previousPhysicsStoreProfilingEnabled = physicsStoreProfiling.isEnabled();
             this.previousRuntimeProfilingEnabled = runtimeProfiling.isEnabled();
             this.previousTerrainProfilingEnabled = collisionProfiling.isEnabled();
@@ -217,34 +217,44 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
 
         private CompletionStage<StartedCase> startCase(@Nonnull MatrixCase matrixCase) {
             clearCaseState();
-            PhysicsWorldSettings worldSettings = physics.getWorldSettings();
+            PhysicsWorldSettings worldSettings = PhysicsWorlds.settings(physicsStore);
             worldSettings.setStepMode(PhysicsStepMode.FIXED);
             worldSettings.setStepSchedulingMode(PhysicsStepSchedulingMode.DROP_PENDING_DT);
             worldSettings.setSimulationSteps(matrixCase.fixedSubsteps());
             worldSettings.setMaxStepDt(TARGET_MAX_STEP_DT);
-            physics.setWorldSettings(worldSettings);
-            physics.clearSyntheticVisualInterests();
+            PhysicsWorlds.putSettings(physicsStore, worldSettings);
+            visualInterests().clearSyntheticVisualInterests();
 
-            PhysicsSpaceSettings settings = PhysicsSpaceSettings.defaults();
-            settings.getPhysicsChunkCollisionSettings().setMode(PhysicsChunkCollisionMode.NONE);
-            settings.getSolverSettings().setSolverIterations(PhysicsSolverSettings.DEFAULT_SOLVER_ITERATIONS);
-            settings.getSolverSettings().setStabilizationIterations(
-                PhysicsSolverSettings.DEFAULT_STABILIZATION_ITERATIONS);
-            settings.getExtensionSettings().setInt(RAPIER_SOLVER_EXTENSION_ID,
-                RAPIER_INTERNAL_PGS_ITERATIONS,
-                1);
-            settings.getExtensionSettings().setInt(RAPIER_SOLVER_EXTENSION_ID,
-                RAPIER_MIN_ISLAND_SIZE,
-                128);
             try {
-                SpaceId spaceId = physics.createSpace(RAPIER_BACKEND_ID,
-                    world.getName(),
-                    settings);
+                SpaceId spaceId = PhysicsSpaces.create(physicsStore, RAPIER_BACKEND_ID);
+                PhysicsSpaceMutations.putSolverSettings(physicsStore,
+                    spaceId,
+                    benchmarkSolverSettings());
+                PhysicsSpaceMutations.putExtensionSettings(physicsStore,
+                    spaceId,
+                    benchmarkExtensionSettings());
                 return populateBenchmarkSpace(spaceId, matrixCase);
             } catch (RuntimeException exception) {
                 return CompletableFuture.completedFuture(
                     StartedCase.failed(exception.getMessage()));
             }
+        }
+
+        @Nonnull
+        private static PhysicsSolverSettings benchmarkSolverSettings() {
+            PhysicsSolverSettings settings = new PhysicsSolverSettings();
+            settings.setSolverIterations(PhysicsSolverSettings.DEFAULT_SOLVER_ITERATIONS);
+            settings.setStabilizationIterations(
+                PhysicsSolverSettings.DEFAULT_STABILIZATION_ITERATIONS);
+            return settings;
+        }
+
+        @Nonnull
+        private static PhysicsExtensionSettings benchmarkExtensionSettings() {
+            PhysicsExtensionSettings settings = new PhysicsExtensionSettings();
+            settings.setInt(RAPIER_SOLVER_EXTENSION_ID, RAPIER_INTERNAL_PGS_ITERATIONS, 1);
+            settings.setInt(RAPIER_SOLVER_EXTENSION_ID, RAPIER_MIN_ISLAND_SIZE, 128);
+            return settings;
         }
 
         private CompletionStage<StartedCase> populateBenchmarkSpace(@Nonnull SpaceId spaceId,
@@ -291,7 +301,7 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
                 return MatrixReport.failedPreflight(matrixCase, started.failureMessage());
             }
             SpaceId spaceId = started.spaceId();
-            if (spaceId == null || !physics.hasSpace(spaceId)) {
+            if (spaceId == null || !PhysicsSpaces.hasSpace(physicsStore, spaceId)) {
                 return MatrixReport.failedPreflight(matrixCase,
                     "space disappeared during benchmark");
             }
@@ -373,7 +383,7 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
 
         private void clearCaseState() {
             removeBenchmarkEntities();
-            physics.clearSyntheticVisualInterests();
+            visualInterests().clearSyntheticVisualInterests();
             PhysicsStoreCrucibleSupport.clearAll(physicsStore);
             physicsStoreProfiling.reset();
             runtimeProfiling.reset();
@@ -382,10 +392,15 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
         }
 
         private void restoreSettings() {
-            physics.setWorldSettings(previousWorldSettings);
+            PhysicsWorlds.putSettings(physicsStore, previousWorldSettings);
             physicsStoreProfiling.setEnabled(previousPhysicsStoreProfilingEnabled);
             runtimeProfiling.setEnabled(previousRuntimeProfilingEnabled);
             collisionProfiling.setEnabled(previousTerrainProfilingEnabled);
+        }
+
+        @Nonnull
+        private PhysicsVisualInterestResource visualInterests() {
+            return store.getResource(PhysicsVisualInterestResource.getResourceType());
         }
 
         private void removeBenchmarkEntities() {

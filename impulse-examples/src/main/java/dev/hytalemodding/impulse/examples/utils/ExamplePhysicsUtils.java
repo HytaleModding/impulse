@@ -14,19 +14,16 @@ import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.components.BodyCommandComponent;
-import dev.hytalemodding.impulse.core.plugin.components.DynamicsComponent;
 import dev.hytalemodding.impulse.core.plugin.components.JointComponent;
-import dev.hytalemodding.impulse.core.plugin.components.TargetComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.control.ImpulseControllableComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.control.PhysicsControlSessions;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.PhysicsEntityAttachments;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.BodyAttachmentComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.BodyEntityDescriptor;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsBodies;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsBodyEntities;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsEntities;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsSpaces;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
+import dev.hytalemodding.impulse.core.plugin.physics.PhysicsBodies;
+import dev.hytalemodding.impulse.core.plugin.physics.PhysicsBodyEntities;
+import dev.hytalemodding.impulse.core.plugin.physics.PhysicsEntities;
+import dev.hytalemodding.impulse.core.plugin.physics.PhysicsSpaces;
+import dev.hytalemodding.impulse.core.plugin.physics.PhysicsThreading;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.settings.PhysicsVisualMaterializationSettings;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
 import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
@@ -102,41 +99,29 @@ public final class ExamplePhysicsUtils {
 
     @Nonnull
     public static Ref<PhysicsStore> addPhysicsStoreBody(@Nonnull World world,
-        @Nonnull BodyEntityDescriptor descriptor) {
+        @Nonnull Holder<PhysicsStore> holder) {
         Store<PhysicsStore> store = PhysicsThreading.store(world);
-        return addPhysicsStoreBody(store, descriptor);
+        return addPhysicsStoreBody(store, holder);
     }
 
     @Nonnull
     public static Ref<PhysicsStore> addPhysicsStoreBody(@Nonnull World world,
-        @Nonnull BodyEntityDescriptor descriptor,
+        @Nonnull Holder<PhysicsStore> holder,
         @Nonnull BodyCommandComponent command) {
         Store<PhysicsStore> store = PhysicsThreading.store(world);
-        Ref<PhysicsStore> bodyRef = addPhysicsStoreBody(store, descriptor);
+        Ref<PhysicsStore> bodyRef = addPhysicsStoreBody(store, holder);
         PhysicsBodies.appendCommand(store, bodyRef, command);
         return bodyRef;
     }
 
-    @Nonnull
-    public static Ref<PhysicsStore> addPhysicsStoreBody(@Nonnull World world,
-        @Nonnull BodyEntityDescriptor descriptor,
-        @Nonnull DynamicsComponent dynamics,
-        @Nullable TargetComponent target) {
-        Store<PhysicsStore> store = PhysicsThreading.store(world);
-        return addPhysicsStoreBody(store, descriptor, dynamics, target);
-    }
-
     public static void addPhysicsStoreBodies(@Nonnull World world,
-        @Nonnull Iterable<BodyEntityDescriptor> descriptors) {
-        Objects.requireNonNull(descriptors, "descriptors");
+        @Nonnull Iterable<Holder<PhysicsStore>> bodyHolders) {
+        Objects.requireNonNull(bodyHolders, "bodyHolders");
         Store<PhysicsStore> store = PhysicsThreading.store(world);
         PhysicsThreading.requireWorldThread(store, "add PhysicsStore body entities");
         List<Holder<PhysicsStore>> holders = new ArrayList<>();
-        for (BodyEntityDescriptor descriptor : descriptors) {
-            holders.add(bodyHolder(store,
-                Objects.requireNonNull(descriptor, "descriptor"),
-                descriptor.dynamics(),
-                descriptor.target()));
+        for (Holder<PhysicsStore> holder : bodyHolders) {
+            holders.add(Objects.requireNonNull(holder, "holder"));
         }
         if (!holders.isEmpty()) {
             @SuppressWarnings("unchecked")
@@ -147,37 +132,9 @@ public final class ExamplePhysicsUtils {
 
     @Nonnull
     private static Ref<PhysicsStore> addPhysicsStoreBody(@Nonnull Store<PhysicsStore> store,
-        @Nonnull BodyEntityDescriptor descriptor) {
-        return addPhysicsStoreBody(store,
-            descriptor,
-            descriptor.dynamics(),
-            descriptor.target());
-    }
-
-    @Nonnull
-    private static Ref<PhysicsStore> addPhysicsStoreBody(@Nonnull Store<PhysicsStore> store,
-        @Nonnull BodyEntityDescriptor descriptor,
-        @Nonnull DynamicsComponent dynamics,
-        @Nullable TargetComponent target) {
-        Objects.requireNonNull(descriptor, "descriptor");
+        @Nonnull Holder<PhysicsStore> holder) {
         PhysicsThreading.requireWorldThread(store, "add a PhysicsStore body entity");
-        return store.addEntity(bodyHolder(store, descriptor, dynamics, target), AddReason.SPAWN);
-    }
-
-    @Nonnull
-    private static Holder<PhysicsStore> bodyHolder(@Nonnull Store<PhysicsStore> store,
-        @Nonnull BodyEntityDescriptor descriptor,
-        @Nonnull DynamicsComponent dynamics,
-        @Nullable TargetComponent target) {
-        return PhysicsEntities.bodyHolder(store,
-            descriptor.bodyUuid(),
-            descriptor.body(),
-            Objects.requireNonNull(dynamics, "dynamics"),
-            target,
-            descriptor.collider(),
-            descriptor.shape(),
-            descriptor.material(),
-            descriptor.filter());
+        return store.addEntity(Objects.requireNonNull(holder, "holder"), AddReason.SPAWN);
     }
 
     @Nonnull
@@ -222,14 +179,14 @@ public final class ExamplePhysicsUtils {
     }
 
     @Nonnull
-    public static BodyEntityDescriptor bodyEntity(@Nonnull Ref<PhysicsStore> spaceRef,
+    public static Holder<PhysicsStore> bodyEntity(@Nonnull Ref<PhysicsStore> spaceRef,
         @Nonnull UUID bodyUuid,
         @Nonnull Vector3f bodyCenter,
         @Nonnull PhysicsShapeSpec shape,
         float mass,
         @Nonnull RigidBodySpawnSettings settings,
         @Nullable Vector3f linearVelocity) {
-        return PhysicsBodyEntities.dynamicBody(spaceRef,
+        return PhysicsBodyEntities.dynamicBodyHolder(spaceRef,
             bodyUuid,
             bodyCenter,
             shape,
@@ -347,10 +304,10 @@ public final class ExamplePhysicsUtils {
         @Nonnull RigidBodySpawnSettings settings,
         @Nonnull BlockBodyBatchBuilder batch,
         long setupStartNanos) {
-        List<BodyEntityDescriptor> bodies = new ArrayList<>(batch.size());
+        List<Holder<PhysicsStore>> bodies = new ArrayList<>(batch.size());
         for (int i = 0; i < batch.size(); i++) {
             UUID bodyUuid = batch.bodyUuid(i);
-            bodies.add(PhysicsBodyEntities.body(spaceRef,
+            bodies.add(PhysicsBodyEntities.bodyHolder(spaceRef,
                 bodyUuid,
                 new Vector3f(batch.positionX(i), batch.positionY(i), batch.positionZ(i)),
                 shape,
@@ -514,10 +471,10 @@ public final class ExamplePhysicsUtils {
         @Nonnull BlockBodyBatchBuilder batch,
         boolean collectBodies) {
         World world = store.getExternalData().getWorld();
-        List<BodyEntityDescriptor> descriptors = new ArrayList<>(batch.size());
+        List<Holder<PhysicsStore>> bodyHolders = new ArrayList<>(batch.size());
         for (int i = 0; i < batch.size(); i++) {
             UUID bodyUuid = batch.bodyUuid(i);
-            descriptors.add(bodyEntity(spaceRef,
+            bodyHolders.add(bodyEntity(spaceRef,
                 bodyUuid,
                 new Vector3f(batch.positionX(i), batch.positionY(i), batch.positionZ(i)),
                 shape,
@@ -527,7 +484,7 @@ public final class ExamplePhysicsUtils {
         }
 
         long physicsStoreApplyStartNanos = System.nanoTime();
-        addPhysicsStoreBodies(world, descriptors);
+        addPhysicsStoreBodies(world, bodyHolders);
         long physicsStoreApplyNanos = System.nanoTime() - physicsStoreApplyStartNanos;
 
         long visualAttachStartNanos = System.nanoTime();
@@ -714,7 +671,7 @@ public final class ExamplePhysicsUtils {
         }
     }
 
-    private record DynamicBodyBatchPlan(@Nonnull List<BodyEntityDescriptor> bodies,
+    private record DynamicBodyBatchPlan(@Nonnull List<Holder<PhysicsStore>> bodies,
                                         long setupWallNanos) {
 
         DynamicBodyBatchPlan {

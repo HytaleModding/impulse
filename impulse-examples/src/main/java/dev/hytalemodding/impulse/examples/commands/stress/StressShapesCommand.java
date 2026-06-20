@@ -14,7 +14,6 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.PhysicsAxis;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.BodyEntityDescriptor;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
 import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
 import dev.hytalemodding.impulse.examples.utils.ExamplePhysicsUtils;
@@ -125,14 +124,14 @@ public class StressShapesCommand extends AbstractAsyncPlayerCommand {
         double xOffset) {
         Vector3d position = new Vector3d(base).add(xOffset, 0.0, 0.0);
         UUID bodyUuid = UUID.randomUUID();
-        BodyEntityDescriptor descriptor = ExamplePhysicsUtils.bodyEntity(spaceRef,
+        var bodyHolder = ExamplePhysicsUtils.bodyEntity(spaceRef,
             bodyUuid,
             ExamplePhysicsUtils.toVector3f(position),
             shape(type, axis),
             1.0f,
             RigidBodySpawnSettings.material(0.6f, 0.25f),
             null);
-        Ref<PhysicsStore> bodyRef = ExamplePhysicsUtils.addPhysicsStoreBody(world, descriptor);
+        Ref<PhysicsStore> bodyRef = ExamplePhysicsUtils.addPhysicsStoreBody(world, bodyHolder);
         store.addEntity(ExamplePhysicsUtils.attachedPhysicsBlockEntityHolder(
             time,
             bodyRef,

@@ -5,7 +5,6 @@ import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.RemoveReason;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.World;
-import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.Impulse;
 import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
@@ -15,21 +14,23 @@ import dev.hytalemodding.impulse.api.runtime.BackendRuntimeCodes;
 import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntime;
 import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntimeProvider;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
-import dev.hytalemodding.impulse.core.internal.physicsstore.PhysicsStoreSpaceMutations;
+import dev.hytalemodding.impulse.core.internal.physics.PhysicsSpaceMutations;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodySnapshots;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.BodyEntityDescriptor;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsBodies;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsBodyEntities;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsDiagnostics;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsEntities;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsSpaces;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
+import dev.hytalemodding.impulse.core.plugin.physics.PhysicsBodies;
+import dev.hytalemodding.impulse.core.plugin.physics.PhysicsBodyEntities;
+import dev.hytalemodding.impulse.core.plugin.physics.PhysicsDiagnostics;
+import dev.hytalemodding.impulse.core.plugin.physics.PhysicsSpaces;
+import dev.hytalemodding.impulse.core.plugin.physics.PhysicsThreading;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
 import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsBackendExtensionId;
-import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsExtensionSettings;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSolverSettings;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.settings.VisualOcclusionMode;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkCollisionMode;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.settings.PhysicsChunkCollisionSettings;
+import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.settings.PhysicsVisualMaterializationSettings;
+import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.settings.PhysicsVisualSyncSettings;
 import java.util.UUID;
 import java.util.Collection;
 import java.util.List;
@@ -119,7 +120,7 @@ final class ImpulseApiCrucibleTests {
                     "Detached unregister did not remove the backend body"),
                 CrucibleTestCase.async("settings round trip",
                     ImpulseApiCrucibleTests::settingsRoundTrip,
-                    "PhysicsSpaceSettings did not retain runtime settings")));
+                    "Composable space settings did not retain runtime settings")));
     }
 
     private static CrucibleSuite transformSyncSuite() {
@@ -186,10 +187,8 @@ final class ImpulseApiCrucibleTests {
         return callWhenPhysicsStoreIdle(context, "run Crucible space count round trip", world -> {
             Store<PhysicsStore> store = physicsStore(world);
             int previousCount = PhysicsSpaces.count(store);
-            SpaceId spaceId = PhysicsSpaces.create(store,
-                CrucibleBackends.requireBackendId(),
-                PhysicsSpaceSettings.defaults());
-            PhysicsStoreSpaceMutations.removeEmptySpace(store, spaceId);
+            SpaceId spaceId = PhysicsSpaces.create(store, CrucibleBackends.requireBackendId());
+            PhysicsSpaceMutations.removeEmptySpace(store, spaceId);
             return PhysicsSpaces.count(store) == previousCount
                 && !PhysicsSpaces.hasSpace(store, spaceId);
         });
@@ -199,15 +198,17 @@ final class ImpulseApiCrucibleTests {
         @Nonnull CrucibleContext context) {
         return callWhenPhysicsStoreIdle(context, "run Crucible explicit space lifecycle", world -> {
             Store<PhysicsStore> store = physicsStore(world);
-            SpaceId spaceId = PhysicsSpaces.create(store,
-                CrucibleBackends.requireBackendId(),
-                PhysicsSpaceSettings.streamingPhysicsChunk());
-            PhysicsSpaceSettings spaceSettings = PhysicsSpaces.settings(store, spaceId);
+            SpaceId spaceId = PhysicsSpaces.create(store, CrucibleBackends.requireBackendId());
+            PhysicsChunkCollisionSettings chunkCollisionSettings =
+                new PhysicsChunkCollisionSettings();
+            chunkCollisionSettings.setMode(PhysicsChunkCollisionMode.STREAMING);
+            PhysicsSpaces.putChunkCollisionSettings(store, spaceId, chunkCollisionSettings);
+            PhysicsChunkCollisionSettings spaceSettings =
+                PhysicsSpaces.chunkCollisionSettings(store, spaceId);
             boolean registered = PhysicsSpaces.hasSpace(store, spaceId)
                 && spaceSettings != null
-                && spaceSettings.getPhysicsChunkCollisionSettings().getMode()
-                    == PhysicsChunkCollisionMode.STREAMING;
-            PhysicsStoreSpaceMutations.removeEmptySpace(store, spaceId);
+                && spaceSettings.getMode() == PhysicsChunkCollisionMode.STREAMING;
+            PhysicsSpaceMutations.removeEmptySpace(store, spaceId);
             return registered && !PhysicsSpaces.hasSpace(store, spaceId);
         });
     }
@@ -238,7 +239,7 @@ final class ImpulseApiCrucibleTests {
                             PhysicsBodies.bodyUuids(state.store()).isEmpty();
                         boolean removedSpace = true;
                         if (checkSpaceRemoval || spaceEmpty) {
-                            PhysicsStoreSpaceMutations.removeEmptySpace(
+                            PhysicsSpaceMutations.removeEmptySpace(
                                 state.store(),
                                 state.spaceId());
                             removedSpace = !PhysicsSpaces.hasSpace(state.store(), state.spaceId());
@@ -255,8 +256,7 @@ final class ImpulseApiCrucibleTests {
             Ref<PhysicsStore> spaceRef = PhysicsSpaces.create(store,
                 UUID.randomUUID(),
                 spaceId,
-                CrucibleBackends.requireBackendId(),
-                PhysicsSpaceSettings.defaults());
+                CrucibleBackends.requireBackendId());
             Ref<PhysicsStore> bodyRef = addCrucibleBox(store, spaceRef, UUID.randomUUID());
             return new PopulatedBodyCleanupState(world, store, spaceId, spaceRef, bodyRef);
         });
@@ -303,109 +303,146 @@ final class ImpulseApiCrucibleTests {
     private static Ref<PhysicsStore> addCrucibleBox(@Nonnull Store<PhysicsStore> store,
         @Nonnull Ref<PhysicsStore> spaceRef,
         @Nonnull UUID bodyUuid) {
-        BodyEntityDescriptor descriptor = PhysicsBodyEntities.dynamicBody(spaceRef,
+        return store.addEntity(PhysicsBodyEntities.dynamicBodyHolder(spaceRef,
             bodyUuid,
             new Vector3f(0.0f, 5.0f, 0.0f),
             PhysicsShapeSpec.box(0.5f, 0.5f, 0.5f),
             1.0f,
             RigidBodySpawnSettings.defaults(),
-            null);
-        return store.addEntity(PhysicsEntities.bodyHolder(store,
-            descriptor.bodyUuid(),
-            descriptor.body(),
-            descriptor.dynamics(),
-            descriptor.target(),
-            descriptor.collider(),
-            descriptor.shape(),
-            descriptor.material(),
-            descriptor.filter()), AddReason.SPAWN);
+            null), AddReason.SPAWN);
     }
 
     private static CompletionStage<Boolean> settingsRoundTrip(@Nonnull CrucibleContext context) {
-        PhysicsSpaceSettings settings = populatedSettings();
+        PopulatedSettings settings = populatedSettings();
 
         return callWhenPhysicsStoreIdle(context, "run Crucible settings round trip", world -> {
             Store<PhysicsStore> store = physicsStore(world);
-            SpaceId spaceId = PhysicsSpaces.create(store,
-                CrucibleBackends.requireBackendId(),
-                settings);
+            SpaceId spaceId = PhysicsSpaces.create(store, CrucibleBackends.requireBackendId());
             try {
-                PhysicsSpaceSettings copy = PhysicsSpaces.settings(store, spaceId);
-                if (copy == null) {
+                applyPopulatedSettings(store, spaceId, settings);
+                PhysicsChunkCollisionSettings chunkCollision =
+                    PhysicsSpaces.chunkCollisionSettings(store, spaceId);
+                PhysicsVisualSyncSettings visualSync =
+                    PhysicsSpaces.visualSyncSettings(store, spaceId);
+                PhysicsSolverSettings solver = PhysicsSpaces.solverSettings(store, spaceId);
+                PhysicsExtensionSettings extension = PhysicsSpaces.extensionSettings(store,
+                    spaceId);
+                PhysicsVisualMaterializationSettings visualMaterialization =
+                    PhysicsSpaces.visualMaterializationSettings(store, spaceId);
+                if (chunkCollision == null
+                    || visualSync == null
+                    || solver == null
+                    || extension == null
+                    || visualMaterialization == null) {
                     return false;
                 }
-                return copy.getPhysicsChunkCollisionSettings().getMode() == PhysicsChunkCollisionMode.STREAMING
-                && copy.getPhysicsChunkCollisionSettings().getRadius() == 9
-                && copy.getPhysicsChunkCollisionSettings().getBodyRadius() == 5
-                && copy.getPhysicsChunkCollisionSettings().getTtlTicks() == 77
-                && copy.getVisualSyncSettings().getVisualFullSyncRadius() == 48
-                && copy.getVisualSyncSettings().getVisualMaxSyncRadius() == 96
-                && !copy.getVisualSyncSettings().isVisualFarSyncCutoffEnabled()
-                && copy.getVisualSyncSettings().getVisualMidSyncIntervalTicks() == 3
-                && copy.getVisualSyncSettings().getVisualFarSyncIntervalTicks() == 17
-                && copy.getVisualSyncSettings().getVisualOcclusionMode() == VisualOcclusionMode.PRIORITY
-                && copy.getVisualSyncSettings().getVisualOcclusionRaycastsPerTick() == 31
-                && copy.getVisualSyncSettings().getVisualOcclusionCacheTicks() == 7
-                && copy.getSolverSettings().getSolverIterations() == 5
-                && copy.getSolverSettings().getStabilizationIterations() == 1
-                && copy.getExtensionSettings()
+                return chunkCollision.getMode() == PhysicsChunkCollisionMode.STREAMING
+                && chunkCollision.getRadius() == 9
+                && chunkCollision.getBodyRadius() == 5
+                && chunkCollision.getTtlTicks() == 77
+                && visualSync.getVisualFullSyncRadius() == 48
+                && visualSync.getVisualMaxSyncRadius() == 96
+                && !visualSync.isVisualFarSyncCutoffEnabled()
+                && visualSync.getVisualMidSyncIntervalTicks() == 3
+                && visualSync.getVisualFarSyncIntervalTicks() == 17
+                && visualSync.getVisualOcclusionMode() == VisualOcclusionMode.PRIORITY
+                && visualSync.getVisualOcclusionRaycastsPerTick() == 31
+                && visualSync.getVisualOcclusionCacheTicks() == 7
+                && solver.getSolverIterations() == 5
+                && solver.getStabilizationIterations() == 1
+                && extension
                     .getInt(RAPIER_SOLVER_EXTENSION_ID,
                         RAPIER_INTERNAL_PGS_ITERATIONS)
                     .orElse(-1) == 2
-                && copy.getExtensionSettings()
+                && extension
                     .getInt(RAPIER_SOLVER_EXTENSION_ID,
                         RAPIER_MIN_ISLAND_SIZE)
                     .orElse(-1) == 64
-                && copy.getVisualSyncSettings().isEntityVisualSyncCullingEnabled()
-                && copy.getVisualSyncSettings().isVisualVisibilityCullingEnabled()
-                && copy.getVisualMaterializationSettings().isDetachedVisualMaterializationEnabled()
-                && copy.getVisualMaterializationSettings().getDetachedVisualMaterializationRadius() == 48
-                && copy.getVisualMaterializationSettings().getDetachedVisualDematerializationRadius() == 72
-                && copy.getVisualMaterializationSettings().getDetachedVisualMaxSpawnsPerTick() == 33
-                && copy.getVisualMaterializationSettings().getDetachedVisualMaxMaterialized() == 444
-                && "Rock_Stone".equals(copy.getVisualMaterializationSettings().getDetachedVisualBlockType());
+                && visualSync.isEntityVisualSyncCullingEnabled()
+                && visualSync.isVisualVisibilityCullingEnabled()
+                && visualMaterialization.isDetachedVisualMaterializationEnabled()
+                && visualMaterialization.getDetachedVisualMaterializationRadius() == 48
+                && visualMaterialization.getDetachedVisualDematerializationRadius() == 72
+                && visualMaterialization.getDetachedVisualMaxSpawnsPerTick() == 33
+                && visualMaterialization.getDetachedVisualMaxMaterialized() == 444
+                && "Rock_Stone".equals(visualMaterialization.getDetachedVisualBlockType());
             } finally {
-                PhysicsStoreSpaceMutations.removeEmptySpace(store, spaceId);
+                PhysicsSpaceMutations.removeEmptySpace(store, spaceId);
             }
         });
     }
 
     @Nonnull
-    private static PhysicsSpaceSettings populatedSettings() {
-        PhysicsSpaceSettings settings = PhysicsSpaceSettings.defaults();
-        settings.getPhysicsChunkCollisionSettings().setMode(PhysicsChunkCollisionMode.STREAMING);
-        settings.getPhysicsChunkCollisionSettings().setRadius(9);
-        settings.getPhysicsChunkCollisionSettings().setBodyRadius(5);
-        settings.getPhysicsChunkCollisionSettings().setTtlTicks(77);
-        settings.getVisualSyncSettings().setVisualMaxSyncRadius(96);
-        settings.getVisualSyncSettings().setVisualFullSyncRadius(48);
-        settings.getVisualSyncSettings().setVisualFarSyncCutoffEnabled(false);
-        settings.getVisualSyncSettings().setVisualMidSyncIntervalTicks(3);
-        settings.getVisualSyncSettings().setVisualFarSyncIntervalTicks(17);
-        settings.getVisualSyncSettings().setVisualOcclusionMode(VisualOcclusionMode.PRIORITY);
-        settings.getVisualSyncSettings().setVisualOcclusionRaycastsPerTick(31);
-        settings.getVisualSyncSettings().setVisualOcclusionCacheTicks(7);
-        settings.getSolverSettings().setSolverIterations(5);
-        settings.getSolverSettings().setStabilizationIterations(1);
-        settings.getExtensionSettings().setInt(RAPIER_SOLVER_EXTENSION_ID,
+    private static PopulatedSettings populatedSettings() {
+        PhysicsChunkCollisionSettings chunkCollision = new PhysicsChunkCollisionSettings();
+        chunkCollision.setMode(PhysicsChunkCollisionMode.STREAMING);
+        chunkCollision.setRadius(9);
+        chunkCollision.setBodyRadius(5);
+        chunkCollision.setTtlTicks(77);
+
+        PhysicsVisualSyncSettings visualSync = new PhysicsVisualSyncSettings();
+        visualSync.setVisualMaxSyncRadius(96);
+        visualSync.setVisualFullSyncRadius(48);
+        visualSync.setVisualFarSyncCutoffEnabled(false);
+        visualSync.setVisualMidSyncIntervalTicks(3);
+        visualSync.setVisualFarSyncIntervalTicks(17);
+        visualSync.setVisualOcclusionMode(VisualOcclusionMode.PRIORITY);
+        visualSync.setVisualOcclusionRaycastsPerTick(31);
+        visualSync.setVisualOcclusionCacheTicks(7);
+        visualSync.setEntityVisualSyncCullingEnabled(true);
+        visualSync.setVisualVisibilityCullingEnabled(true);
+
+        PhysicsSolverSettings solver = new PhysicsSolverSettings();
+        solver.setSolverIterations(5);
+        solver.setStabilizationIterations(1);
+
+        PhysicsExtensionSettings extension = new PhysicsExtensionSettings();
+        extension.setInt(RAPIER_SOLVER_EXTENSION_ID,
             RAPIER_INTERNAL_PGS_ITERATIONS,
             2);
-        settings.getExtensionSettings().setInt(RAPIER_SOLVER_EXTENSION_ID,
+        extension.setInt(RAPIER_SOLVER_EXTENSION_ID,
             RAPIER_MIN_ISLAND_SIZE,
             64);
-        settings.getVisualSyncSettings().setEntityVisualSyncCullingEnabled(true);
-        settings.getVisualSyncSettings().setVisualVisibilityCullingEnabled(true);
-        settings.getVisualMaterializationSettings().setDetachedVisualMaterializationEnabled(true);
-        settings.getVisualMaterializationSettings().setDetachedVisualDematerializationRadius(72);
-        settings.getVisualMaterializationSettings().setDetachedVisualMaterializationRadius(48);
-        settings.getVisualMaterializationSettings().setDetachedVisualMaxSpawnsPerTick(33);
-        settings.getVisualMaterializationSettings().setDetachedVisualMaxMaterialized(444);
-        settings.getVisualMaterializationSettings().setDetachedVisualBlockType("Rock_Stone");
-        return settings;
+
+        PhysicsVisualMaterializationSettings visualMaterialization =
+            new PhysicsVisualMaterializationSettings();
+        visualMaterialization.setDetachedVisualMaterializationEnabled(true);
+        visualMaterialization.setDetachedVisualDematerializationRadius(72);
+        visualMaterialization.setDetachedVisualMaterializationRadius(48);
+        visualMaterialization.setDetachedVisualMaxSpawnsPerTick(33);
+        visualMaterialization.setDetachedVisualMaxMaterialized(444);
+        visualMaterialization.setDetachedVisualBlockType("Rock_Stone");
+        return new PopulatedSettings(chunkCollision,
+            visualSync,
+            solver,
+            extension,
+            visualMaterialization);
+    }
+
+    private static void applyPopulatedSettings(@Nonnull Store<PhysicsStore> store,
+        @Nonnull SpaceId spaceId,
+        @Nonnull PopulatedSettings settings) {
+        PhysicsSpaces.putChunkCollisionSettings(store,
+            spaceId,
+            settings.chunkCollisionSettings());
+        PhysicsSpaces.putVisualSyncSettings(store, spaceId, settings.visualSyncSettings());
+        PhysicsSpaces.putSolverSettings(store, spaceId, settings.solverSettings());
+        PhysicsSpaces.putExtensionSettings(store, spaceId, settings.extensionSettings());
+        PhysicsSpaces.putVisualMaterializationSettings(store,
+            spaceId,
+            settings.visualMaterializationSettings());
     }
 
     private static Store<PhysicsStore> physicsStore(@Nonnull World world) {
         return PhysicsStoreCrucibleSupport.physicsStore(world);
+    }
+
+    private record PopulatedSettings(
+        @Nonnull PhysicsChunkCollisionSettings chunkCollisionSettings,
+        @Nonnull PhysicsVisualSyncSettings visualSyncSettings,
+        @Nonnull PhysicsSolverSettings solverSettings,
+        @Nonnull PhysicsExtensionSettings extensionSettings,
+        @Nonnull PhysicsVisualMaterializationSettings visualMaterializationSettings) {
     }
 
     private record PopulatedBodyCleanupState(@Nonnull World world,

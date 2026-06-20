@@ -8,8 +8,8 @@ import com.hypixel.hytale.component.RemoveReason;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsBodySyncStateResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsProjectionIndexResource;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.BodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.BodyAttachmentComponent.AttachmentLifecycle;
 import java.util.UUID;
@@ -25,31 +25,29 @@ public final class GeneratedProxyLifecycle {
     }
 
     static void removeProxy(@Nonnull ComponentAccessor<EntityStore> accessor,
-        @Nonnull PhysicsWorldRuntimeResource resource,
+        @Nonnull PhysicsProjectionIndexResource projection,
         @Nonnull UUID bodyUuid,
         @Nullable Ref<PhysicsStore> bodyRef,
         @Nullable Ref<EntityStore> proxy) {
         if (proxy == null) {
-            resource.clearGeneratedVisualProxy(bodyUuid, bodyRef);
+            projection.clearGeneratedVisualProxyForBodyRef(bodyUuid, bodyRef);
         } else {
-            resource.clearGeneratedVisualProxy(bodyUuid, bodyRef, proxy);
+            projection.clearGeneratedVisualProxy(bodyUuid, bodyRef, proxy);
         }
         removeEntity(accessor, proxy);
     }
 
     public static void clearMissingAttachment(@Nonnull Ref<EntityStore> entityRef,
         @Nonnull BodyAttachmentComponent attachment,
-        @Nonnull PhysicsWorldRuntimeResource resource,
         @Nonnull CommandBuffer<EntityStore> commandBuffer) {
         UUID bodyUuid = attachment.getBodyUuid();
         PhysicsProjectionIndexResource projection = commandBuffer.getResource(
             PhysicsProjectionIndexResource.getResourceType());
         projection.unregisterAttachment(bodyUuid, attachment.getBodyRef(), entityRef);
-        resource.unregisterBodyAttachment(bodyUuid, attachment.getBodyRef(), entityRef);
-        resource.clearBodySyncState(entityRef);
+        commandBuffer.getResource(PhysicsBodySyncStateResource.getResourceType())
+            .clear(entityRef);
         if (attachment.getLifecycle() == AttachmentLifecycle.GENERATED_PROXY) {
             projection.clearGeneratedVisualProxy(bodyUuid, attachment.getBodyRef(), entityRef);
-            resource.clearGeneratedVisualProxy(bodyUuid, attachment.getBodyRef(), entityRef);
             removeEntity(commandBuffer, entityRef);
         } else if (attachment.shouldRemoveEntityWhenBodyMissing()) {
             removeEntity(commandBuffer, entityRef);

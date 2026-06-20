@@ -10,8 +10,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 public record SpaceId(int value) {
 
     /*
-     * TODO: If this appears in profiles, replace it with a per-world allocator in
-     * PhysicsWorldResource to avoid a global static counter.
+     * PhysicsStore space helpers to avoid a global static counter.
      */
     private static final AtomicInteger COUNTER = new AtomicInteger(0);
 

@@ -7,6 +7,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.SpaceId;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
+import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -112,17 +113,34 @@ public final class PhysicsBodyRegistrationResource implements Resource<PhysicsSt
 
     public void removeBody(@Nonnull UUID bodyUuid) {
         Objects.requireNonNull(bodyUuid, "bodyUuid");
+        removeBodies(List.of(bodyUuid));
+    }
+
+    public void removeBodies(@Nonnull Collection<UUID> bodyUuids) {
+        Objects.requireNonNull(bodyUuids, "bodyUuids");
         PublishedRegistrations current = registrations;
-        if (!current.spaceIdsByUuid().containsKey(bodyUuid)) {
+        if (bodyUuids.isEmpty()) {
+            return;
+        }
+        ObjectOpenHashSet<UUID> removedBodyUuids = new ObjectOpenHashSet<>(bodyUuids.size());
+        for (UUID bodyUuid : bodyUuids) {
+            Objects.requireNonNull(bodyUuid, "bodyUuid");
+            if (current.spaceIdsByUuid().containsKey(bodyUuid)) {
+                removedBodyUuids.add(bodyUuid);
+            }
+        }
+        if (removedBodyUuids.isEmpty()) {
             return;
         }
         Object2ObjectLinkedOpenHashMap<UUID, SpaceId> spaceIdsByUuid =
             new Object2ObjectLinkedOpenHashMap<>(current.spaceIdsByUuid());
-        spaceIdsByUuid.remove(bodyUuid);
+        for (UUID bodyUuid : removedBodyUuids) {
+            spaceIdsByUuid.remove(bodyUuid);
+        }
         Int2ObjectOpenHashMap<RegistrationByRef> registrationsByRowIndex =
             new Int2ObjectOpenHashMap<>(current.registrationsByRowIndex());
         registrationsByRowIndex.int2ObjectEntrySet()
-            .removeIf(entry -> entry.getValue().bodyUuid().equals(bodyUuid));
+            .removeIf(entry -> removedBodyUuids.contains(entry.getValue().bodyUuid()));
         registrations = new PublishedRegistrations(current.registrationTopologyGeneration(),
             new ArrayList<>(spaceIdsByUuid.keySet()),
             spaceIdsByUuid,

@@ -7,12 +7,15 @@ import com.hypixel.hytale.component.Component;
 import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSolverSettings;
-import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
+import lombok.Getter;
+import lombok.Setter;
 import javax.annotation.Nonnull;
 
 /**
  * Authored backend solver and activation tuning for one PhysicsStore space entity.
  */
+@Setter
+@Getter
 public final class SolverSettingsComponent implements Component<PhysicsStore> {
 
     @Nonnull
@@ -81,50 +84,6 @@ public final class SolverSettingsComponent implements Component<PhysicsStore> {
         this.dynamicSleepLinearThreshold = dynamicSleepLinearThreshold;
         this.dynamicSleepAngularThreshold = dynamicSleepAngularThreshold;
         this.dynamicSleepTimeUntilSleep = dynamicSleepTimeUntilSleep;
-    }
-
-    public int getSolverIterations() {
-        return solverIterations;
-    }
-
-    public void setSolverIterations(int solverIterations) {
-        this.solverIterations = solverIterations;
-    }
-
-    public int getStabilizationIterations() {
-        return stabilizationIterations;
-    }
-
-    public void setStabilizationIterations(int stabilizationIterations) {
-        this.stabilizationIterations = stabilizationIterations;
-    }
-
-    public float getDynamicSleepLinearThreshold() {
-        return dynamicSleepLinearThreshold;
-    }
-
-    public void setDynamicSleepLinearThreshold(float dynamicSleepLinearThreshold) {
-        this.dynamicSleepLinearThreshold = dynamicSleepLinearThreshold;
-    }
-
-    public float getDynamicSleepAngularThreshold() {
-        return dynamicSleepAngularThreshold;
-    }
-
-    public void setDynamicSleepAngularThreshold(float dynamicSleepAngularThreshold) {
-        this.dynamicSleepAngularThreshold = dynamicSleepAngularThreshold;
-    }
-
-    public float getDynamicSleepTimeUntilSleep() {
-        return dynamicSleepTimeUntilSleep;
-    }
-
-    public void setDynamicSleepTimeUntilSleep(float dynamicSleepTimeUntilSleep) {
-        this.dynamicSleepTimeUntilSleep = dynamicSleepTimeUntilSleep;
-    }
-
-    public void copyTo(@Nonnull PhysicsSpaceSettings settings) {
-        copyTo(settings.getSolverSettings());
     }
 
     public void copyTo(@Nonnull PhysicsSolverSettings settings) {

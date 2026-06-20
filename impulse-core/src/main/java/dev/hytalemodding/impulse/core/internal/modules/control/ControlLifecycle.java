@@ -10,7 +10,6 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.core.internal.modules.SubPluginLifecycleGate;
 import dev.hytalemodding.impulse.core.internal.modules.control.components.PhysicsControlSessionComponent;
 import dev.hytalemodding.impulse.core.internal.modules.control.systems.PhysicsControlSessionCleanup;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.plugin.modules.control.ImpulseControllableComponent;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -32,8 +31,6 @@ public final class ControlLifecycle {
     private static final HytaleLogger LOGGER = HytaleLogger.get("Impulse");
     private static final SubPluginLifecycleGate GATE = new SubPluginLifecycleGate(
         "Impulse control is disabled. Enable HytaleModding:ImpulseControl to start control sessions.");
-    private static final Set<PhysicsWorldRuntimeResource> RESOURCES =
-        Collections.newSetFromMap(new WeakHashMap<>());
     private static final Set<Store<EntityStore>> STORES =
         Collections.newSetFromMap(new WeakHashMap<>());
     private static final long CLEANUP_TIMEOUT_SECONDS = 5L;
@@ -41,7 +38,6 @@ public final class ControlLifecycle {
     static {
         GATE.onDisable(ControlLifecycle::cleanupStores);
         GATE.onDisable(PhysicsControlRuntimeStates::clearAll);
-        GATE.onDisable(ControlLifecycle::cleanupResources);
     }
 
     private ControlLifecycle() {
@@ -65,12 +61,6 @@ public final class ControlLifecycle {
 
     public static void requireEnabled() {
         GATE.requireEnabled();
-    }
-
-    public static void registerResource(@Nonnull PhysicsWorldRuntimeResource resource) {
-        synchronized (RESOURCES) {
-            RESOURCES.add(resource);
-        }
     }
 
     public static void registerStore(@Nonnull Store<EntityStore> store) {
@@ -199,16 +189,6 @@ public final class ControlLifecycle {
                 (index, archetypeChunk, commandBuffer) ->
                     commandBuffer.removeComponent(archetypeChunk.getReferenceTo(index),
                         controllableType));
-        }
-    }
-
-    private static void cleanupResources() {
-        ArrayList<PhysicsWorldRuntimeResource> resources;
-        synchronized (RESOURCES) {
-            resources = new ArrayList<>(RESOURCES);
-        }
-        for (PhysicsWorldRuntimeResource resource : resources) {
-            resource.disableControlLifecycle();
         }
     }
 

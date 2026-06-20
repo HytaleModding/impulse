@@ -10,13 +10,12 @@ import com.hypixel.hytale.component.dependency.SystemGroupDependency;
 import com.hypixel.hytale.component.system.tick.TickingSystem;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.PhysicsEntityTypes;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.BodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.BodyAttachmentComponent.AttachmentLifecycle;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.GeneratedVisualProxyComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsBodies;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
+import dev.hytalemodding.impulse.core.plugin.physics.PhysicsBodies;
+import dev.hytalemodding.impulse.core.plugin.physics.PhysicsThreading;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
@@ -62,19 +61,17 @@ public class PhysicsProjectionCleanupSystem extends TickingSystem<EntityStore> {
     private static void clearDestroyedBodyAttachments(@Nonnull Store<EntityStore> store) {
         ComponentType<EntityStore, BodyAttachmentComponent> attachmentType =
             BodyAttachmentComponent.getComponentType();
-        PhysicsWorldRuntimeResource resource = PhysicsWorldRuntimeResource.require(store);
         Store<PhysicsStore> physicsStore = PhysicsThreading.storeOrNull(
             store.getExternalData().getWorld());
         store.forEachEntityParallel(attachmentType,
             (index, archetypeChunk, commandBuffer) -> {
                 BodyAttachmentComponent attachment = archetypeChunk.getComponent(index,
                     attachmentType);
-                if (attachment == null || !hasMissingBody(resource, physicsStore, attachment)) {
+                if (attachment == null || !hasMissingBody(physicsStore, attachment)) {
                     return;
                 }
                 GeneratedProxyLifecycle.clearMissingAttachment(archetypeChunk.getReferenceTo(index),
                     attachment,
-                    resource,
                     commandBuffer);
             });
     }
@@ -84,8 +81,7 @@ public class PhysicsProjectionCleanupSystem extends TickingSystem<EntityStore> {
         return bodyRef != null && !bodyRef.isValid();
     }
 
-    private static boolean hasMissingBody(@Nonnull PhysicsWorldRuntimeResource resource,
-        @Nullable Store<PhysicsStore> store,
+    private static boolean hasMissingBody(@Nullable Store<PhysicsStore> store,
         @Nonnull BodyAttachmentComponent attachment) {
         if (hasDestroyedBodyRef(attachment)) {
             return true;
@@ -95,8 +91,7 @@ public class PhysicsProjectionCleanupSystem extends TickingSystem<EntityStore> {
             return false;
         }
         return store != null
-            ? !PhysicsBodies.isRegistered(store, attachment.getBodyUuid())
-            : !resource.hasPublishedBodyRegistration(attachment.getBodyUuid());
+            && !PhysicsBodies.isRegistered(store, attachment.getBodyUuid());
     }
 
     private static void removeOrphanGeneratedVisualProxyMarkers(@Nonnull Store<EntityStore> store) {

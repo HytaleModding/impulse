@@ -1,49 +1,68 @@
 package dev.hytalemodding.impulse.core.plugin.simulation;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotSame;
-import static org.junit.jupiter.api.Assertions.assertSame;
 
+import com.hypixel.hytale.component.AddReason;
+import com.hypixel.hytale.component.ComponentRegistry;
+import com.hypixel.hytale.component.ComponentRegistryProxy;
+import com.hypixel.hytale.component.EmptyResourceStorage;
+import com.hypixel.hytale.component.Holder;
+import com.hypixel.hytale.component.Ref;
+import com.hypixel.hytale.component.Store;
+import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
+import dev.hytalemodding.impulse.api.PhysicsAxis;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.ShapeType;
+import dev.hytalemodding.impulse.core.internal.registration.PhysicsComponentTypeRegistry;
+import dev.hytalemodding.impulse.core.internal.testsupport.TestInstanceFactory;
+import dev.hytalemodding.impulse.core.plugin.components.DynamicsComponent;
+import dev.hytalemodding.impulse.core.plugin.components.ShapeComponent;
 import dev.hytalemodding.impulse.core.plugin.simulation.view.RaycastHitView;
+import java.util.ArrayList;
 import org.joml.Vector3f;
 import org.junit.jupiter.api.Test;
 
 class RaycastHitViewTest {
 
     @Test
-    void storesGeometryAsScalarsWhileKeepingDefensiveVectorAccessors() {
-        Vector3f point = new Vector3f(1.0f, 2.0f, 3.0f);
-        Vector3f normal = new Vector3f(0.0f, 1.0f, 0.0f);
-        RaycastHitView view = new RaycastHitView(null,
-            PhysicsBodyType.DYNAMIC,
-            point,
-            normal,
-            ShapeType.BOX,
-            0.25f,
-            4.5f);
-        point.set(9.0f, 9.0f, 9.0f);
-        normal.set(8.0f, 8.0f, 8.0f);
+    void infersBodyAndShapeTypesFromBodyRefComponents() {
+        ComponentRegistry<PhysicsStore> registry = new ComponentRegistry<>();
+        ComponentRegistryProxy<PhysicsStore> proxy =
+            new ComponentRegistryProxy<>(new ArrayList<>(), registry);
+        PhysicsComponentTypeRegistry.registerComponentTypes(proxy);
+        Store<PhysicsStore> store = registry.addStore(
+            new PhysicsStore(TestInstanceFactory.world("raycast-hit-view-type-inference-test")),
+            EmptyResourceStorage.get());
+        try {
+            Holder<PhysicsStore> holder = registry.newHolder();
+            holder.putComponent(DynamicsComponent.getComponentType(),
+                new DynamicsComponent(PhysicsBodyType.KINEMATIC,
+                    0.0f,
+                    0.0f,
+                    0.0f,
+                    false));
+            holder.putComponent(ShapeComponent.getComponentType(),
+                new ShapeComponent(ShapeType.CAPSULE,
+                    0.5f,
+                    0.5f,
+                    0.5f,
+                    0.25f,
+                    1.0f,
+                    PhysicsAxis.Y,
+                    0.0f,
+                    ""));
+            Ref<PhysicsStore> bodyRef = store.addEntity(holder, AddReason.SPAWN);
+            RaycastHitView view = new RaycastHitView(bodyRef,
+                new Vector3f(1.0f, 2.0f, 3.0f),
+                new Vector3f(0.0f, 1.0f, 0.0f),
+                0.25f,
+                4.5f);
 
-        assertEquals(1.0f, view.pointX(), 0.00001f);
-        assertEquals(2.0f, view.pointY(), 0.00001f);
-        assertEquals(3.0f, view.pointZ(), 0.00001f);
-        assertEquals(0.0f, view.normalX(), 0.00001f);
-        assertEquals(1.0f, view.normalY(), 0.00001f);
-        assertEquals(0.0f, view.normalZ(), 0.00001f);
-
-        Vector3f pointCopy = view.point();
-        pointCopy.set(7.0f, 7.0f, 7.0f);
-        assertEquals(1.0f, view.pointX(), 0.00001f);
-        assertEquals(2.0f, view.pointY(), 0.00001f);
-        assertEquals(3.0f, view.pointZ(), 0.00001f);
-        assertNotSame(pointCopy, view.point());
-
-        Vector3f target = new Vector3f();
-        assertSame(target, view.copyPointTo(target));
-        assertEquals(new Vector3f(1.0f, 2.0f, 3.0f), target);
-        assertSame(target, view.copyNormalTo(target));
-        assertEquals(new Vector3f(0.0f, 1.0f, 0.0f), target);
+            assertEquals(PhysicsBodyType.KINEMATIC, view.bodyType());
+            assertEquals(ShapeType.CAPSULE, view.shapeType());
+        } finally {
+            registry.removeStore(store);
+            registry.shutdown();
+        }
     }
 }

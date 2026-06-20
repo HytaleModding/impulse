@@ -9,9 +9,9 @@ import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkCollisionStreamingResource;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.components.ChunkCollisionSourceComponent;
-import dev.hytalemodding.impulse.core.internal.physicsstore.PhysicsStoreSpaceMutations;
+import dev.hytalemodding.impulse.core.internal.physics.PhysicsSpaceMutations;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSnapshotResource;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
+import dev.hytalemodding.impulse.core.plugin.physics.PhysicsThreading;
 import dev.hytalemodding.impulse.core.plugin.components.BodyComponent;
 import dev.hytalemodding.impulse.core.plugin.components.ShapeComponent;
 import dev.hytalemodding.impulse.core.plugin.components.UuidComponent;
@@ -35,7 +35,7 @@ final class PhysicsStoreBenchmarkQueries {
         @Nullable PhysicsChunkCollisionStreamingResource streaming,
         @Nonnull BenchmarkSpaceStatsRequest query) {
         PhysicsThreading.requireWorldThread(store, "read Crucible PhysicsStore benchmark stats");
-        UUID spaceUuid = PhysicsStoreSpaceMutations.requireSpaceUuid(store, query.spaceId());
+        UUID spaceUuid = PhysicsSpaceMutations.requireSpaceUuid(store, query.spaceId());
         PhysicsSnapshotResource snapshots = store.getResource(PhysicsSnapshotResource.getResourceType());
         BenchmarkSpaceStatsAccumulator stats = new BenchmarkSpaceStatsAccumulator();
         BiConsumer<ArchetypeChunk<PhysicsStore>, CommandBuffer<PhysicsStore>> collector =

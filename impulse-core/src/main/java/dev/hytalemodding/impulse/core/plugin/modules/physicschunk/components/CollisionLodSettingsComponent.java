@@ -8,7 +8,6 @@ import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsComponentTypes;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.settings.PhysicsCollisionLodSettings;
-import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import javax.annotation.Nonnull;
 
 /**
@@ -119,10 +118,6 @@ public final class CollisionLodSettingsComponent implements Component<PhysicsSto
 
     public boolean isCollisionLodFarSleepEnabled() {
         return collisionLodFarSleepEnabled;
-    }
-
-    public void copyTo(@Nonnull PhysicsSpaceSettings settings) {
-        copyTo(settings.getCollisionLodSettings());
     }
 
     public void copyTo(@Nonnull PhysicsCollisionLodSettings target) {

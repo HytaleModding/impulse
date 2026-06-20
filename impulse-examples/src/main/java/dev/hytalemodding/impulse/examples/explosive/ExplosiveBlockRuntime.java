@@ -17,7 +17,10 @@ import com.hypixel.hytale.server.core.entity.ExplosionUtils;
 import com.hypixel.hytale.server.core.modules.entity.damage.Damage;
 import com.hypixel.hytale.server.core.modules.time.TimeResource;
 import com.hypixel.hytale.server.core.universe.world.World;
+import com.hypixel.hytale.server.core.universe.world.chunk.BlockChunk;
 import com.hypixel.hytale.server.core.universe.world.chunk.WorldChunk;
+import com.hypixel.hytale.server.core.universe.world.chunk.section.BlockSection;
+import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.SpaceId;
@@ -25,7 +28,7 @@ import dev.hytalemodding.impulse.core.plugin.components.BodyCommandComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkCollision;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
 import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
+import dev.hytalemodding.impulse.core.plugin.physics.PhysicsThreading;
 import dev.hytalemodding.impulse.examples.utils.ExamplePhysicsUtils;
 import dev.hytalemodding.impulse.examples.utils.ExamplePhysicsUtils.CreatedBlockBody;
 import java.util.ArrayList;
@@ -252,10 +255,15 @@ public final class ExplosiveBlockRuntime {
         if (chunk == null) {
             return null;
         }
+        BlockChunk blockChunk = loadedBlockChunk(world, x, z);
+        if (blockChunk == null) {
+            return null;
+        }
+        BlockSection blockSection = loadedBlockSection(world, x, y, z);
         int localX = chunkBlockCoordinate(x);
         int localZ = chunkBlockCoordinate(z);
-        int blockId = chunk.getBlock(localX, y, localZ);
-        int rotation = chunk.getRotation(localX, y, localZ).index();
+        int blockId = blockChunk.getBlock(localX, y, localZ);
+        int rotation = blockRotationIndex(blockSection, localX, y, localZ);
         var blockTypeStore = BlockType.getAssetStore();
         if (blockTypeStore == null) {
             return null;
@@ -458,7 +466,56 @@ public final class ExplosiveBlockRuntime {
 
     @Nullable
     private static WorldChunk loadedChunk(@Nonnull World world, int x, int z) {
-        return world.getChunkIfLoaded(ChunkUtil.indexChunkFromBlock(x, z));
+        Ref<ChunkStore> chunkRef = loadedChunkRef(world, x, z);
+        if (chunkRef == null) {
+            return null;
+        }
+        Store<ChunkStore> store = world.getChunkStore().getStore();
+        return store.getComponentConcurrent(chunkRef, WorldChunk.getComponentType());
+    }
+
+    @Nullable
+    private static BlockChunk loadedBlockChunk(@Nonnull World world, int x, int z) {
+        Ref<ChunkStore> chunkRef = loadedChunkRef(world, x, z);
+        if (chunkRef == null) {
+            return null;
+        }
+        Store<ChunkStore> store = world.getChunkStore().getStore();
+        return store.getComponentConcurrent(chunkRef, BlockChunk.getComponentType());
+    }
+
+    @Nullable
+    private static BlockSection loadedBlockSection(@Nonnull World world, int x, int y, int z) {
+        if (y < ChunkUtil.MIN_Y || y > ChunkUtil.HEIGHT_MINUS_1) {
+            return null;
+        }
+        ChunkStore chunkStore = world.getChunkStore();
+        Ref<ChunkStore> sectionRef = chunkStore.getChunkSectionReference(
+            ChunkUtil.chunkCoordinate(x),
+            ChunkUtil.indexSection(y),
+            ChunkUtil.chunkCoordinate(z));
+        if (sectionRef == null || !sectionRef.isValid()) {
+            return null;
+        }
+        Store<ChunkStore> store = chunkStore.getStore();
+        return store.getComponentConcurrent(sectionRef, BlockSection.getComponentType());
+    }
+
+    @Nullable
+    private static Ref<ChunkStore> loadedChunkRef(@Nonnull World world, int x, int z) {
+        Ref<ChunkStore> chunkRef = world.getChunkStore()
+            .getChunkReference(ChunkUtil.indexChunkFromBlock(x, z));
+        return chunkRef != null && chunkRef.isValid() ? chunkRef : null;
+    }
+
+    private static int blockRotationIndex(@Nullable BlockSection section,
+        int localX,
+        int y,
+        int localZ) {
+        if (section == null) {
+            return 0;
+        }
+        return section.getRotationIndex(localX, y, localZ);
     }
 
     @Nonnull
@@ -794,6 +851,7 @@ public final class ExplosiveBlockRuntime {
                     1.0f,
                     null,
                     null,
+                    false,
                     false)
             };
             soundEventId = EXPLOSION_SOUND_EVENT_ID;

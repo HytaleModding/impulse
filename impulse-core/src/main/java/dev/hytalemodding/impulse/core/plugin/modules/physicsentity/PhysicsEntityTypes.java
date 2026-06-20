@@ -1,7 +1,6 @@
 package dev.hytalemodding.impulse.core.plugin.modules.physicsentity;
 
 import com.hypixel.hytale.component.ComponentType;
-import com.hypixel.hytale.component.ResourceType;
 import com.hypixel.hytale.component.SystemGroup;
 import com.hypixel.hytale.component.event.WorldEventType;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
@@ -9,7 +8,6 @@ import dev.hytalemodding.impulse.core.internal.modules.physicsentity.PhysicsEnti
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsEventFramePublishedEvent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.BodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.GeneratedVisualProxyComponent;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import javax.annotation.Nonnull;
 
 /**
@@ -38,19 +36,12 @@ public final class PhysicsEntityTypes {
     }
 
     @Nonnull
-    public static ComponentType<EntityStore, GeneratedVisualProxyComponent>
-    generatedVisualProxyComponentType() {
+    public static ComponentType<EntityStore, GeneratedVisualProxyComponent> generatedVisualProxyComponentType() {
         return PhysicsEntityTypeRegistry.generatedVisualProxyComponentType();
     }
 
     @Nonnull
-    public static ResourceType<EntityStore, PhysicsWorldResource> physicsWorldResourceType() {
-        return PhysicsEntityTypeRegistry.physicsWorldResourceType();
-    }
-
-    @Nonnull
-    public static WorldEventType<EntityStore, PhysicsEventFramePublishedEvent>
-    physicsEventFramePublishedEventType() {
+    public static WorldEventType<EntityStore, PhysicsEventFramePublishedEvent> physicsEventFramePublishedEventType() {
         return PhysicsEntityTypeRegistry.physicsEventFramePublishedEventType();
     }
 

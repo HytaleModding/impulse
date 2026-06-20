@@ -4,7 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRuntimeState;
-import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
+import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.settings.PhysicsVisualSyncSettings;
 import java.util.Arrays;
 import java.util.List;
 import org.joml.Quaternionf;
@@ -19,7 +19,7 @@ class PhysicsSyncPolicyTest {
 
         assertEquals(PhysicsSyncPolicy.SyncDecision.INITIAL,
             PhysicsSyncPolicy.resolveSyncDecision(syncState,
-                PhysicsSpaceSettings.defaults(),
+                new PhysicsVisualSyncSettings(),
                 new Vector3f(),
                 new Quaternionf(),
                 false,
@@ -34,7 +34,7 @@ class PhysicsSyncPolicyTest {
 
         assertEquals(PhysicsSyncPolicy.SyncDecision.TRANSITION,
             PhysicsSyncPolicy.resolveSyncDecision(syncState,
-                PhysicsSpaceSettings.defaults(),
+                new PhysicsVisualSyncSettings(),
                 new Vector3f(),
                 new Quaternionf(),
                 true,
@@ -49,7 +49,7 @@ class PhysicsSyncPolicyTest {
 
         assertEquals(PhysicsSyncPolicy.SyncDecision.SKIP_VISUAL_RANGE,
             PhysicsSyncPolicy.resolveSyncDecision(syncState,
-                PhysicsSpaceSettings.defaults(),
+                new PhysicsVisualSyncSettings(),
                 new Vector3f(),
                 new Quaternionf(),
                 false,
@@ -65,7 +65,7 @@ class PhysicsSyncPolicyTest {
 
         assertEquals(PhysicsSyncPolicy.SyncDecision.SKIP_VISUAL_DEADZONE,
             PhysicsSyncPolicy.resolveSyncDecision(syncState,
-                PhysicsSpaceSettings.defaults(),
+                new PhysicsVisualSyncSettings(),
                 new Vector3f(0.05f, 0.0f, 0.0f),
                 new Quaternionf(),
                 false,
@@ -81,7 +81,7 @@ class PhysicsSyncPolicyTest {
 
         assertEquals(PhysicsSyncPolicy.SyncDecision.KEEPALIVE,
             PhysicsSyncPolicy.resolveSyncDecision(syncState,
-                PhysicsSpaceSettings.defaults(),
+                new PhysicsVisualSyncSettings(),
                 new Vector3f(0.05f, 0.0f, 0.0f),
                 new Quaternionf(),
                 false,
@@ -97,7 +97,7 @@ class PhysicsSyncPolicyTest {
 
         assertEquals(PhysicsSyncPolicy.SyncDecision.SKIP_VISUAL_RANGE,
             PhysicsSyncPolicy.resolveSyncDecision(syncState,
-                PhysicsSpaceSettings.defaults(),
+                new PhysicsVisualSyncSettings(),
                 new Vector3f(0.2f, 0.0f, 0.0f),
                 new Quaternionf(),
                 false,
@@ -108,7 +108,7 @@ class PhysicsSyncPolicyTest {
         syncState.recordSkip(0.1f);
         assertEquals(PhysicsSyncPolicy.SyncDecision.KEEPALIVE,
             PhysicsSyncPolicy.resolveSyncDecision(syncState,
-                PhysicsSpaceSettings.defaults(),
+                new PhysicsVisualSyncSettings(),
                 new Vector3f(0.2f, 0.0f, 0.0f),
                 new Quaternionf(),
                 false,
@@ -119,8 +119,8 @@ class PhysicsSyncPolicyTest {
 
     @Test
     void midRangeFollowersRespectConfiguredMinimumInterval() {
-        PhysicsSpaceSettings settings = PhysicsSpaceSettings.defaults();
-        settings.getVisualSyncSettings().setVisualMidSyncIntervalTicks(4);
+        PhysicsVisualSyncSettings settings = new PhysicsVisualSyncSettings();
+        settings.setVisualMidSyncIntervalTicks(4);
         PhysicsBodyRuntimeState.BodySyncState syncState = initializedState(false);
         syncState.recordSkip(0.15f);
 
@@ -148,9 +148,9 @@ class PhysicsSyncPolicyTest {
 
     @Test
     void farRangeLodUsesConfiguredIntervalWhenCutoffIsDisabled() {
-        PhysicsSpaceSettings settings = PhysicsSpaceSettings.defaults();
-        settings.getVisualSyncSettings().setVisualFarSyncCutoffEnabled(false);
-        settings.getVisualSyncSettings().setVisualFarSyncIntervalTicks(40);
+        PhysicsVisualSyncSettings settings = new PhysicsVisualSyncSettings();
+        settings.setVisualFarSyncCutoffEnabled(false);
+        settings.setVisualFarSyncIntervalTicks(40);
         PhysicsBodyRuntimeState.BodySyncState syncState = initializedState(false);
         syncState.recordSkip(1.95f);
 
@@ -182,7 +182,7 @@ class PhysicsSyncPolicyTest {
 
         assertEquals(PhysicsSyncPolicy.SyncDecision.THRESHOLD,
             PhysicsSyncPolicy.resolveSyncDecision(syncState,
-                PhysicsSpaceSettings.defaults(),
+                new PhysicsVisualSyncSettings(),
                 new Vector3f(0.05f, 0.0f, 0.0f),
                 new Quaternionf(),
                 false,
@@ -198,7 +198,7 @@ class PhysicsSyncPolicyTest {
 
         assertEquals(PhysicsSyncPolicy.SyncDecision.THRESHOLD,
             PhysicsSyncPolicy.resolveSyncDecision(syncState,
-                PhysicsSpaceSettings.defaults(),
+                new PhysicsVisualSyncSettings(),
                 new Vector3f(),
                 rotated,
                 false,
@@ -228,7 +228,7 @@ class PhysicsSyncPolicyTest {
 
         assertEquals(PhysicsSyncPolicy.SyncDecision.SKIP_SLEEPING,
             PhysicsSyncPolicy.resolveSyncDecision(syncState,
-                PhysicsSpaceSettings.defaults(),
+                new PhysicsVisualSyncSettings(),
                 new Vector3f(),
                 new Quaternionf(),
                 true,
@@ -239,7 +239,7 @@ class PhysicsSyncPolicyTest {
 
     @Test
     void rangeTierReturnsNearForNonLimitedOrControlledVisuals() {
-        PhysicsSpaceSettings settings = PhysicsSpaceSettings.defaults();
+        PhysicsVisualSyncSettings settings = new PhysicsVisualSyncSettings();
         List<PhysicsSyncPolicy.PlayerInterest> players =
             interests(new Vector3f(100.0f, 0.0f, 0.0f));
 
@@ -262,7 +262,7 @@ class PhysicsSyncPolicyTest {
     @Test
     void rangeTierReturnsFarWhenNoPlayersAreInterested() {
         assertEquals(PhysicsSyncPolicy.SyncRangeTier.FAR,
-            PhysicsSyncPolicy.resolveRangeTier(PhysicsSpaceSettings.defaults(),
+            PhysicsSyncPolicy.resolveRangeTier(new PhysicsVisualSyncSettings(),
                 null,
                 true,
                 false,
@@ -283,9 +283,9 @@ class PhysicsSyncPolicyTest {
 
     @Test
     void rangeTierDistinguishesNearMidAndFarBands() {
-        PhysicsSpaceSettings settings = PhysicsSpaceSettings.defaults();
-        settings.getVisualSyncSettings().setVisualFullSyncRadius(10);
-        settings.getVisualSyncSettings().setVisualMaxSyncRadius(20);
+        PhysicsVisualSyncSettings settings = new PhysicsVisualSyncSettings();
+        settings.setVisualFullSyncRadius(10);
+        settings.setVisualMaxSyncRadius(20);
 
         List<PhysicsSyncPolicy.PlayerInterest> players = interests(new Vector3f(0.0f, 0.0f, 0.0f));
 

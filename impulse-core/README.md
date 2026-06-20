@@ -19,11 +19,10 @@ services from jars anywhere under the configured Hytale `mods` directories.
 ## Event frames
 
 `PhysicsWorlds.latestEventFrame(physicsStore)` exposes the latest value-only physics event frame
-for diagnostics. The compatibility `PhysicsWorldResource.getLatestEventFrame()` facade returns the
-same frame for callers still bound to the EntityStore resource. When collection is enabled, backends
-emit bounded post-step `PhysicsBackendEvent` batches; core translates them to stable UUID-primary
-`PhysicsFrameEvent` values and copied PhysicsStore refs where available, then publishes one
-`PhysicsEventFramePublishedEvent` Hytale world event for the completed frame.
+for diagnostics. When collection is enabled, backends emit bounded post-step `PhysicsBackendEvent`
+batches; core translates them to stable UUID-primary `PhysicsFrameEvent` values and copied
+PhysicsStore refs where available, then publishes one `PhysicsEventFramePublishedEvent` Hytale
+world event for the completed frame.
 
 Backend event collection is opt-in through `PhysicsWorldSettings.setEventCollectionMode(...)`.
 Worlds default to `PhysicsEventCollectionMode.DISABLED`; use
