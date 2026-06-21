@@ -44,6 +44,8 @@ final class PanamaJoltNativeLibrary implements JoltNativeLibrary {
     private final MethodHandle sleepBody;
     private final MethodHandle applyBodyImpulse;
     private final MethodHandle applyBodyForce;
+    private final MethodHandle createJoint;
+    private final MethodHandle removeJoint;
     private final MethodHandle raycastClosest;
     private final MethodHandle raycastAll;
     private final MethodHandle contacts;
@@ -185,6 +187,33 @@ final class PanamaJoltNativeLibrary implements JoltNativeLibrary {
                 JAVA_FLOAT,
                 JAVA_FLOAT,
                 JAVA_INT));
+        createJoint = downcall(symbols,
+            "impulse_jolt_create_joint",
+            FunctionDescriptor.of(JAVA_LONG,
+                JAVA_LONG,
+                JAVA_INT,
+                JAVA_LONG,
+                JAVA_LONG,
+                JAVA_FLOAT,
+                JAVA_FLOAT,
+                JAVA_FLOAT,
+                JAVA_FLOAT,
+                JAVA_FLOAT,
+                JAVA_FLOAT,
+                JAVA_FLOAT,
+                JAVA_FLOAT,
+                JAVA_FLOAT,
+                JAVA_FLOAT,
+                JAVA_FLOAT,
+                JAVA_FLOAT,
+                JAVA_FLOAT,
+                JAVA_FLOAT,
+                JAVA_INT,
+                JAVA_FLOAT,
+                JAVA_FLOAT));
+        removeJoint = downcall(symbols,
+            "impulse_jolt_remove_joint",
+            FunctionDescriptor.of(JAVA_INT, JAVA_LONG, JAVA_LONG));
         raycastClosest = downcall(symbols,
             "impulse_jolt_raycast_closest",
             FunctionDescriptor.of(JAVA_INT,
@@ -511,6 +540,58 @@ final class PanamaJoltNativeLibrary implements JoltNativeLibrary {
                 offsetY,
                 offsetZ,
                 torque ? 1 : 0));
+    }
+
+    @Override
+    public long createJoint(long spaceHandle,
+        int jointTypeCode,
+        long bodyAHandle,
+        long bodyBHandle,
+        float anchorAX,
+        float anchorAY,
+        float anchorAZ,
+        float anchorBX,
+        float anchorBY,
+        float anchorBZ,
+        float axisX,
+        float axisY,
+        float axisZ,
+        float restLength,
+        float stiffness,
+        float damping,
+        float lowerLimit,
+        float upperLimit,
+        boolean motorEnabled,
+        float motorTargetVelocity,
+        float motorMaxForce) {
+        return invokeLong("create joint",
+            createJoint,
+            spaceHandle,
+            jointTypeCode,
+            bodyAHandle,
+            bodyBHandle,
+            anchorAX,
+            anchorAY,
+            anchorAZ,
+            anchorBX,
+            anchorBY,
+            anchorBZ,
+            axisX,
+            axisY,
+            axisZ,
+            restLength,
+            stiffness,
+            damping,
+            lowerLimit,
+            upperLimit,
+            motorEnabled ? 1 : 0,
+            motorTargetVelocity,
+            motorMaxForce);
+    }
+
+    @Override
+    public void removeJoint(long spaceHandle, long jointHandle) {
+        requireSuccess("remove joint", invokeStatus(removeJoint, spaceHandle, jointHandle));
     }
 
     @Override

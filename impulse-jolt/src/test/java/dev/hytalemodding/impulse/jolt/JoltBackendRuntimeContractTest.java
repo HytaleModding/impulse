@@ -79,7 +79,7 @@ class JoltBackendRuntimeContractTest {
     }
 
     @Test
-    void validCreateJointCodesReachDeferredJointImplementation() {
+    void validCreateJointCodesReachEndpointValidation() {
         JoltBackendRuntime runtime = runtimeWithSpace(4);
 
         int[] jointTypes = {
@@ -91,7 +91,7 @@ class JoltBackendRuntimeContractTest {
         };
 
         for (int jointType : jointTypes) {
-            assertThrows(UnsupportedOperationException.class,
+            assertThrows(IllegalArgumentException.class,
                 () -> createJoint(runtime, 4, jointType));
         }
     }

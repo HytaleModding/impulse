@@ -13,6 +13,7 @@
 #include <Jolt/Physics/Body/BodyCreationSettings.h>
 #include <Jolt/Physics/Body/BodyInterface.h>
 #include <Jolt/Physics/Body/BodyLock.h>
+#include <Jolt/Physics/Body/BodyLockMulti.h>
 #include <Jolt/Physics/Body/MotionProperties.h>
 #include <Jolt/Physics/Body/MotionQuality.h>
 #include <Jolt/Physics/Body/MotionType.h>
@@ -32,6 +33,11 @@
 #include <Jolt/Physics/Collision/Shape/Shape.h>
 #include <Jolt/Physics/Collision/Shape/SphereShape.h>
 #include <Jolt/Physics/Collision/Shape/TaperedCylinderShape.h>
+#include <Jolt/Physics/Constraints/DistanceConstraint.h>
+#include <Jolt/Physics/Constraints/FixedConstraint.h>
+#include <Jolt/Physics/Constraints/HingeConstraint.h>
+#include <Jolt/Physics/Constraints/PointConstraint.h>
+#include <Jolt/Physics/Constraints/SliderConstraint.h>
 
 #include <algorithm>
 #include <cmath>
@@ -61,11 +67,21 @@ constexpr int BODY_STATIC = 1;
 constexpr int BODY_DYNAMIC = 2;
 constexpr int BODY_KINEMATIC = 3;
 
+constexpr int JOINT_FIXED = 1;
+constexpr int JOINT_POINT = 2;
+constexpr int JOINT_HINGE = 3;
+constexpr int JOINT_SLIDER = 4;
+constexpr int JOINT_SPRING = 5;
+
 constexpr int AXIS_X = 1;
 constexpr int AXIS_Y = 2;
 constexpr int AXIS_Z = 3;
 
 constexpr float MIN_SHAPE_SIZE = 0.001F;
+constexpr float MIN_AXIS_LENGTH_SQUARED = 1.0e-6F;
+constexpr std::uint32_t MAX_BODIES = 131072;
+constexpr std::uint32_t MAX_BODY_PAIRS = 65536;
+constexpr std::uint32_t MAX_CONTACT_CONSTRAINTS = 10240;
 constexpr std::uint32_t DEFAULT_COLLISION_GROUP = 1;
 constexpr int RAY_HIT_FLOAT_COUNT = 8;
 constexpr int CONTACT_BODY_HANDLE_COUNT = 2;
@@ -135,6 +151,13 @@ struct BodyState {
     int axis = AXIS_Y;
 };
 
+struct JointState {
+    JPH::Ref<JPH::Constraint> constraint;
+    std::uint64_t body_a_handle = 0;
+    std::uint64_t body_b_handle = 0;
+    int joint_type = 0;
+};
+
 struct Space {
     JPH::BroadPhaseLayerInterfaceMask broad_phase_layer_interface;
     JPH::ObjectVsBroadPhaseLayerFilterMask object_vs_broadphase_layer_filter;
@@ -145,6 +168,7 @@ struct Space {
     JPH::JobSystemThreadPool job_system;
     std::unordered_map<std::uint64_t, BodyState> bodies;
     std::unordered_map<std::uint32_t, std::uint64_t> body_handles_by_jolt_id;
+    std::unordered_map<std::uint64_t, JointState> joints;
     std::mutex contact_mutex;
     std::vector<ContactRecord> contacts;
 
@@ -160,10 +184,10 @@ struct Space {
             JPH::BroadPhaseLayer(0),
             JPH::ObjectLayerPairFilterMask::cMask,
             0);
-        physics_system.Init(65536,
+        physics_system.Init(MAX_BODIES,
             0,
-            65536,
-            10240,
+            MAX_BODY_PAIRS,
+            MAX_CONTACT_CONSTRAINTS,
             broad_phase_layer_interface,
             object_vs_broadphase_layer_filter,
             object_layer_filter);
@@ -172,6 +196,12 @@ struct Space {
     }
 
     ~Space() {
+        for (auto& [_, joint] : joints) {
+            if (joint.constraint != nullptr) {
+                physics_system.RemoveConstraint(joint.constraint);
+            }
+        }
+        joints.clear();
         JPH::BodyInterface& body_interface = physics_system.GetBodyInterface();
         for (auto& [_, body] : bodies) {
             if (!body.body_id.IsInvalid()) {
@@ -190,12 +220,17 @@ struct Space {
     void erase_contact_records(const JPH::SubShapeIDPair& key);
 
     void erase_contact_records_for_body_handle(std::uint64_t body_handle);
+
+    void erase_constraints_for_body_handle(std::uint64_t body_handle);
+
+    bool remove_joint_handle(std::uint64_t joint_handle);
 };
 
 std::once_flag jolt_init_once;
 std::mutex registry_mutex;
 std::uint64_t next_space_handle = 1;
 std::uint64_t next_body_handle = 1001;
+std::uint64_t next_joint_handle = 2001;
 std::unordered_map<std::uint64_t, std::unique_ptr<Space>> spaces;
 
 void ensure_jolt_initialized() {
@@ -332,6 +367,162 @@ JPH::ShapeRefC create_shape(int shape_type,
     }
 }
 
+float finite_or(float value, float fallback) {
+    return std::isfinite(value) ? value : fallback;
+}
+
+float non_negative(float value) {
+    return std::max(0.0F, finite_or(value, 0.0F));
+}
+
+JPH::RVec3 local_point(float x, float y, float z) {
+    return JPH::RVec3(finite_or(x, 0.0F), finite_or(y, 0.0F), finite_or(z, 0.0F));
+}
+
+JPH::Vec3 normalized_axis(float x, float y, float z) {
+    x = finite_or(x, 0.0F);
+    y = finite_or(y, 1.0F);
+    z = finite_or(z, 0.0F);
+    const float length_squared = x * x + y * y + z * z;
+    if (!std::isfinite(length_squared) || length_squared <= MIN_AXIS_LENGTH_SQUARED) {
+        return JPH::Vec3::sAxisY();
+    }
+    const float inverse_length = 1.0F / std::sqrt(length_squared);
+    return JPH::Vec3(x * inverse_length, y * inverse_length, z * inverse_length);
+}
+
+JPH::Vec3 normal_for_axis(JPH::Vec3Arg axis) {
+    const JPH::Vec3 reference = std::fabs(axis.GetY()) < 0.9F
+        ? JPH::Vec3::sAxisY()
+        : JPH::Vec3::sAxisX();
+    JPH::Vec3 normal = axis.Cross(reference);
+    if (normal.LengthSq() <= MIN_AXIS_LENGTH_SQUARED) {
+        normal = axis.Cross(JPH::Vec3::sAxisZ());
+    }
+    return normal.LengthSq() <= MIN_AXIS_LENGTH_SQUARED
+        ? JPH::Vec3::sAxisX()
+        : normal.Normalized();
+}
+
+void configure_spring(JPH::SpringSettings& settings, float stiffness, float damping) {
+    const float clamped_stiffness = non_negative(stiffness);
+    if (clamped_stiffness <= 0.0F) {
+        return;
+    }
+    settings.mMode = JPH::ESpringMode::StiffnessAndDamping;
+    settings.mStiffness = clamped_stiffness;
+    settings.mDamping = non_negative(damping);
+}
+
+JPH::Ref<JPH::Constraint> create_joint_constraint(int joint_type,
+    JPH::Body& body_a,
+    JPH::Body& body_b,
+    float anchor_ax,
+    float anchor_ay,
+    float anchor_az,
+    float anchor_bx,
+    float anchor_by,
+    float anchor_bz,
+    float axis_x,
+    float axis_y,
+    float axis_z,
+    float rest_length,
+    float stiffness,
+    float damping,
+    float lower_limit,
+    float upper_limit,
+    int motor_enabled,
+    float motor_target_velocity,
+    float motor_max_force) {
+    const JPH::RVec3 anchor_a = local_point(anchor_ax, anchor_ay, anchor_az);
+    const JPH::RVec3 anchor_b = local_point(anchor_bx, anchor_by, anchor_bz);
+    const JPH::Vec3 axis = normalized_axis(axis_x, axis_y, axis_z);
+    const JPH::Vec3 normal = normal_for_axis(axis);
+    const float ordered_lower = std::min(finite_or(lower_limit, 0.0F),
+        finite_or(upper_limit, 0.0F));
+    const float ordered_upper = std::max(finite_or(lower_limit, 0.0F),
+        finite_or(upper_limit, 0.0F));
+    const bool explicit_limits = ordered_lower < ordered_upper;
+
+    switch (joint_type) {
+        case JOINT_FIXED: {
+            JPH::FixedConstraintSettings settings;
+            settings.mSpace = JPH::EConstraintSpace::LocalToBodyCOM;
+            settings.mAutoDetectPoint = false;
+            settings.mPoint1 = anchor_a;
+            settings.mPoint2 = anchor_b;
+            return settings.Create(body_a, body_b);
+        }
+        case JOINT_POINT: {
+            JPH::PointConstraintSettings settings;
+            settings.mSpace = JPH::EConstraintSpace::LocalToBodyCOM;
+            settings.mPoint1 = anchor_a;
+            settings.mPoint2 = anchor_b;
+            return settings.Create(body_a, body_b);
+        }
+        case JOINT_HINGE: {
+            JPH::HingeConstraintSettings settings;
+            settings.mSpace = JPH::EConstraintSpace::LocalToBodyCOM;
+            settings.mPoint1 = anchor_a;
+            settings.mPoint2 = anchor_b;
+            settings.mHingeAxis1 = settings.mHingeAxis2 = axis;
+            settings.mNormalAxis1 = settings.mNormalAxis2 = normal;
+            if (explicit_limits) {
+                settings.mLimitsMin = std::clamp(ordered_lower, -JPH::JPH_PI, 0.0F);
+                settings.mLimitsMax = std::clamp(ordered_upper, 0.0F, JPH::JPH_PI);
+            }
+            JPH::HingeConstraint* constraint =
+                static_cast<JPH::HingeConstraint*>(settings.Create(body_a, body_b));
+            if (constraint != nullptr && motor_enabled != 0) {
+                if (motor_max_force > 0.0F) {
+                    constraint->GetMotorSettings().SetTorqueLimit(motor_max_force);
+                }
+                constraint->SetMotorState(JPH::EMotorState::Velocity);
+                constraint->SetTargetAngularVelocity(finite_or(motor_target_velocity, 0.0F));
+            }
+            return constraint;
+        }
+        case JOINT_SLIDER: {
+            JPH::SliderConstraintSettings settings;
+            settings.mSpace = JPH::EConstraintSpace::LocalToBodyCOM;
+            settings.mAutoDetectPoint = false;
+            settings.mPoint1 = anchor_a;
+            settings.mPoint2 = anchor_b;
+            settings.mSliderAxis1 = settings.mSliderAxis2 = axis;
+            settings.mNormalAxis1 = settings.mNormalAxis2 = normal;
+            if (explicit_limits) {
+                settings.mLimitsMin = ordered_lower;
+                settings.mLimitsMax = ordered_upper;
+            }
+            JPH::SliderConstraint* constraint =
+                static_cast<JPH::SliderConstraint*>(settings.Create(body_a, body_b));
+            if (constraint != nullptr && motor_enabled != 0) {
+                if (motor_max_force > 0.0F) {
+                    constraint->GetMotorSettings().SetForceLimit(motor_max_force);
+                }
+                constraint->SetMotorState(JPH::EMotorState::Velocity);
+                constraint->SetTargetVelocity(finite_or(motor_target_velocity, 0.0F));
+            }
+            return constraint;
+        }
+        case JOINT_SPRING: {
+            JPH::DistanceConstraintSettings settings;
+            settings.mSpace = JPH::EConstraintSpace::LocalToBodyCOM;
+            settings.mPoint1 = anchor_a;
+            settings.mPoint2 = anchor_b;
+            const float rest = non_negative(rest_length);
+            if (rest > 0.0F) {
+                settings.mMinDistance = rest;
+                settings.mMaxDistance = rest;
+            }
+            configure_spring(settings.mLimitsSpringSettings, stiffness, damping);
+            return settings.Create(body_a, body_b);
+        }
+        default:
+            return nullptr;
+    }
+}
+
 void write_snapshot(Space& space, const BodyState& body, float* floats, int* ints) {
     JPH::BodyInterface& body_interface = space.physics_system.GetBodyInterface();
     JPH::RVec3 position = JPH::RVec3::sZero();
@@ -454,6 +645,32 @@ void Space::erase_contact_records_for_body_handle(std::uint64_t body_handle) {
                                || record.body_b_handle == body_handle;
                        }),
         contacts.end());
+}
+
+void Space::erase_constraints_for_body_handle(std::uint64_t body_handle) {
+    for (auto iterator = joints.begin(); iterator != joints.end();) {
+        JointState& joint = iterator->second;
+        if (joint.body_a_handle != body_handle && joint.body_b_handle != body_handle) {
+            ++iterator;
+            continue;
+        }
+        if (joint.constraint != nullptr) {
+            physics_system.RemoveConstraint(joint.constraint);
+        }
+        iterator = joints.erase(iterator);
+    }
+}
+
+bool Space::remove_joint_handle(std::uint64_t joint_handle) {
+    auto iterator = joints.find(joint_handle);
+    if (iterator == joints.end()) {
+        return false;
+    }
+    if (iterator->second.constraint != nullptr) {
+        physics_system.RemoveConstraint(iterator->second.constraint);
+    }
+    joints.erase(iterator);
+    return true;
 }
 
 void ImpulseContactListener::OnContactAdded(const JPH::Body& body1,
@@ -665,6 +882,7 @@ IMPULSE_JOLT_EXPORT int impulse_jolt_remove_body(std::int64_t space_handle, std:
     if (iterator == space->bodies.end()) {
         return 1;
     }
+    space->erase_constraints_for_body_handle(static_cast<std::uint64_t>(body_handle));
     JPH::BodyInterface& body_interface = space->physics_system.GetBodyInterface();
     if (body_interface.IsAdded(iterator->second.body_id)) {
         body_interface.RemoveBody(iterator->second.body_id);
@@ -1113,6 +1331,97 @@ IMPULSE_JOLT_EXPORT int impulse_jolt_contact_count(std::int64_t space_handle) {
     return static_cast<int>(space->contacts.size());
 }
 
+IMPULSE_JOLT_EXPORT std::int64_t impulse_jolt_create_joint(std::int64_t space_handle,
+    int joint_type,
+    std::int64_t body_a_handle,
+    std::int64_t body_b_handle,
+    float anchor_ax,
+    float anchor_ay,
+    float anchor_az,
+    float anchor_bx,
+    float anchor_by,
+    float anchor_bz,
+    float axis_x,
+    float axis_y,
+    float axis_z,
+    float rest_length,
+    float stiffness,
+    float damping,
+    float lower_limit,
+    float upper_limit,
+    int motor_enabled,
+    float motor_target_velocity,
+    float motor_max_force) {
+    std::lock_guard<std::mutex> lock(registry_mutex);
+    Space* space = find_space(static_cast<std::uint64_t>(space_handle));
+    if (space == nullptr || body_a_handle == body_b_handle) {
+        return 0;
+    }
+    BodyState* body_a = find_body(*space, static_cast<std::uint64_t>(body_a_handle));
+    BodyState* body_b = find_body(*space, static_cast<std::uint64_t>(body_b_handle));
+    if (body_a == nullptr || body_b == nullptr) {
+        return 0;
+    }
+
+    JPH::BodyID body_ids[] = {body_a->body_id, body_b->body_id};
+    JPH::BodyLockMultiWrite body_locks(space->physics_system.GetBodyLockInterface(),
+        body_ids,
+        2);
+    JPH::Body* locked_body_a = body_locks.GetBody(0);
+    JPH::Body* locked_body_b = body_locks.GetBody(1);
+    if (locked_body_a == nullptr || locked_body_b == nullptr) {
+        return 0;
+    }
+
+    JPH::Ref<JPH::Constraint> constraint = create_joint_constraint(joint_type,
+        *locked_body_a,
+        *locked_body_b,
+        anchor_ax,
+        anchor_ay,
+        anchor_az,
+        anchor_bx,
+        anchor_by,
+        anchor_bz,
+        axis_x,
+        axis_y,
+        axis_z,
+        rest_length,
+        stiffness,
+        damping,
+        lower_limit,
+        upper_limit,
+        motor_enabled,
+        motor_target_velocity,
+        motor_max_force);
+    if (constraint == nullptr) {
+        return 0;
+    }
+    body_locks.ReleaseLocks();
+
+    space->physics_system.AddConstraint(constraint);
+    space->physics_system.GetBodyInterface().ActivateBody(body_a->body_id);
+    space->physics_system.GetBodyInterface().ActivateBody(body_b->body_id);
+
+    const std::uint64_t joint_handle = next_joint_handle++;
+    JointState joint;
+    joint.constraint = constraint;
+    joint.body_a_handle = static_cast<std::uint64_t>(body_a_handle);
+    joint.body_b_handle = static_cast<std::uint64_t>(body_b_handle);
+    joint.joint_type = joint_type;
+    space->joints.emplace(joint_handle, joint);
+    return static_cast<std::int64_t>(joint_handle);
+}
+
+IMPULSE_JOLT_EXPORT int impulse_jolt_remove_joint(std::int64_t space_handle, std::int64_t joint_handle) {
+    std::lock_guard<std::mutex> lock(registry_mutex);
+    Space* space = find_space(static_cast<std::uint64_t>(space_handle));
+    if (space == nullptr) {
+        return 0;
+    }
+    space->remove_joint_handle(static_cast<std::uint64_t>(joint_handle));
+    return 1;
+}
+
 IMPULSE_JOLT_EXPORT int impulse_jolt_body_count(std::int64_t space_handle) {
     std::lock_guard<std::mutex> lock(registry_mutex);
     Space* space = find_space(static_cast<std::uint64_t>(space_handle));
@@ -1121,7 +1430,8 @@ IMPULSE_JOLT_EXPORT int impulse_jolt_body_count(std::int64_t space_handle) {
 
 IMPULSE_JOLT_EXPORT int impulse_jolt_joint_count(std::int64_t space_handle) {
     std::lock_guard<std::mutex> lock(registry_mutex);
-    return find_space(static_cast<std::uint64_t>(space_handle)) == nullptr ? 0 : 0;
+    Space* space = find_space(static_cast<std::uint64_t>(space_handle));
+    return space == nullptr ? 0 : static_cast<int>(space->joints.size());
 }
 
 } // extern "C"

@@ -51,7 +51,7 @@ public final class PhysicsStoreRowCleanup {
             return false;
         }
         PhysicsBackendRuntime backendRuntime = runtime.runtimeForJointRef(resolvedJointRef);
-        if (spaceHandle != null && backendRuntime != null) {
+        if (backendRuntime != null) {
             backendRuntime.removeJoint(spaceHandle.value(), jointHandle.value());
         }
         runtime.removeJointHandle(resolvedJointRef);

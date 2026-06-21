@@ -12,7 +12,9 @@ final class JoltTestNativeLibrary implements JoltNativeLibrary {
     private final Map<Long, SpaceState> spaces = new HashMap<>();
     private long nextSpaceHandle = 1L;
     private long nextBodyHandle = 1001L;
+    private long nextJointHandle = 2001L;
     private long lastRemovedBodyHandle;
+    private long lastRemovedJointHandle;
 
     @Override
     public long createSpace() {
@@ -100,7 +102,10 @@ final class JoltTestNativeLibrary implements JoltNativeLibrary {
 
     @Override
     public void removeBody(long spaceHandle, long bodyHandle) {
-        requireSpace(spaceHandle).bodies.remove(bodyHandle);
+        SpaceState space = requireSpace(spaceHandle);
+        space.bodies.remove(bodyHandle);
+        space.joints.values().removeIf(joint -> joint.bodyAHandle() == bodyHandle
+            || joint.bodyBHandle() == bodyHandle);
         lastRemovedBodyHandle = bodyHandle;
     }
 
@@ -254,7 +259,44 @@ final class JoltTestNativeLibrary implements JoltNativeLibrary {
 
     @Override
     public int jointCount(long spaceHandle) {
-        return 0;
+        return requireSpace(spaceHandle).joints.size();
+    }
+
+    @Override
+    public long createJoint(long spaceHandle,
+        int jointTypeCode,
+        long bodyAHandle,
+        long bodyBHandle,
+        float anchorAX,
+        float anchorAY,
+        float anchorAZ,
+        float anchorBX,
+        float anchorBY,
+        float anchorBZ,
+        float axisX,
+        float axisY,
+        float axisZ,
+        float restLength,
+        float stiffness,
+        float damping,
+        float lowerLimit,
+        float upperLimit,
+        boolean motorEnabled,
+        float motorTargetVelocity,
+        float motorMaxForce) {
+        SpaceState space = requireSpace(spaceHandle);
+        requireBody(spaceHandle, bodyAHandle);
+        requireBody(spaceHandle, bodyBHandle);
+        long jointHandle = nextJointHandle++;
+        space.joints.put(jointHandle,
+            new JointState(jointTypeCode, bodyAHandle, bodyBHandle));
+        return jointHandle;
+    }
+
+    @Override
+    public void removeJoint(long spaceHandle, long jointHandle) {
+        requireSpace(spaceHandle).joints.remove(jointHandle);
+        lastRemovedJointHandle = jointHandle;
     }
 
     @Override
@@ -361,12 +403,23 @@ final class JoltTestNativeLibrary implements JoltNativeLibrary {
             .orElseThrow();
     }
 
+    long nativeJointHandle(long spaceHandle, int index) {
+        return requireSpace(spaceHandle).joints.keySet().stream()
+            .skip(index)
+            .findFirst()
+            .orElseThrow();
+    }
+
     long firstSpaceHandle() {
         return spaces.keySet().iterator().next();
     }
 
     long lastRemovedBodyHandle() {
         return lastRemovedBodyHandle;
+    }
+
+    long lastRemovedJointHandle() {
+        return lastRemovedJointHandle;
     }
 
     BodyState body(long spaceHandle, long bodyHandle) {
@@ -406,9 +459,15 @@ final class JoltTestNativeLibrary implements JoltNativeLibrary {
     private static final class SpaceState {
 
         private final Map<Long, BodyState> bodies = new LinkedHashMap<>();
+        private final Map<Long, JointState> joints = new LinkedHashMap<>();
         private final float[] gravity = new float[] {0.0f, -9.81f, 0.0f};
         private final List<RayHit> rayHits = new ArrayList<>();
         private final List<Contact> contacts = new ArrayList<>();
+    }
+
+    private record JointState(int jointTypeCode,
+                              long bodyAHandle,
+                              long bodyBHandle) {
     }
 
     static final class BodyState {

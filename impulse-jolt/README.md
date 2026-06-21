@@ -62,6 +62,8 @@ library is expected to export these C ABI symbols:
 - `impulse_jolt_sleep_body`
 - `impulse_jolt_apply_body_impulse`
 - `impulse_jolt_apply_body_force`
+- `impulse_jolt_create_joint`
+- `impulse_jolt_remove_joint`
 - `impulse_jolt_raycast_closest`
 - `impulse_jolt_raycast_all`
 - `impulse_jolt_contacts`
@@ -69,20 +71,21 @@ library is expected to export these C ABI symbols:
 - `impulse_jolt_body_count`
 - `impulse_jolt_joint_count`
 
-Space lifecycle, gravity, stepping, body lifecycle/mutation/snapshots, raycasts, contact queries,
-body count, joint count, and runtime stats are wired through that ABI. Java-assigned body ids are
-stable within the runtime and map to opaque native body handles that wrap Jolt `BodyID` values.
-Query results map native body handles back to those Java-assigned ids before calling Impulse sinks.
+Space lifecycle, gravity, stepping, body lifecycle/mutation/snapshots, joint lifecycle, raycasts,
+contact queries, body count, joint count, and runtime stats are wired through that ABI.
+Java-assigned body and joint ids are stable within the runtime and map to opaque native handles
+that wrap Jolt `BodyID` and constraint values. Query results map native body handles back to those
+Java-assigned ids before calling Impulse sinks.
 The current native implementation uses Jolt `PhysicsSystem`/`BodyInterface` for real rigid body
 simulation, including broadphase, narrow phase, contact solving, gravity, forces, impulses,
 activation, sensor state, motion quality, friction, restitution, raycasts, and dynamic bodies
 resting on static collision. Contact queries are backed by a native Jolt `ContactListener` active
 contact registry.
 
-Joint, contact-event, voxel terrain, and advanced capability operations still fail or return
-explicit unsupported results until their native paths are implemented and tested. Jolt is staged as
-a backend provider jar for explicit runtime selection, but it is not production-complete until
-those paths and server runtime validation pass.
+Contact-event, voxel terrain, and advanced capability operations still fail or return explicit
+unsupported results until their native paths are implemented and tested. Jolt is staged as a backend
+provider jar for explicit runtime selection, but it is not production-complete until those paths and
+server runtime validation pass.
 
 `impulse_jolt_body_snapshot` writes two output buffers:
 

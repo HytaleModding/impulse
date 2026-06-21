@@ -142,6 +142,34 @@ interface JoltNativeLibrary {
         throw unsupportedBodyAbi();
     }
 
+    default long createJoint(long spaceHandle,
+        int jointTypeCode,
+        long bodyAHandle,
+        long bodyBHandle,
+        float anchorAX,
+        float anchorAY,
+        float anchorAZ,
+        float anchorBX,
+        float anchorBY,
+        float anchorBZ,
+        float axisX,
+        float axisY,
+        float axisZ,
+        float restLength,
+        float stiffness,
+        float damping,
+        float lowerLimit,
+        float upperLimit,
+        boolean motorEnabled,
+        float motorTargetVelocity,
+        float motorMaxForce) {
+        throw unsupportedJointAbi();
+    }
+
+    default void removeJoint(long spaceHandle, long jointHandle) {
+        throw unsupportedJointAbi();
+    }
+
     default int raycastClosest(long spaceHandle,
         float fromX,
         float fromY,
@@ -188,5 +216,9 @@ interface JoltNativeLibrary {
 
     private static UnsupportedOperationException unsupportedQueryAbi() {
         return new UnsupportedOperationException("Jolt native query ABI is not implemented");
+    }
+
+    private static UnsupportedOperationException unsupportedJointAbi() {
+        return new UnsupportedOperationException("Jolt native joint ABI is not implemented");
     }
 }

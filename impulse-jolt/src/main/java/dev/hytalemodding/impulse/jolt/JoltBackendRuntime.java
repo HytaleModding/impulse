@@ -8,6 +8,7 @@ import dev.hytalemodding.impulse.api.runtime.BackendBodyIdSource;
 import dev.hytalemodding.impulse.api.runtime.BackendBodySnapshotSink;
 import dev.hytalemodding.impulse.api.runtime.BackendContactSink;
 import dev.hytalemodding.impulse.api.runtime.BackendExtensionSettingsSource;
+import dev.hytalemodding.impulse.api.runtime.BackendJointType;
 import dev.hytalemodding.impulse.api.runtime.BackendRuntimeCodes;
 import dev.hytalemodding.impulse.api.runtime.BackendRayHitSink;
 import dev.hytalemodding.impulse.api.runtime.BackendRuntimeStatsSink;
@@ -199,6 +200,7 @@ final class JoltBackendRuntime implements PhysicsBackendRuntime {
         if (bodyHandle != null) {
             space.bodyIdsByHandle.remove(bodyHandle);
             nativeLibrary().removeBody(space.handle, bodyHandle);
+            removeAttachedJointState(space, bodyId);
         }
     }
 
@@ -430,38 +432,74 @@ final class JoltBackendRuntime implements PhysicsBackendRuntime {
         boolean motorEnabled,
         float motorTargetVelocity,
         float motorMaxForce) {
-        requireSpaceHandle(spaceId);
-        BackendRuntimeCodes.jointType(jointTypeCode);
-        throw unsupported();
+        RuntimeSpace space = requireSpace(spaceId);
+        BackendJointType type = BackendRuntimeCodes.jointType(jointTypeCode);
+        if (bodyAId == bodyBId) {
+            throw new IllegalArgumentException("Jolt joint endpoints must reference distinct bodies");
+        }
+        long bodyAHandle = requireBodyHandle(space, bodyAId);
+        long bodyBHandle = requireBodyHandle(space, bodyBId);
+        NormalizedAxis axis = normalizeAxis(axisX, axisY, axisZ);
+        long jointHandle = nativeLibrary().createJoint(space.handle,
+            BackendRuntimeCodes.jointTypeCode(type),
+            bodyAHandle,
+            bodyBHandle,
+            anchorAX,
+            anchorAY,
+            anchorAZ,
+            anchorBX,
+            anchorBY,
+            anchorBZ,
+            axis.x,
+            axis.y,
+            axis.z,
+            restLength,
+            stiffness,
+            damping,
+            lowerLimit,
+            upperLimit,
+            motorEnabled,
+            motorTargetVelocity,
+            motorMaxForce);
+        if (jointHandle == 0L) {
+            throw new IllegalStateException("Jolt native library returned a null joint handle");
+        }
+        long jointId = space.nextJointId++;
+        space.jointsById.put(jointId, new JointState(jointHandle,
+            jointTypeCode,
+            bodyAId,
+            bodyBId));
+        return jointId;
     }
 
     @Override
     public void removeJoint(int spaceId, long jointId) {
-        requireSpaceHandle(spaceId);
-        throw unsupported();
+        RuntimeSpace space = requireSpace(spaceId);
+        JointState joint = space.jointsById.get(jointId);
+        if (joint != null) {
+            nativeLibrary().removeJoint(space.handle, joint.nativeJointHandle);
+            space.jointsById.remove(jointId);
+        }
     }
 
     @Override
     public int jointCount(int spaceId) {
-        return nativeLibrary().jointCount(requireSpaceHandle(spaceId));
+        return requireSpace(spaceId).jointsById.size();
     }
 
     @Override
     public int jointType(int spaceId, long jointId) {
-        requireSpaceHandle(spaceId);
-        throw unsupported();
+        return requireJoint(requireSpace(spaceId), jointId).jointTypeCode;
     }
 
     @Override
     public long jointBodyA(int spaceId, long jointId) {
-        requireSpaceHandle(spaceId);
-        throw unsupported();
+        return requireJoint(requireSpace(spaceId), jointId).bodyAId;
     }
 
     @Override
     public long jointBodyB(int spaceId, long jointId) {
-        requireSpaceHandle(spaceId);
-        throw unsupported();
+        return requireJoint(requireSpace(spaceId), jointId).bodyBId;
     }
 
     @Override
@@ -648,6 +686,20 @@ final class JoltBackendRuntime implements PhysicsBackendRuntime {
         return bodyHandle;
     }
 
+    @Nonnull
+    private static JointState requireJoint(@Nonnull RuntimeSpace space, long jointId) {
+        JointState joint = space.jointsById.get(jointId);
+        if (joint == null) {
+            throw new IllegalArgumentException("Unknown Jolt joint id: " + jointId);
+        }
+        return joint;
+    }
+
+    private static void removeAttachedJointState(@Nonnull RuntimeSpace space, long bodyId) {
+        space.jointsById.values().removeIf(joint -> joint.bodyAId == bodyId
+            || joint.bodyBId == bodyId);
+    }
+
     private void emitBodySnapshotIfPresent(@Nonnull RuntimeSpace space,
         long bodyId,
         @Nonnull BackendBodySnapshotSink sink) {
@@ -732,6 +784,18 @@ final class JoltBackendRuntime implements PhysicsBackendRuntime {
     }
 
     @Nonnull
+    private static NormalizedAxis normalizeAxis(float axisX, float axisY, float axisZ) {
+        float lengthSquared = axisX * axisX + axisY * axisY + axisZ * axisZ;
+        if (lengthSquared == 0.0f) {
+            return new NormalizedAxis(0.0f, 1.0f, 0.0f);
+        }
+        float inverseLength = (float) (1.0 / Math.sqrt(lengthSquared));
+        return new NormalizedAxis(axisX * inverseLength,
+            axisY * inverseLength,
+            axisZ * inverseLength);
+    }
+
+    @Nonnull
     private JoltNativeLibrary nativeLibrary() {
         return fixedNativeLibrary != null ? fixedNativeLibrary : backend.nativeLibrary();
     }
@@ -740,12 +804,23 @@ final class JoltBackendRuntime implements PhysicsBackendRuntime {
         return new UnsupportedOperationException(UNSUPPORTED_MESSAGE);
     }
 
+    private record NormalizedAxis(float x, float y, float z) {
+    }
+
+    private record JointState(long nativeJointHandle,
+                              int jointTypeCode,
+                              long bodyAId,
+                              long bodyBId) {
+    }
+
     private static final class RuntimeSpace {
 
         private final long handle;
         private final Map<Long, Long> bodyHandles = new HashMap<>();
         private final Map<Long, Long> bodyIdsByHandle = new HashMap<>();
+        private final Map<Long, JointState> jointsById = new HashMap<>();
         private long nextBodyId = 1L;
+        private long nextJointId = 1L;
 
         private RuntimeSpace(long handle) {
             this.handle = handle;
