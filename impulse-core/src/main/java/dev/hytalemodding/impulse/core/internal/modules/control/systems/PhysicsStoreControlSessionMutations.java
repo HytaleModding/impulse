@@ -6,14 +6,15 @@ import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
-import dev.hytalemodding.impulse.core.plugin.physics.PhysicsThreading;
 import dev.hytalemodding.impulse.core.internal.modules.control.components.PhysicsControlSessionComponent;
+import dev.hytalemodding.impulse.core.internal.physics.PhysicsStoreRowCleanup;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsIdentityIndexResource;
 import dev.hytalemodding.impulse.core.plugin.components.BodyCommandComponent;
 import dev.hytalemodding.impulse.core.plugin.components.BodyComponent;
 import dev.hytalemodding.impulse.core.plugin.components.JointComponent;
 import dev.hytalemodding.impulse.core.plugin.components.UuidComponent;
 import dev.hytalemodding.impulse.core.plugin.physics.PhysicsBodies;
+import dev.hytalemodding.impulse.core.plugin.physics.PhysicsThreading;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.joml.Vector3f;
@@ -50,7 +51,7 @@ public final class PhysicsStoreControlSessionMutations {
 
         Ref<PhysicsStore> anchorBodyRef = session.getAnchorBodyRef();
         if (anchorBodyRef != null) {
-            removeRow(physicsStore, anchorBodyRef);
+            removeBodyRow(physicsStore, anchorBodyRef);
         }
     }
 
@@ -82,6 +83,19 @@ public final class PhysicsStoreControlSessionMutations {
         JointComponent disabled = joint.clone();
         disabled.setEnabled(false);
         store.putComponent(ref, JointComponent.getComponentType(), disabled);
+    }
+
+    private static void removeBodyRow(@Nonnull Store<PhysicsStore> store,
+        @Nonnull Ref<PhysicsStore> ref) {
+        if (!isValidStoreRef(store, ref)) {
+            return;
+        }
+        UuidComponent uuid = store.getComponent(ref, UuidComponent.getComponentType());
+        if (uuid == null) {
+            removeRow(store, ref);
+            return;
+        }
+        PhysicsStoreRowCleanup.removeBodyEntity(store, uuid.getUuid(), ref, null);
     }
 
     private static void removeRow(@Nonnull Store<PhysicsStore> store,
