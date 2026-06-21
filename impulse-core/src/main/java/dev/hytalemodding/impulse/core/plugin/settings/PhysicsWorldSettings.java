@@ -20,6 +20,10 @@ public class PhysicsWorldSettings {
     @Nonnull
     public static final PhysicsStepSchedulingMode DEFAULT_STEP_SCHEDULING_MODE =
         PhysicsStepSchedulingMode.DROP_PENDING_DT;
+    /**
+     * @deprecated Physics event plugin API is deprecated without replacement.
+     */
+    @Deprecated(since = "0.1.0", forRemoval = false)
     @Nonnull
     public static final PhysicsEventCollectionMode DEFAULT_EVENT_COLLECTION_MODE =
         PhysicsEventCollectionMode.DISABLED;
@@ -83,11 +87,19 @@ public class PhysicsWorldSettings {
             "stepSchedulingMode");
     }
 
+    /**
+     * @deprecated Physics event plugin API is deprecated without replacement.
+     */
+    @Deprecated(since = "0.1.0", forRemoval = false)
     @Nonnull
     public PhysicsEventCollectionMode getEventCollectionMode() {
         return eventCollectionMode;
     }
 
+    /**
+     * @deprecated Physics event plugin API is deprecated without replacement.
+     */
+    @Deprecated(since = "0.1.0", forRemoval = false)
     public void setEventCollectionMode(@Nonnull PhysicsEventCollectionMode eventCollectionMode) {
         this.eventCollectionMode = Objects.requireNonNull(eventCollectionMode,
             "eventCollectionMode");

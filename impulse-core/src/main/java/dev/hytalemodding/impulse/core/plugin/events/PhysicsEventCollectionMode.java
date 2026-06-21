@@ -5,16 +5,21 @@ import javax.annotation.Nonnull;
 
 /**
  * Controls which backend physics events are collected during store tick steps.
+ *
+ * @deprecated Physics event plugin API is deprecated without replacement.
  */
+@Deprecated(since = "0.1.0", forRemoval = false)
 public enum PhysicsEventCollectionMode {
     /**
      * Steps physics spaces without collecting backend event batches.
      */
+    @Deprecated(since = "0.1.0", forRemoval = false)
     DISABLED("disabled"),
 
     /**
      * Collects backend contact events and publishes stable physics event frames.
      */
+    @Deprecated(since = "0.1.0", forRemoval = false)
     CONTACTS("contacts");
 
     @Nonnull

@@ -14,7 +14,10 @@ import javax.annotation.Nonnull;
  * @param bodyCount number of body snapshots captured in the frame
  * @param stepNanos profiled step duration, or {@code 0} when profiling was disabled
  * @param snapshotNanos profiled snapshot capture duration, or {@code 0} when profiling was disabled
+ *
+ * @deprecated Physics event plugin API is deprecated without replacement.
  */
+@Deprecated(since = "0.1.0", forRemoval = false)
 public record PhysicsStepEvent(long stepSequence,
                                long serverTick,
                                long snapshotFrameEpoch,

@@ -25,7 +25,10 @@ import javax.annotation.Nullable;
  * @param snapshotPublications copied reader-side snapshot-publication events in this frame
  * @param physicsEvents copied stable physics events in this frame
  * @param droppedBackendEventCount backend events dropped while bounded buffers were full
+ *
+ * @deprecated Physics event plugin API is deprecated without replacement.
  */
+@Deprecated(since = "0.1.0", forRemoval = false)
 public record PhysicsEventFrame(long frameSequence,
                                 long worldEpoch,
                                 long latestCapturedSnapshotFrameEpoch,

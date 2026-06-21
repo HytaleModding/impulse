@@ -12,7 +12,10 @@ package dev.hytalemodding.impulse.core.plugin.events;
  * @param publicationNanoTime monotonic nano time sampled when this publication event was created,
  *     or {@code 0} when unavailable
  * @param appliedBodyCount number of body snapshots applied to reader-side stores
+ *
+ * @deprecated Physics event plugin API is deprecated without replacement.
  */
+@Deprecated(since = "0.1.0", forRemoval = false)
 public record PhysicsSnapshotPublicationEvent(long snapshotFrameEpoch,
                                               long worldEpoch,
                                               long stepSequence,

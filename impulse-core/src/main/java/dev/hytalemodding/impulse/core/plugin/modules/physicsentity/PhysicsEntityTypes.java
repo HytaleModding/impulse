@@ -40,6 +40,10 @@ public final class PhysicsEntityTypes {
         return PhysicsEntityTypeRegistry.generatedVisualProxyComponentType();
     }
 
+    /**
+     * @deprecated Physics event plugin API is deprecated without replacement.
+     */
+    @Deprecated(since = "0.1.0", forRemoval = false)
     @Nonnull
     public static WorldEventType<EntityStore, PhysicsEventFramePublishedEvent> physicsEventFramePublishedEventType() {
         return PhysicsEntityTypeRegistry.physicsEventFramePublishedEventType();

@@ -6,7 +6,10 @@ import javax.annotation.Nonnull;
 
 /**
  * Hytale world event published once for each Impulse physics event frame.
+ *
+ * @deprecated Physics event plugin API is deprecated without replacement.
  */
+@Deprecated(since = "0.1.0", forRemoval = false)
 public final class PhysicsEventFramePublishedEvent extends EcsEvent {
 
     @Nonnull

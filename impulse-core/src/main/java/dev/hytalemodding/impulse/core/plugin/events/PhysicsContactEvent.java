@@ -9,7 +9,10 @@ import org.joml.Vector3f;
 
 /**
  * Stable contact event copied from a backend event batch.
+ *
+ * @deprecated Physics event plugin API is deprecated without replacement.
  */
+@Deprecated(since = "0.1.0", forRemoval = false)
 public record PhysicsContactEvent(@Nonnull SpaceId spaceId,
                                   @Nonnull PhysicsContactPhase phase,
                                   @Nonnull UUID bodyAUuid,

@@ -24,6 +24,10 @@ public final class PhysicsWorlds {
     private PhysicsWorlds() {
     }
 
+    /**
+     * @deprecated Physics event plugin API is deprecated without replacement.
+     */
+    @Deprecated(since = "0.1.0", forRemoval = false)
     @Nonnull
     public static PhysicsEventFrame latestEventFrame(@Nonnull Store<PhysicsStore> store) {
         Store<PhysicsStore> checkedStore = requireWorldThread(store,
@@ -31,6 +35,10 @@ public final class PhysicsWorlds {
         return checkedStore.getResource(PhysicsEventResource.getResourceType()).getLatestFrame();
     }
 
+    /**
+     * @deprecated Physics event plugin API is deprecated without replacement.
+     */
+    @Deprecated(since = "0.1.0", forRemoval = false)
     @Nonnull
     public static CompletionStage<PhysicsEventFrame> latestEventFrameAsync(
         @Nonnull World world) {
