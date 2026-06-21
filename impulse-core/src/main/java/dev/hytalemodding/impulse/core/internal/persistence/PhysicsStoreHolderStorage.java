@@ -29,7 +29,7 @@ import org.bson.BsonValue;
  */
 public final class PhysicsStoreHolderStorage {
 
-    private static final int SCHEMA_VERSION = 1;
+    public static final int SCHEMA_VERSION = 1;
     private static final String DIRECTORY = "physicsstore";
     private static final String FILE_NAME = "holders.bson";
     private static final String SCHEMA_VERSION_FIELD = "SchemaVersion";
@@ -48,19 +48,13 @@ public final class PhysicsStoreHolderStorage {
         List<byte[]> holderBlobs = PhysicsStoreHolderPersistence.capturePersistentHolderBlobs(
             store);
         byte[] document = BsonUtil.writeToBytes(document(holderBlobs));
-        Path file = fileOrNull(store.getExternalData());
-        if (file == null) {
-            return CompletableFuture.completedFuture(null);
-        }
+        Path file = file(store.getExternalData());
         return CompletableFuture.runAsync(() -> writeBinaryAtomic(file, document));
     }
 
     @Nonnull
     public static LoadResult load(@Nonnull Store<PhysicsStore> store) {
-        Path file = fileOrNull(store.getExternalData());
-        if (file == null) {
-            return LoadResult.missing();
-        }
+        Path file = file(store.getExternalData());
         if (!Files.exists(file)) {
             return LoadResult.missing();
         }
@@ -104,8 +98,8 @@ public final class PhysicsStoreHolderStorage {
 
     @Nonnull
     public static Summary summary(@Nonnull Store<PhysicsStore> store) {
-        Path file = fileOrNull(store.getExternalData());
-        if (file == null || !Files.exists(file)) {
+        Path file = file(store.getExternalData());
+        if (!Files.exists(file)) {
             return Summary.missing();
         }
         BsonDocument document;
@@ -146,13 +140,13 @@ public final class PhysicsStoreHolderStorage {
 
     @Nonnull
     static Path file(@Nonnull PhysicsStore physicsStore) {
-        return physicsStore.getWorld().getSavePath().resolve(DIRECTORY).resolve(FILE_NAME);
+        Path savePath = physicsStore.getWorld().getSavePath();
+        return primaryFile(savePath);
     }
 
-    @Nullable
-    private static Path fileOrNull(@Nonnull PhysicsStore physicsStore) {
-        Path savePath = physicsStore.getWorld().getSavePath();
-        return savePath != null ? savePath.resolve(DIRECTORY).resolve(FILE_NAME) : null;
+    @Nonnull
+    private static Path primaryFile(@Nonnull Path savePath) {
+        return savePath.resolve(DIRECTORY).resolve(FILE_NAME);
     }
 
     @Nonnull

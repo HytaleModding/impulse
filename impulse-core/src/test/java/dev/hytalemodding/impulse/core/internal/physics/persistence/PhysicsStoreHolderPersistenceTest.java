@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.hypixel.hytale.codec.ExtraInfo;
 import com.hypixel.hytale.component.AddReason;
 import com.hypixel.hytale.component.ComponentRegistry;
 import com.hypixel.hytale.component.ComponentRegistryProxy;
@@ -69,8 +68,11 @@ import java.util.function.BiConsumer;
 import javax.annotation.Nonnull;
 import org.bson.BsonArray;
 import org.bson.BsonBinary;
+import org.bson.BsonBinarySubType;
 import org.bson.BsonDocument;
+import org.bson.BsonDouble;
 import org.bson.BsonInt32;
+import org.bson.BsonString;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 import org.junit.jupiter.api.Test;
@@ -152,7 +154,7 @@ class PhysicsStoreHolderPersistenceTest {
     }
 
     @Test
-    void hydrationPrefersHolderStorageOverLegacyDtoResource() {
+    void holderHydrationIgnoresLegacyDtoFileWhenHolderStorageExists() {
         StoreFixture source = store("holder-save-source", tempDir.resolve("save"));
         try {
             Ref<PhysicsStore> spaceRef = addSpace(source.store(), SPACE_UUID);
@@ -167,10 +169,7 @@ class PhysicsStoreHolderPersistenceTest {
 
         StoreFixture target = store("holder-save-target", tempDir.resolve("save"));
         try {
-            Impulse.registerRuntimeProvider(new FakePhysicsBackendRuntimeProvider(
-                "test:legacy-holder-fallback"));
-            writeLegacyDto(target.store(),
-                legacyResource(LEGACY_SPACE_UUID, "test:legacy-holder-fallback"));
+            writeLegacyDtoFile(target.store());
 
             new PersistenceHydrationSystem().tick(0.0f, 0, target.store());
 
@@ -188,13 +187,47 @@ class PhysicsStoreHolderPersistenceTest {
     }
 
     @Test
-    void hydrationFallsBackToLegacyDtoWhenHolderStorageIsMissing() {
+    void holderStorageUsesWorldOwnedPhysicsStoreDirectory() {
+        Path savePath = tempDir.resolve("storage-layout");
+        StoreFixture fixture = store("storage-layout", savePath);
+        try {
+            Path file = PhysicsStoreHolderStorage.file(fixture.store().getExternalData());
+
+            assertEquals(savePath.resolve("physicsstore").resolve("holders.bson"),
+                file);
+        } finally {
+            fixture.close();
+        }
+    }
+
+    @Test
+    void holderSaveCreatesWorldOwnedPhysicsStoreDirectory() {
+        Path savePath = tempDir.resolve("chunk-shaped-layout");
+        StoreFixture fixture = store("chunk-shaped-layout", savePath);
+        try {
+            Ref<PhysicsStore> spaceRef = addSpace(fixture.store(), SPACE_UUID);
+            addBody(fixture.store(),
+                BODY_A_UUID,
+                spaceRef,
+                null);
+
+            PhysicsStoreHolderStorage.save(fixture.store()).join();
+
+            assertTrue(Files.exists(savePath.resolve("physicsstore")
+                .resolve("holders.bson")));
+            assertTrue(Files.exists(savePath.resolve("physicsstore")));
+            assertFalse(Files.exists(savePath.resolve("resources")
+                .resolve("PhysicsStoreHolders.bson")));
+        } finally {
+            fixture.close();
+        }
+    }
+
+    @Test
+    void hydrationIgnoresLegacyDtoWhenHolderStorageIsMissing() {
         StoreFixture fixture = store("legacy-fallback", tempDir.resolve("legacy"));
         try {
-            Impulse.registerRuntimeProvider(new FakePhysicsBackendRuntimeProvider(
-                "test:legacy-only-fallback"));
-            writeLegacyDto(fixture.store(),
-                legacyResource(LEGACY_SPACE_UUID, "test:legacy-only-fallback"));
+            writeLegacyDtoFile(fixture.store());
 
             new PersistenceHydrationSystem().tick(0.0f, 0, fixture.store());
 
@@ -203,34 +236,8 @@ class PhysicsStoreHolderPersistenceTest {
             assertTrue(restore.isHydrated());
             assertFalse(restore.isFailed());
             List<UUID> rowUuids = rowUuids(fixture.store());
-            assertTrue(rowUuids.contains(LEGACY_SPACE_UUID));
+            assertFalse(rowUuids.contains(LEGACY_SPACE_UUID));
             assertFalse(rowUuids.contains(SPACE_UUID));
-        } finally {
-            fixture.close();
-        }
-    }
-
-    @Test
-    void registeredPhysicsStoreTickDoesNotRewriteLegacyDtoResource() {
-        StoreFixture fixture = registeredStore("registered-no-dto-capture",
-            tempDir.resolve("registered"));
-        try {
-            fixture.store()
-                .getResource(PersistentPhysicsStoreResource.getResourceType())
-                .setSpaces(new PersistentSpaceDto[] {
-                    new PersistentSpaceDto(LEGACY_SPACE_UUID,
-                        "test:legacy-sentinel",
-                        new Vector3f(0.0f, -9.81f, 0.0f))
-                });
-            addSpace(fixture.store(), SPACE_UUID);
-
-            fixture.store().tick(0.0f);
-
-            PersistentSpaceDto[] spaces = fixture.store()
-                .getResource(PersistentPhysicsStoreResource.getResourceType())
-                .getSpaces();
-            assertEquals(1, spaces.length);
-            assertEquals(LEGACY_SPACE_UUID, spaces[0].getSpaceUuid());
         } finally {
             fixture.close();
         }
@@ -527,26 +534,59 @@ class PhysicsStoreHolderPersistenceTest {
                     true))));
     }
 
-    @Nonnull
-    private static PersistentPhysicsStoreResource legacyResource(@Nonnull UUID spaceUuid,
-        @Nonnull String backendId) {
-        PersistentPhysicsStoreResource legacy = new PersistentPhysicsStoreResource();
-        legacy.setSpaces(new PersistentSpaceDto[] {
-            new PersistentSpaceDto(spaceUuid,
-                backendId,
-                new Vector3f(0.0f, -9.81f, 0.0f))
-        });
-        return legacy;
+    private static void writeLegacyDtoFile(@Nonnull Store<PhysicsStore> store) {
+        Path file = store.getExternalData()
+            .getWorld()
+            .getSavePath()
+            .resolve("resources")
+            .resolve("PersistentPhysicsStore.json");
+        BsonDocument space = new BsonDocument()
+            .append("SpaceUuid", uuidBinary(LEGACY_SPACE_UUID))
+            .append("BackendId", new BsonString("test:legacy-only-fallback"))
+            .append("Gravity", vector(0.0f, -9.81f, 0.0f));
+        BsonDocument document = new BsonDocument()
+            .append("SchemaVersion", new BsonInt32(2))
+            .append("Spaces", new BsonArray(List.of(space)));
+        try {
+            Files.createDirectories(file.getParent());
+            Files.write(file, BsonUtil.writeToBytes(document));
+        } catch (IOException exception) {
+            throw new AssertionError("Failed to write legacy DTO fixture", exception);
+        }
     }
 
-    private static void writeLegacyDto(@Nonnull Store<PhysicsStore> store,
-        @Nonnull PersistentPhysicsStoreResource legacy) {
-        BsonUtil.writeDocument(PersistentPhysicsStoreStorage.file(store.getExternalData()),
-            PersistentPhysicsStoreResource.CODEC.encode(legacy, new ExtraInfo()).asDocument(),
-            false).join();
+    @Nonnull
+    private static BsonBinary uuidBinary(@Nonnull UUID uuid) {
+        byte[] bytes = new byte[16];
+        writeLongBigEndian(bytes, 0, uuid.getMostSignificantBits());
+        writeLongBigEndian(bytes, 8, uuid.getLeastSignificantBits());
+        return new BsonBinary(BsonBinarySubType.UUID_STANDARD, bytes);
+    }
+
+    private static void writeLongBigEndian(@Nonnull byte[] bytes, int offset, long value) {
+        for (int index = 7; index >= 0; index--) {
+            bytes[offset + index] = (byte) value;
+            value >>>= 8;
+        }
+    }
+
+    @Nonnull
+    private static BsonDocument vector(float x, float y, float z) {
+        return new BsonDocument()
+            .append("X", new BsonDouble(x))
+            .append("Y", new BsonDouble(y))
+            .append("Z", new BsonDouble(z));
     }
 
     private static void writeHolderStorage(@Nonnull Store<PhysicsStore> store,
+        @Nonnull List<Holder<PhysicsStore>> holders) {
+        writeHolderStorageFile(PhysicsStoreHolderStorage.file(store.getExternalData()),
+            store,
+            holders);
+    }
+
+    private static void writeHolderStorageFile(@Nonnull Path file,
+        @Nonnull Store<PhysicsStore> store,
         @Nonnull List<Holder<PhysicsStore>> holders) {
         BsonArray holderBlobs = new BsonArray();
         for (Holder<PhysicsStore> holder : holders) {
@@ -556,7 +596,6 @@ class PhysicsStoreHolderPersistenceTest {
         BsonDocument document = new BsonDocument()
             .append("SchemaVersion", new BsonInt32(1))
             .append("Holders", holderBlobs);
-        Path file = PhysicsStoreHolderStorage.file(store.getExternalData());
         try {
             Path parent = file.getParent();
             if (parent != null) {

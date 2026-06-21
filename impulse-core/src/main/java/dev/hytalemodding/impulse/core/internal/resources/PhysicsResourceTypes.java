@@ -3,7 +3,6 @@ package dev.hytalemodding.impulse.core.internal.resources;
 import com.hypixel.hytale.component.ComponentRegistryProxy;
 import com.hypixel.hytale.component.ResourceType;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
-import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsStoreResource;
 import dev.hytalemodding.impulse.core.internal.physics.resources.PhysicsDebugResource;
 
 import javax.annotation.Nonnull;
@@ -31,8 +30,6 @@ public final class PhysicsResourceTypes {
     private static ResourceType<PhysicsStore, PhysicsEventResource> eventResourceType;
     @Nullable
     private static ResourceType<PhysicsStore, PhysicsStoreReadQueueResource> readQueueResourceType;
-    @Nullable
-    private static ResourceType<PhysicsStore, PersistentPhysicsStoreResource> persistentStoreResourceType;
     @Nullable
     private static ResourceType<PhysicsStore, PhysicsRestoreStatusResource> restoreStatusResourceType;
     @Nullable
@@ -70,9 +67,6 @@ public final class PhysicsResourceTypes {
         readQueueResourceType = registry.registerResource(
             PhysicsStoreReadQueueResource.class,
             PhysicsStoreReadQueueResource::new);
-        persistentStoreResourceType = registry.registerResource(
-            PersistentPhysicsStoreResource.class,
-            PersistentPhysicsStoreResource::new);
         restoreStatusResourceType = registry.registerResource(
             PhysicsRestoreStatusResource.class,
             PhysicsRestoreStatusResource::new);
@@ -123,11 +117,6 @@ public final class PhysicsResourceTypes {
     @Nonnull
     public static ResourceType<PhysicsStore, PhysicsStoreReadQueueResource> readQueueResourceType() {
         return readQueueResourceType;
-    }
-
-    @Nonnull
-    public static ResourceType<PhysicsStore, PersistentPhysicsStoreResource> persistentStoreResourceType() {
-        return persistentStoreResourceType;
     }
 
     @Nonnull

@@ -3,8 +3,6 @@ package dev.hytalemodding.impulse.core.plugin.persistence;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
-import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsStoreResource;
-import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsStoreStorage;
 import dev.hytalemodding.impulse.core.internal.persistence.PhysicsStoreHolderStorage;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRestoreStatusResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceCompatibilityIndexResource;
@@ -22,7 +20,7 @@ import javax.annotation.Nonnull;
 public final class PhysicsPersistence {
 
     public static final int CURRENT_SCHEMA_VERSION =
-        PersistentPhysicsStoreResource.CURRENT_SCHEMA_VERSION;
+        PhysicsStoreHolderStorage.SCHEMA_VERSION;
     private static final String SAVE_SKIPPED_REASON =
         "authoritative-physics-store-holder-save-hook";
     private static final String RESTORE_SKIPPED_REASON =
@@ -142,13 +140,7 @@ public final class PhysicsPersistence {
                 holderSummary.bodies(),
                 holderSummary.joints());
         }
-        PersistentPhysicsStoreStorage.LoadResult legacy = PersistentPhysicsStoreStorage.load(
-            physicsStore);
-        PersistentPhysicsStoreResource resource = legacy.resource();
-        return new SavedStateSummary(resource.getSchemaVersion(),
-            resource.getSpaces().length,
-            resource.getBodies().length,
-            resource.getJoints().length);
+        return new SavedStateSummary(CURRENT_SCHEMA_VERSION, 0, 0, 0);
     }
 
     @Nonnull
