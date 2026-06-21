@@ -60,6 +60,97 @@ class PhysicsStepSchedulerResourceTest {
     }
 
     @Test
+    void dropPendingDtDoesNotCatchUpWithLargePostSkipDt() throws Exception {
+        PhysicsStepSchedulerResource scheduler = new PhysicsStepSchedulerResource();
+        CountDownLatch entered = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+
+        PhysicsStepSchedulerResource.StepInput input = scheduler.acceptStepInput(0.05f,
+            PhysicsStepSchedulingMode.DROP_PENDING_DT,
+            0.50f);
+        assertEquals(0.05f, input.submittedDtSeconds(), 0.0001f);
+        assertTrue(scheduler.submitStep(input, () -> {
+            entered.countDown();
+            awaitOrFail(release);
+            return new PhysicsStepSchedulerResource.CompletedStep(1,
+                1,
+                10L,
+                PhysicsStepPhaseStats.unavailable());
+        }, 10L));
+        assertTrue(entered.await(5, TimeUnit.SECONDS));
+
+        PhysicsStepSchedulerResource.TickDecision skipped = scheduler.beforeStoreTick(0.05f,
+            PhysicsStepSchedulingMode.DROP_PENDING_DT,
+            0.50f,
+            20L);
+        assertFalse(skipped.shouldTick());
+        assertEquals(0.05f, skipped.droppedBacklogDtSeconds(), 0.0001f);
+
+        release.countDown();
+        scheduler.whenIdle().toCompletableFuture().get(5, TimeUnit.SECONDS);
+        PhysicsStepSchedulerResource.TickDecision allowed = scheduler.beforeStoreTick(0.20f,
+            PhysicsStepSchedulingMode.DROP_PENDING_DT,
+            0.50f,
+            30L);
+        assertTrue(allowed.shouldTick());
+
+        PhysicsStepSchedulerResource.StepInput postSkipInput = scheduler.acceptStepInput(0.20f,
+            PhysicsStepSchedulingMode.DROP_PENDING_DT,
+            0.50f);
+        assertEquals(0.20f, postSkipInput.inputDtSeconds(), 0.0001f);
+        assertEquals(0.05f, postSkipInput.submittedDtSeconds(), 0.0001f);
+        assertEquals(0.0f, postSkipInput.backlogDtSeconds(), 0.0001f);
+        assertEquals(0.15f, postSkipInput.droppedBacklogDtSeconds(), 0.0001f);
+        assertFalse(postSkipInput.dtCapHit());
+        scheduler.close();
+    }
+
+    @Test
+    void accumulatePendingDtStillCatchesUpAfterPendingSkip() throws Exception {
+        PhysicsStepSchedulerResource scheduler = new PhysicsStepSchedulerResource();
+        CountDownLatch entered = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+
+        PhysicsStepSchedulerResource.StepInput input = scheduler.acceptStepInput(0.05f,
+            PhysicsStepSchedulingMode.ACCUMULATE_PENDING_DT,
+            0.50f);
+        assertTrue(scheduler.submitStep(input, () -> {
+            entered.countDown();
+            awaitOrFail(release);
+            return new PhysicsStepSchedulerResource.CompletedStep(1,
+                1,
+                10L,
+                PhysicsStepPhaseStats.unavailable());
+        }, 10L));
+        assertTrue(entered.await(5, TimeUnit.SECONDS));
+
+        PhysicsStepSchedulerResource.TickDecision skipped = scheduler.beforeStoreTick(0.05f,
+            PhysicsStepSchedulingMode.ACCUMULATE_PENDING_DT,
+            0.50f,
+            20L);
+        assertFalse(skipped.shouldTick());
+        assertEquals(0.05f, skipped.backlogDtSeconds(), 0.0001f);
+
+        release.countDown();
+        scheduler.whenIdle().toCompletableFuture().get(5, TimeUnit.SECONDS);
+        PhysicsStepSchedulerResource.TickDecision allowed = scheduler.beforeStoreTick(0.20f,
+            PhysicsStepSchedulingMode.ACCUMULATE_PENDING_DT,
+            0.50f,
+            30L);
+        assertTrue(allowed.shouldTick());
+
+        PhysicsStepSchedulerResource.StepInput postSkipInput = scheduler.acceptStepInput(0.20f,
+            PhysicsStepSchedulingMode.ACCUMULATE_PENDING_DT,
+            0.50f);
+        assertEquals(0.20f, postSkipInput.inputDtSeconds(), 0.0001f);
+        assertEquals(0.25f, postSkipInput.submittedDtSeconds(), 0.0001f);
+        assertEquals(0.0f, postSkipInput.backlogDtSeconds(), 0.0001f);
+        assertEquals(0.0f, postSkipInput.droppedBacklogDtSeconds(), 0.0001f);
+        assertFalse(postSkipInput.dtCapHit());
+        scheduler.close();
+    }
+
+    @Test
     void whenIdleCompletesAfterPendingStepFinishes() throws Exception {
         PhysicsStepSchedulerResource scheduler = new PhysicsStepSchedulerResource();
         CountDownLatch entered = new CountDownLatch(1);
@@ -89,10 +180,21 @@ class PhysicsStepSchedulerResourceTest {
 
     private static PhysicsStepSchedulerResource.TickDecision awaitAllowedTick(
         PhysicsStepSchedulerResource scheduler) throws InterruptedException {
+        return awaitAllowedTick(scheduler,
+            PhysicsStepSchedulingMode.ACCUMULATE_PENDING_DT,
+            0.05f,
+            0.10f);
+    }
+
+    private static PhysicsStepSchedulerResource.TickDecision awaitAllowedTick(
+        PhysicsStepSchedulerResource scheduler,
+        PhysicsStepSchedulingMode mode,
+        float dt,
+        float maxSubmittedDt) throws InterruptedException {
         for (int attempt = 0; attempt < 50; attempt++) {
-            PhysicsStepSchedulerResource.TickDecision decision = scheduler.beforeStoreTick(0.05f,
-                PhysicsStepSchedulingMode.ACCUMULATE_PENDING_DT,
-                0.10f,
+            PhysicsStepSchedulerResource.TickDecision decision = scheduler.beforeStoreTick(dt,
+                mode,
+                maxSubmittedDt,
                 30L + attempt);
             if (decision.shouldTick()) {
                 return decision;

@@ -38,6 +38,8 @@ public final class PhysicsStepSchedulerResource implements Resource<PhysicsStore
     @Nullable
     private CompletedStep completedStep;
     private float backlogDtSeconds;
+    private float lastSubmittedDtSeconds;
+    private boolean droppedPendingDtSinceLastStep;
     private boolean closed;
 
     public PhysicsStepSchedulerResource() {
@@ -66,17 +68,28 @@ public final class PhysicsStepSchedulerResource implements Resource<PhysicsStore
         }
         float inputDtSeconds = safeDt(dtSeconds);
         float candidateDtSeconds = inputDtSeconds;
+        float droppedDtSeconds = 0.0f;
         if (mode == PhysicsStepSchedulingMode.ACCUMULATE_PENDING_DT) {
             candidateDtSeconds += backlogDtSeconds;
         } else {
+            // Dropped pending ticks may reappear as one large engine dt after the owner lane clears.
+            if (droppedPendingDtSinceLastStep && lastSubmittedDtSeconds > 0.0f) {
+                float steadyDtSeconds = Math.min(candidateDtSeconds, lastSubmittedDtSeconds);
+                droppedDtSeconds = candidateDtSeconds - steadyDtSeconds;
+                candidateDtSeconds = steadyDtSeconds;
+            }
             backlogDtSeconds = 0.0f;
         }
         SubmittedDt submittedDt = capSubmittedDt(candidateDtSeconds, maxSubmittedDtSeconds);
+        if (submittedDt.submittedDtSeconds() > 0.0f) {
+            lastSubmittedDtSeconds = submittedDt.submittedDtSeconds();
+        }
         backlogDtSeconds = 0.0f;
+        droppedPendingDtSinceLastStep = false;
         return new StepInput(inputDtSeconds,
             submittedDt.submittedDtSeconds(),
             backlogDtSeconds,
-            submittedDt.droppedDtSeconds(),
+            droppedDtSeconds + submittedDt.droppedDtSeconds(),
             submittedDt.dtCapHit());
     }
 
@@ -157,8 +170,10 @@ public final class PhysicsStepSchedulerResource implements Resource<PhysicsStore
             return new StepInput(0.0f, 0.0f, backlogDtSeconds, 0.0f, false);
         }
         if (mode != PhysicsStepSchedulingMode.ACCUMULATE_PENDING_DT) {
+            droppedPendingDtSinceLastStep = true;
             return new StepInput(inputDtSeconds, 0.0f, backlogDtSeconds, inputDtSeconds, false);
         }
+        droppedPendingDtSinceLastStep = false;
         SubmittedDt submittedDt = capSubmittedDt(backlogDtSeconds + inputDtSeconds,
             maxSubmittedDtSeconds);
         backlogDtSeconds = submittedDt.submittedDtSeconds();

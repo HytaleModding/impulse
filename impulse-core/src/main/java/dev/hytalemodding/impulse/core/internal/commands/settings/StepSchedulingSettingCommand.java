@@ -22,7 +22,7 @@ public class StepSchedulingSettingCommand extends AbstractAsyncPlayerCommand {
 
     private final OptionalArg<String> modeArg = this.withOptionalArg(
         "mode",
-        "Step scheduling mode: drop_pending_dt or accumulate_pending_dt",
+        "Step scheduling mode: drop_pending_dt keeps cadence steady; accumulate_pending_dt catches up",
         ArgTypes.STRING);
 
     public StepSchedulingSettingCommand() {
@@ -50,7 +50,7 @@ public class StepSchedulingSettingCommand extends AbstractAsyncPlayerCommand {
             mode = PhysicsStepSchedulingMode.parse(modeArg.get(ctx));
         } catch (IllegalArgumentException exception) {
             ctx.sender().sendMessage(Message.raw("Unknown step scheduling mode. Use one of: "
-                + "drop_pending_dt, accumulate_pending_dt."));
+                + "drop_pending_dt (steady/no catch-up), accumulate_pending_dt (catch-up)."));
             return CompletableFuture.completedFuture(null);
         }
 

@@ -248,6 +248,7 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
             + " prewarmedSections=" + prewarmedSections
             + " step=" + worldSettings.getStepMode().getSerializedName()
             + "/" + worldSettings.getSimulationSteps()
+            + " scheduling=" + worldSettings.getStepSchedulingMode().getSerializedName()
             + " maxStepDt=" + String.format(Locale.ROOT, "%.3f", worldSettings.getMaxStepDt())
             + " visuals=" + mode.visualDescription()
             + (mode == StressMode.ENTITY ? " blockType=" + visualSettings.blockType() : "")
