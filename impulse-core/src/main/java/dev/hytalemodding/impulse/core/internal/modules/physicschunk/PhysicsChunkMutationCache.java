@@ -44,9 +44,27 @@ public final class PhysicsChunkMutationCache {
     private final Object2ObjectMap<UUID, SpaceCollisionCache> spaces =
         new Object2ObjectOpenHashMap<>();
     @Nonnull
-    private final ShapeTemplateCache shapeTemplates = new ShapeTemplateCache();
+    private final ShapeTemplateCache shapeTemplates;
     @Nonnull
-    private final SectionColliderBuilder sectionBuilder = new SectionColliderBuilder(shapeTemplates);
+    private final SectionColliderBuilder sectionBuilder;
+
+    public PhysicsChunkMutationCache() {
+        this(new ShapeTemplateCache());
+    }
+
+    private PhysicsChunkMutationCache(@Nonnull ShapeTemplateCache shapeTemplates) {
+        this.shapeTemplates = Objects.requireNonNull(shapeTemplates, "shapeTemplates");
+        this.sectionBuilder = new SectionColliderBuilder(shapeTemplates);
+    }
+
+    @Nonnull
+    synchronized PhysicsChunkMutationCache copy() {
+        PhysicsChunkMutationCache copy = new PhysicsChunkMutationCache(shapeTemplates.copy());
+        for (Object2ObjectMap.Entry<UUID, SpaceCollisionCache> entry : spaces.object2ObjectEntrySet()) {
+            copy.spaces.put(entry.getKey(), entry.getValue().copy());
+        }
+        return copy;
+    }
 
     @Nonnull
     public synchronized PhysicsChunkBuildStats ensureAround(@Nonnull World world,
@@ -782,6 +800,27 @@ public final class PhysicsChunkMutationCache {
         private final Int2ObjectOpenHashMap<RefBodyStreamingTarget> bodyTargetsByRowIndex =
             new Int2ObjectOpenHashMap<>();
 
+        @Nonnull
+        private SpaceCollisionCache copy() {
+            SpaceCollisionCache copy = new SpaceCollisionCache();
+            for (Long2ObjectMap.Entry<CachedSection> entry : sections.long2ObjectEntrySet()) {
+                copy.sections.put(entry.getLongKey(), entry.getValue().copy());
+            }
+            copy.missingBlockChunkBackoffs.putAll(missingBlockChunkBackoffs);
+            copy.missingBlockSectionBackoffs.putAll(missingBlockSectionBackoffs);
+            for (Object2ObjectMap.Entry<UUID, CachedBodyStreamingTarget> entry
+                : bodyTargets.object2ObjectEntrySet()) {
+                copy.bodyTargets.put(entry.getKey(), entry.getValue().copy());
+            }
+            for (Int2ObjectMap.Entry<RefBodyStreamingTarget> entry
+                : bodyTargetsByRowIndex.int2ObjectEntrySet()) {
+                RefBodyStreamingTarget row = entry.getValue();
+                copy.bodyTargetsByRowIndex.put(entry.getIntKey(),
+                    new RefBodyStreamingTarget(row.bodyRef(), row.target().copy()));
+            }
+            return copy;
+        }
+
         private boolean isEmpty() {
             return sections.isEmpty()
                 && missingBlockChunkBackoffs.isEmpty()
@@ -820,6 +859,18 @@ public final class PhysicsChunkMutationCache {
             this.bodyCount = bodyCount;
             this.voxelTerrain = voxelTerrain;
         }
+
+        @Nonnull
+        private CachedSection copy() {
+            return new CachedSection(chunkX,
+                sectionY,
+                chunkZ,
+                lastUsedTick,
+                neighborhoodSignature,
+                buildOptions,
+                bodyCount,
+                voxelTerrain);
+        }
     }
 
     private static final class CachedBodyStreamingTarget {
@@ -838,6 +889,11 @@ public final class PhysicsChunkMutationCache {
             this.sleeping = sleeping;
             this.lastSeenTick = lastSeenTick;
             this.lastRefreshTick = lastRefreshTick;
+        }
+
+        @Nonnull
+        private CachedBodyStreamingTarget copy() {
+            return new CachedBodyStreamingTarget(bounds, sleeping, lastSeenTick, lastRefreshTick);
         }
     }
 

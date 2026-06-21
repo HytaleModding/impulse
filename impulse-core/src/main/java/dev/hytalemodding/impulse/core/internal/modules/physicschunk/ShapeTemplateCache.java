@@ -36,6 +36,13 @@ final class ShapeTemplateCache {
         return templates.size();
     }
 
+    @Nonnull
+    ShapeTemplateCache copy() {
+        ShapeTemplateCache copy = new ShapeTemplateCache();
+        copy.templates.putAll(templates);
+        return copy;
+    }
+
     private static long key(int blockId, int rotation) {
         return ((long) blockId << Integer.SIZE) ^ (rotation & 0xFFFF_FFFFL);
     }

@@ -28,13 +28,20 @@ import org.joml.Vector3d;
 public final class PhysicsChunkCollisionStreamingResource implements Resource<EntityStore> {
 
     @Nonnull
-    private final PhysicsChunkMutationCache cache = new PhysicsChunkMutationCache();
+    private final PhysicsChunkMutationCache cache;
     private long tick;
 
     @Nullable
     private static ResourceType<EntityStore, PhysicsChunkCollisionStreamingResource> resourceType;
 
     public PhysicsChunkCollisionStreamingResource() {
+        this(new PhysicsChunkMutationCache(), 0L);
+    }
+
+    private PhysicsChunkCollisionStreamingResource(@Nonnull PhysicsChunkMutationCache cache,
+        long tick) {
+        this.cache = Objects.requireNonNull(cache, "cache");
+        this.tick = tick;
     }
 
     public static void setResourceType(
@@ -245,10 +252,7 @@ public final class PhysicsChunkCollisionStreamingResource implements Resource<En
     @Nonnull
     @Override
     public synchronized PhysicsChunkCollisionStreamingResource clone() {
-        PhysicsChunkCollisionStreamingResource copy =
-            new PhysicsChunkCollisionStreamingResource();
-        copy.tick = tick;
-        return copy;
+        return new PhysicsChunkCollisionStreamingResource(cache.copy(), tick);
     }
 
     @Nonnull
