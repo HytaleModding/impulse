@@ -1,0 +1,202 @@
+package dev.hytalemodding.impulse.core.internal.commands;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import com.hypixel.hytale.component.AddReason;
+import com.hypixel.hytale.component.ComponentRegistry;
+import com.hypixel.hytale.component.ComponentRegistryProxy;
+import com.hypixel.hytale.component.EmptyResourceStorage;
+import com.hypixel.hytale.component.Ref;
+import com.hypixel.hytale.component.Store;
+import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
+import com.hypixel.hytale.server.core.util.thread.TickingThread;
+import dev.hytalemodding.impulse.api.BackendId;
+import dev.hytalemodding.impulse.api.PhysicsBodyType;
+import dev.hytalemodding.impulse.api.SpaceId;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkStoreTypes;
+import dev.hytalemodding.impulse.core.internal.registration.PhysicsComponentTypeRegistry;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsIdentityIndexResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsResourceTypes;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsSnapshotResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceCompatibilityIndexResource;
+import dev.hytalemodding.impulse.core.internal.testsupport.TestInstanceFactory;
+import dev.hytalemodding.impulse.core.plugin.components.SpaceComponent;
+import dev.hytalemodding.impulse.core.plugin.physics.PhysicsEntities;
+import dev.hytalemodding.impulse.core.plugin.snapshots.PhysicsBodySnapshot;
+import dev.hytalemodding.impulse.core.plugin.snapshots.PhysicsSnapshotFrame;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+import javax.annotation.Nonnull;
+import org.joml.Vector3f;
+import org.junit.jupiter.api.Test;
+
+class SpaceCommandDeleteTest {
+
+    private static final BackendId BACKEND_ID = new BackendId("test:space-delete");
+
+    @Test
+    void deleteCoreReportsInvalidMissingAndUnboundSpaces() {
+        StoreFixture fixture = store("space-delete-invalid");
+        try {
+            Store<PhysicsStore> store = fixture.store();
+            markCurrentThreadAsWorldThread(store);
+            UUID spaceUuid = uuid(92);
+            store.getResource(PhysicsSpaceCompatibilityIndexResource.getResourceType())
+                .putSpace(new SpaceId(92), spaceUuid);
+
+            assertEquals(SpaceDeleteSupport.DeleteOutcome.INVALID,
+                deleteOnWorldThread(store, 0).outcome());
+            assertEquals(SpaceDeleteSupport.DeleteOutcome.MISSING,
+                deleteOnWorldThread(store, 93).outcome());
+            assertEquals(SpaceDeleteSupport.DeleteOutcome.UNBOUND,
+                deleteOnWorldThread(store, 92).outcome());
+        } finally {
+            fixture.close();
+        }
+    }
+
+    @Test
+    void deleteCoreRemovesEmptySpaceOnWorldThread() {
+        StoreFixture fixture = store("space-delete-core");
+        try {
+            Store<PhysicsStore> store = fixture.store();
+            markCurrentThreadAsWorldThread(store);
+            UUID spaceUuid = uuid(91);
+            Ref<PhysicsStore> spaceRef = addSpace(store, spaceUuid);
+            bindSpaceId(store, new SpaceId(91), spaceUuid, spaceRef);
+
+            SpaceDeleteSupport.DeleteResult result = deleteOnWorldThread(store, 91);
+
+            assertEquals(SpaceDeleteSupport.DeleteOutcome.DELETED, result.outcome());
+            assertEquals(91, result.rawSpaceId());
+            assertEquals(0, result.backendBodies());
+            assertEquals(0, result.joints());
+            assertFalse(spaceRef.isValid());
+        } finally {
+            fixture.close();
+        }
+    }
+
+    @Test
+    void deleteCoreRejectsRegisteredBodies() {
+        StoreFixture fixture = store("space-delete-not-empty");
+        try {
+            Store<PhysicsStore> store = fixture.store();
+            markCurrentThreadAsWorldThread(store);
+            UUID spaceUuid = uuid(94);
+            Ref<PhysicsStore> spaceRef = addSpace(store, spaceUuid);
+            bindSpaceId(store, new SpaceId(94), spaceUuid, spaceRef);
+            store.getResource(PhysicsSnapshotResource.getResourceType())
+                .publish(new PhysicsSnapshotFrame(1L,
+                    0.05f,
+                    List.of(PhysicsBodySnapshot.of(uuid(95),
+                        spaceUuid,
+                        PhysicsBodyType.DYNAMIC,
+                        0.0f,
+                        0.0f,
+                        0.0f,
+                        0.0f,
+                        0.0f,
+                        0.0f,
+                        1.0f,
+                        0.0f,
+                        0.0f,
+                        0.0f,
+                        0.0f,
+                        0.0f,
+                        0.0f,
+                        0.0f,
+                        false))));
+
+            SpaceDeleteSupport.DeleteResult result = deleteOnWorldThread(store, 94);
+
+            assertEquals(SpaceDeleteSupport.DeleteOutcome.NOT_EMPTY, result.outcome());
+            assertEquals(1, result.registeredBodies());
+            assertEquals(0, result.backendBodies());
+            assertEquals(0, result.joints());
+            assertTrue(spaceRef.isValid());
+        } finally {
+            fixture.close();
+        }
+    }
+
+    private static void bindSpaceId(@Nonnull Store<PhysicsStore> store,
+        @Nonnull SpaceId spaceId,
+        @Nonnull UUID spaceUuid,
+        @Nonnull Ref<PhysicsStore> spaceRef) {
+        store.getResource(PhysicsSpaceCompatibilityIndexResource.getResourceType())
+            .putSpace(spaceId, spaceUuid);
+        store.getResource(PhysicsIdentityIndexResource.getResourceType())
+            .putUuid(spaceUuid, spaceRef);
+    }
+
+    @Nonnull
+    private static StoreFixture store(@Nonnull String worldName) {
+        ComponentRegistry<PhysicsStore> registry = new ComponentRegistry<>();
+        ComponentRegistryProxy<PhysicsStore> proxy =
+            new ComponentRegistryProxy<>(new ArrayList<>(), registry);
+        PhysicsComponentTypeRegistry.registerComponentTypes(proxy);
+        PhysicsChunkStoreTypes.registerPhysicsStoreResourceTypes(proxy);
+        PhysicsResourceTypes.registerResourceTypes(proxy);
+        Store<PhysicsStore> store = registry.addStore(
+            new PhysicsStore(TestInstanceFactory.world(worldName)),
+            EmptyResourceStorage.get());
+        return new StoreFixture(registry, store);
+    }
+
+    @Nonnull
+    private static SpaceDeleteSupport.DeleteResult deleteOnWorldThread(
+        @Nonnull Store<PhysicsStore> store,
+        int rawSpaceId) {
+        return SpaceDeleteSupport.deleteOnWorldThread(store.getExternalData().getWorld(),
+            store,
+            rawSpaceId);
+    }
+
+    @Nonnull
+    private static Ref<PhysicsStore> addSpace(@Nonnull Store<PhysicsStore> store,
+        @Nonnull UUID spaceUuid) {
+        Ref<PhysicsStore> ref = store.addEntity(PhysicsEntities.spaceHolder(store,
+                spaceUuid,
+                new SpaceComponent(BACKEND_ID, new Vector3f(0.0f, -9.81f, 0.0f))),
+            AddReason.SPAWN);
+        assertNotNull(ref);
+        return ref;
+    }
+
+    @Nonnull
+    private static UUID uuid(long leastSignificantBits) {
+        return new UUID(0L, leastSignificantBits);
+    }
+
+    private record StoreFixture(@Nonnull ComponentRegistry<PhysicsStore> registry,
+                                @Nonnull Store<PhysicsStore> store) {
+
+        private void close() {
+            if (!store.isShutdown()) {
+                registry.removeStore(store);
+            }
+            registry.shutdown();
+            PhysicsChunkStoreTypes.clearPhysicsStoreResourceTypes();
+        }
+    }
+
+    private static void markCurrentThreadAsWorldThread(@Nonnull Store<PhysicsStore> store) {
+        try {
+            Method setThread = TickingThread.class.getDeclaredMethod("setThread", Thread.class);
+            setThread.setAccessible(true);
+            setThread.invoke(store.getExternalData().getWorld(), Thread.currentThread());
+        } catch (NoSuchMethodException | IllegalAccessException exception) {
+            throw new AssertionError("Could not mark test world thread", exception);
+        } catch (InvocationTargetException exception) {
+            throw new AssertionError("Could not mark test world thread",
+                exception.getTargetException());
+        }
+    }
+}
