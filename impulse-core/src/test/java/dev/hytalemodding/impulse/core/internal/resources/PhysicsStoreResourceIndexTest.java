@@ -396,6 +396,68 @@ class PhysicsStoreResourceIndexTest {
     }
 
     @Test
+    void snapshotResourcePublishesCompactPayloadWithoutLegacyFrameMaterialization() {
+        PhysicsSnapshotResource resource = new PhysicsSnapshotResource();
+        UUID spaceUuid = UUID.fromString("00000000-0000-0000-0000-000000000029");
+        UUID firstBodyUuid = UUID.fromString("00000000-0000-0000-0000-000000000030");
+        UUID secondBodyUuid = UUID.fromString("00000000-0000-0000-0000-000000000031");
+        Ref<PhysicsStore> firstBodyRef = new TestRef(30);
+        Ref<PhysicsStore> secondBodyRef = new TestRef(31);
+        PhysicsBodySnapshot first = snapshot(firstBodyRef, firstBodyUuid, spaceUuid);
+        PhysicsBodySnapshot second = snapshot(secondBodyRef, secondBodyUuid, spaceUuid, true);
+        PhysicsSnapshotResource.CompactSnapshotBuilder builder =
+            PhysicsSnapshotResource.compactBuilder(2);
+        addCompactBody(builder, first);
+        addCompactBody(builder, second);
+
+        resource.publish(15L, 0.06f, builder.build());
+
+        assertEquals(15L, resource.latestSequence());
+        assertEquals(2, resource.bodyCount());
+        assertSnapshotEquals(first, resource.getBody(firstBodyUuid));
+        assertSnapshotEquals(second, resource.getBody(secondBodyRef));
+        List<UUID> visited = new ArrayList<>();
+        resource.forEachBodyCursor(cursor -> visited.add(cursor.bodyUuid()));
+        assertEquals(List.of(firstBodyUuid, secondBodyUuid), visited);
+
+        PhysicsSnapshotFrame frame = resource.getLatestFrame();
+        assertEquals(15L, frame.sequence());
+        assertEquals(0.06f, frame.dt());
+        assertEquals(2, frame.bodies().size());
+        assertSnapshotEquals(first, frame.bodies().getFirst());
+        assertSnapshotEquals(second, frame.bodies().get(1));
+    }
+
+    @Test
+    void snapshotResourceRemovesBodiesFromCompactPayloadWithoutLegacyFrameRoundTrip() {
+        PhysicsSnapshotResource resource = new PhysicsSnapshotResource();
+        UUID spaceUuid = UUID.fromString("00000000-0000-0000-0000-000000000032");
+        UUID removedBodyUuid = UUID.fromString("00000000-0000-0000-0000-000000000034");
+        UUID retainedBodyUuid = UUID.fromString("00000000-0000-0000-0000-000000000035");
+        Ref<PhysicsStore> removedBodyRef = new TestRef(34);
+        Ref<PhysicsStore> retainedBodyRef = new TestRef(35);
+        PhysicsBodySnapshot removed = snapshot(removedBodyRef, removedBodyUuid, spaceUuid);
+        PhysicsBodySnapshot retained = snapshot(retainedBodyRef, retainedBodyUuid, spaceUuid);
+        PhysicsSnapshotResource.CompactSnapshotBuilder builder =
+            PhysicsSnapshotResource.compactBuilder(2);
+        addCompactBody(builder, removed);
+        addCompactBody(builder, retained);
+        resource.publish(16L, 0.07f, builder.build());
+
+        resource.removeBody(removedBodyUuid);
+
+        assertEquals(1, resource.bodyCount());
+        assertNull(resource.getBody(removedBodyUuid));
+        assertNull(resource.getBody(removedBodyRef));
+        assertSnapshotEquals(retained, resource.getBody(retainedBodyUuid));
+        assertSnapshotEquals(retained, resource.getBody(retainedBodyRef));
+        assertEquals(16L, resource.getLatestFrame().sequence());
+        assertEquals(0.07f, resource.getLatestFrame().dt());
+        assertEquals(List.of(retainedBodyUuid),
+            resource.getLatestFrame().bodies().stream().map(PhysicsBodySnapshot::bodyUuid).toList());
+    }
+
+    @Test
     void snapshotResourceRemovesMultipleBodiesInOneBatch() {
         PhysicsSnapshotResource resource = new PhysicsSnapshotResource();
         UUID spaceUuid = UUID.fromString("00000000-0000-0000-0000-000000000015");
@@ -477,6 +539,13 @@ class PhysicsStoreResourceIndexTest {
     private static PhysicsBodySnapshot snapshot(Ref<PhysicsStore> bodyRef,
         UUID bodyUuid,
         UUID spaceUuid) {
+        return snapshot(bodyRef, bodyUuid, spaceUuid, false);
+    }
+
+    private static PhysicsBodySnapshot snapshot(Ref<PhysicsStore> bodyRef,
+        UUID bodyUuid,
+        UUID spaceUuid,
+        boolean sleeping) {
         return new PhysicsBodySnapshot(bodyRef,
             bodyUuid,
             spaceUuid,
@@ -486,7 +555,30 @@ class PhysicsStoreResourceIndexTest {
             new Vector3f(),
             new Vector3f(),
             0.0f,
-            false);
+            sleeping);
+    }
+
+    private static void addCompactBody(PhysicsSnapshotResource.CompactSnapshotBuilder builder,
+        PhysicsBodySnapshot body) {
+        builder.addBody(body.bodyRef(),
+            body.bodyUuid(),
+            body.spaceUuid(),
+            body.bodyType(),
+            body.positionX(),
+            body.positionY(),
+            body.positionZ(),
+            body.rotationX(),
+            body.rotationY(),
+            body.rotationZ(),
+            body.rotationW(),
+            body.linearVelocityX(),
+            body.linearVelocityY(),
+            body.linearVelocityZ(),
+            body.angularVelocityX(),
+            body.angularVelocityY(),
+            body.angularVelocityZ(),
+            body.centerOfMassOffsetY(),
+            body.sleeping());
     }
 
     private static ChunkCollisionPayload chunkPayload(double centerX) {

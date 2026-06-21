@@ -5,7 +5,6 @@ import com.hypixel.hytale.component.ResourceType;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.PhysicsStepPhaseStats;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsFrameEvent;
-import dev.hytalemodding.impulse.core.plugin.snapshots.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepSchedulingMode;
 import java.util.List;
 import java.util.Objects;
@@ -268,7 +267,7 @@ public final class PhysicsStepSchedulerResource implements Resource<PhysicsStore
                                 long stepSubmitNanos,
                                 long snapshotNanos,
                                 @Nonnull PhysicsStepPhaseStats nativePhaseStats,
-                                @Nonnull List<PhysicsBodySnapshot> bodySnapshots,
+                                @Nonnull PhysicsSnapshotResource.CompactSnapshot bodySnapshot,
                                 @Nonnull List<PhysicsFrameEvent> physicsEvents,
                                 int droppedBackendEventCount,
                                 @Nullable Throwable failure) {
@@ -277,7 +276,12 @@ public final class PhysicsStepSchedulerResource implements Resource<PhysicsStore
             int substeps,
             long stepSubmitNanos,
             @Nonnull PhysicsStepPhaseStats nativePhaseStats) {
-            this(spaces, substeps, stepSubmitNanos, 0L, nativePhaseStats, List.of());
+            this(spaces,
+                substeps,
+                stepSubmitNanos,
+                0L,
+                nativePhaseStats,
+                PhysicsSnapshotResource.emptyCompactSnapshot());
         }
 
         public CompletedStep(int spaces,
@@ -285,9 +289,15 @@ public final class PhysicsStepSchedulerResource implements Resource<PhysicsStore
             long stepSubmitNanos,
             long snapshotNanos,
             @Nonnull PhysicsStepPhaseStats nativePhaseStats,
-            @Nonnull List<PhysicsBodySnapshot> bodySnapshots) {
-            this(spaces, substeps, stepSubmitNanos, snapshotNanos, nativePhaseStats, bodySnapshots,
-                List.of(), 0);
+            @Nonnull PhysicsSnapshotResource.CompactSnapshot bodySnapshot) {
+            this(spaces,
+                substeps,
+                stepSubmitNanos,
+                snapshotNanos,
+                nativePhaseStats,
+                bodySnapshot,
+                List.of(),
+                0);
         }
 
         public CompletedStep(int spaces,
@@ -295,7 +305,7 @@ public final class PhysicsStepSchedulerResource implements Resource<PhysicsStore
             long stepSubmitNanos,
             long snapshotNanos,
             @Nonnull PhysicsStepPhaseStats nativePhaseStats,
-            @Nonnull List<PhysicsBodySnapshot> bodySnapshots,
+            @Nonnull PhysicsSnapshotResource.CompactSnapshot bodySnapshot,
             @Nonnull List<PhysicsFrameEvent> physicsEvents,
             int droppedBackendEventCount) {
             this(null,
@@ -304,7 +314,7 @@ public final class PhysicsStepSchedulerResource implements Resource<PhysicsStore
                 stepSubmitNanos,
                 snapshotNanos,
                 nativePhaseStats,
-                bodySnapshots,
+                bodySnapshot,
                 physicsEvents,
                 droppedBackendEventCount,
                 null);
@@ -316,8 +326,7 @@ public final class PhysicsStepSchedulerResource implements Resource<PhysicsStore
             stepSubmitNanos = Math.max(0L, stepSubmitNanos);
             snapshotNanos = Math.max(0L, snapshotNanos);
             Objects.requireNonNull(nativePhaseStats, "nativePhaseStats");
-            bodySnapshots = List.copyOf(Objects.requireNonNull(bodySnapshots,
-                "bodySnapshots"));
+            Objects.requireNonNull(bodySnapshot, "bodySnapshot");
             physicsEvents = List.copyOf(Objects.requireNonNull(physicsEvents,
                 "physicsEvents"));
             droppedBackendEventCount = Math.max(0, droppedBackendEventCount);
@@ -331,7 +340,7 @@ public final class PhysicsStepSchedulerResource implements Resource<PhysicsStore
                 stepSubmitNanos,
                 snapshotNanos,
                 nativePhaseStats,
-                bodySnapshots,
+                bodySnapshot,
                 physicsEvents,
                 droppedBackendEventCount,
                 failure);
@@ -345,7 +354,7 @@ public final class PhysicsStepSchedulerResource implements Resource<PhysicsStore
                 0L,
                 0L,
                 PhysicsStepPhaseStats.unavailable(),
-                List.of(),
+                PhysicsSnapshotResource.emptyCompactSnapshot(),
                 List.of(),
                 0,
                 Objects.requireNonNull(failure, "failure"));

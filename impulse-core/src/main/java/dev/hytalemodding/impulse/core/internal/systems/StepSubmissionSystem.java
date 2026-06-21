@@ -22,6 +22,7 @@ import dev.hytalemodding.impulse.core.internal.resources.PhysicsRestoreStatusRes
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResource.BodyHitMetadata;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResource.BodySnapshotMetadata;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsSnapshotResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceCompatibilityIndexResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsStepSchedulerResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsStepSchedulerResource.CompletedStep;
@@ -32,7 +33,6 @@ import dev.hytalemodding.impulse.core.internal.systems.step.PhysicsStepCountPoli
 import dev.hytalemodding.impulse.core.plugin.components.DynamicsComponent;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsContactEvent;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsFrameEvent;
-import dev.hytalemodding.impulse.core.plugin.snapshots.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepMode;
 import java.util.ArrayList;
@@ -141,7 +141,7 @@ public final class StepSubmissionSystem extends TickingSystem<PhysicsStore> {
             ? collectStepPhaseStats(bindings)
             : PhysicsStepPhaseStats.unavailable();
         long snapshotStartNanos = profilingEnabled ? System.nanoTime() : 0L;
-        List<PhysicsBodySnapshot> bodySnapshots = collectOwnerLaneSnapshots(runtime,
+        PhysicsSnapshotResource.CompactSnapshot bodySnapshot = collectOwnerLaneSnapshot(runtime,
             bindings);
         long snapshotNanos = profilingEnabled ? System.nanoTime() - snapshotStartNanos : 0L;
         StepBackendEvents backendEvents = collectOwnerLaneBackendEvents(runtime,
@@ -153,7 +153,7 @@ public final class StepSubmissionSystem extends TickingSystem<PhysicsStore> {
             stepNanos,
             snapshotNanos,
             nativePhaseStats,
-            bodySnapshots,
+            bodySnapshot,
             backendEvents.physicsEvents(),
             backendEvents.droppedBackendEventCount());
     }
@@ -168,11 +168,11 @@ public final class StepSubmissionSystem extends TickingSystem<PhysicsStore> {
     }
 
     @Nonnull
-    private static List<PhysicsBodySnapshot> collectOwnerLaneSnapshots(
+    private static PhysicsSnapshotResource.CompactSnapshot collectOwnerLaneSnapshot(
         @Nonnull PhysicsRuntimeResource runtime,
         @Nonnull List<RuntimeStepBinding> bindings) {
-        List<PhysicsBodySnapshot> snapshots = new ArrayList<>(runtimeBodyHandleCount(runtime,
-            bindings));
+        PhysicsSnapshotResource.CompactSnapshotBuilder snapshot =
+            PhysicsSnapshotResource.compactBuilder(runtimeBodyHandleCount(runtime, bindings));
         for (RuntimeStepBinding binding : bindings) {
             binding.backendRuntime().snapshotBodies(binding.spaceHandle().value(),
                 bodyIds -> runtime.forEachBodyHandle(binding.backendId(),
@@ -212,7 +212,7 @@ public final class StepSubmissionSystem extends TickingSystem<PhysicsStore> {
                     _,
                     _,
                     _) -> collectOwnerLaneSnapshot(runtime,
-                        snapshots,
+                        snapshot,
                         binding.backendId(),
                         binding.spaceHandle(),
                         bodyId,
@@ -233,7 +233,7 @@ public final class StepSubmissionSystem extends TickingSystem<PhysicsStore> {
                         centerOfMassOffsetY,
                         sleeping));
         }
-        return snapshots;
+        return snapshot.build();
     }
 
     private static int runtimeBodyHandleCount(@Nonnull PhysicsRuntimeResource runtime,
@@ -246,7 +246,7 @@ public final class StepSubmissionSystem extends TickingSystem<PhysicsStore> {
     }
 
     private static void collectOwnerLaneSnapshot(@Nonnull PhysicsRuntimeResource runtime,
-        @Nonnull List<PhysicsBodySnapshot> snapshots,
+        @Nonnull PhysicsSnapshotResource.CompactSnapshotBuilder snapshot,
         @Nonnull BackendId backendId,
         @Nonnull BackendSpaceHandle spaceHandle,
         long bodyId,
@@ -272,7 +272,7 @@ public final class StepSubmissionSystem extends TickingSystem<PhysicsStore> {
         if (metadata == null) {
             return;
         }
-        snapshots.add(PhysicsBodySnapshot.of(metadata.bodyRef(),
+        snapshot.addBody(metadata.bodyRef(),
             metadata.bodyUuid(),
             metadata.spaceUuid(),
             BackendRuntimeCodes.bodyType(bodyTypeCode),
@@ -290,7 +290,7 @@ public final class StepSubmissionSystem extends TickingSystem<PhysicsStore> {
             angularVelocityY,
             angularVelocityZ,
             centerOfMassOffsetY,
-            sleeping));
+            sleeping);
     }
 
     @Nonnull

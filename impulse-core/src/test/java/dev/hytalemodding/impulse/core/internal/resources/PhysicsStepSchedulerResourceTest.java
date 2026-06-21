@@ -8,12 +8,25 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import dev.hytalemodding.impulse.api.PhysicsStepPhaseStats;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepSchedulingMode;
+import java.util.Arrays;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 
 class PhysicsStepSchedulerResourceTest {
+
+    @Test
+    void completedStepCarriesCompactSnapshotPayloadInsteadOfBodySnapshotList() {
+        assertTrue(Arrays.stream(PhysicsStepSchedulerResource.CompletedStep.class.getRecordComponents())
+                .map(component -> component.getGenericType().getTypeName())
+                .noneMatch(typeName -> typeName.contains(
+                    "dev.hytalemodding.impulse.core.plugin.snapshots.PhysicsBodySnapshot")),
+            "CompletedStep should not expose List<PhysicsBodySnapshot> in the owner-lane handoff");
+        assertTrue(Arrays.stream(PhysicsStepSchedulerResource.CompletedStep.class.getDeclaredMethods())
+                .noneMatch(method -> method.getName().equals("bodySnapshots")),
+            "CompletedStep should expose compact snapshot payloads, not bodySnapshots()");
+    }
 
     @Test
     void submittedStepRunsAsynchronouslyAndSkipsWhilePending() throws Exception {

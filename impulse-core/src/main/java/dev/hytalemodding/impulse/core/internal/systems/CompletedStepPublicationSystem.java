@@ -16,9 +16,6 @@ import dev.hytalemodding.impulse.core.internal.resources.PhysicsStepSchedulerRes
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsStepSchedulerResource.CompletedStep;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsStepSchedulerResource.StepInput;
 import dev.hytalemodding.impulse.core.internal.systems.binding.TargetBindingSystem;
-import dev.hytalemodding.impulse.core.plugin.snapshots.PhysicsBodySnapshot;
-import dev.hytalemodding.impulse.core.plugin.snapshots.PhysicsSnapshotFrame;
-import java.util.List;
 import java.util.Set;
 import javax.annotation.Nonnull;
 
@@ -60,18 +57,16 @@ public final class CompletedStepPublicationSystem extends TickingSystem<PhysicsS
                 input.droppedBacklogDtSeconds(),
                 input.dtCapHit());
         }
-        List<PhysicsBodySnapshot> bodies = completed.bodySnapshots();
+        PhysicsSnapshotResource.CompactSnapshot bodySnapshot = completed.bodySnapshot();
         long nextSequence = snapshot.latestSequence() + 1L;
         float frameDt = input != null ? input.submittedDtSeconds() : dt;
-        PhysicsSnapshotFrame frame = new PhysicsSnapshotFrame(nextSequence,
-            frameDt,
-            bodies);
-        snapshot.publish(frame);
-        profiling.recordSnapshot(completed.snapshotNanos(), bodies.size());
+        snapshot.publish(nextSequence, frameDt, bodySnapshot);
+        int bodyCount = bodySnapshot.bodyCount();
+        profiling.recordSnapshot(completed.snapshotNanos(), bodyCount);
         store.getResource(PhysicsEventResource.getResourceType())
-            .publishStepFrame(frame.sequence(),
+            .publishStepFrame(nextSequence,
                 Math.max(0L, store.getExternalData().getWorld().getTick()),
-                bodies.size(),
+                bodyCount,
                 profiling.getStepSubmitNanos(),
                 completed.snapshotNanos(),
                 completed.physicsEvents(),
