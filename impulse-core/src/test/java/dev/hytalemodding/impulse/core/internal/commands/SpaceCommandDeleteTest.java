@@ -17,13 +17,17 @@ import dev.hytalemodding.impulse.api.BackendId;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkStoreTypes;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.components.ChunkCollisionSourceComponent;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.components.ChunkCollisionSourceComponent.PartKind;
 import dev.hytalemodding.impulse.core.internal.registration.PhysicsComponentTypeRegistry;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsIdentityIndexResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsResourceTypes;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSnapshotResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceCompatibilityIndexResource;
 import dev.hytalemodding.impulse.core.internal.testsupport.TestInstanceFactory;
+import dev.hytalemodding.impulse.core.plugin.components.BodyComponent;
 import dev.hytalemodding.impulse.core.plugin.components.SpaceComponent;
+import dev.hytalemodding.impulse.core.plugin.physics.PhysicsBodies;
 import dev.hytalemodding.impulse.core.plugin.physics.PhysicsEntities;
 import dev.hytalemodding.impulse.core.plugin.snapshots.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.core.plugin.snapshots.PhysicsSnapshotFrame;
@@ -126,6 +130,38 @@ class SpaceCommandDeleteTest {
         }
     }
 
+    @Test
+    void deleteCoreRemovesStreamingChunkCollisionBodies() {
+        StoreFixture fixture = store("space-delete-streaming-chunks");
+        try {
+            Store<PhysicsStore> store = fixture.store();
+            markCurrentThreadAsWorldThread(store);
+            UUID spaceUuid = uuid(96);
+            Ref<PhysicsStore> spaceRef = addSpace(store, spaceUuid);
+            bindSpaceId(store, new SpaceId(96), spaceUuid, spaceRef);
+            UUID chunkBodyUuid = uuid(97);
+            Ref<PhysicsStore> chunkBodyRef = addChunkCollisionBody(store,
+                spaceUuid,
+                spaceRef,
+                chunkBodyUuid);
+            store.getResource(PhysicsSnapshotResource.getResourceType())
+                .publish(new PhysicsSnapshotFrame(1L,
+                    0.05f,
+                    List.of(snapshot(chunkBodyUuid, spaceUuid))));
+            assertEquals(1, PhysicsBodies.registrationCount(store, new SpaceId(96)));
+
+            SpaceDeleteSupport.DeleteResult result = deleteOnWorldThread(store, 96);
+
+            assertEquals(SpaceDeleteSupport.DeleteOutcome.DELETED, result.outcome());
+            assertEquals(96, result.rawSpaceId());
+            assertFalse(spaceRef.isValid());
+            assertFalse(chunkBodyRef.isValid());
+            assertEquals(0, PhysicsBodies.registrationCount(store, new SpaceId(96)));
+        } finally {
+            fixture.close();
+        }
+    }
+
     private static void bindSpaceId(@Nonnull Store<PhysicsStore> store,
         @Nonnull SpaceId spaceId,
         @Nonnull UUID spaceUuid,
@@ -168,6 +204,55 @@ class SpaceCommandDeleteTest {
             AddReason.SPAWN);
         assertNotNull(ref);
         return ref;
+    }
+
+    @Nonnull
+    private static Ref<PhysicsStore> addChunkCollisionBody(@Nonnull Store<PhysicsStore> store,
+        @Nonnull UUID spaceUuid,
+        @Nonnull Ref<PhysicsStore> spaceRef,
+        @Nonnull UUID bodyUuid) {
+        Ref<PhysicsStore> ref = store.addEntity(PhysicsEntities.entityHolder(store,
+                bodyUuid),
+            AddReason.SPAWN);
+        assertNotNull(ref);
+        BodyComponent body = new BodyComponent(spaceUuid);
+        body.setSpaceRef(spaceRef);
+        store.putComponent(ref, BodyComponent.getComponentType(), body);
+        store.putComponent(ref,
+            ChunkCollisionSourceComponent.getComponentType(),
+            new ChunkCollisionSourceComponent("test-source",
+                0,
+                0,
+                0,
+                "test-payload",
+                PartKind.BOX,
+                0));
+        store.getResource(PhysicsIdentityIndexResource.getResourceType())
+            .putUuid(bodyUuid, ref);
+        return ref;
+    }
+
+    @Nonnull
+    private static PhysicsBodySnapshot snapshot(@Nonnull UUID bodyUuid,
+        @Nonnull UUID spaceUuid) {
+        return PhysicsBodySnapshot.of(bodyUuid,
+            spaceUuid,
+            PhysicsBodyType.DYNAMIC,
+            0.0f,
+            0.0f,
+            0.0f,
+            0.0f,
+            0.0f,
+            0.0f,
+            1.0f,
+            0.0f,
+            0.0f,
+            0.0f,
+            0.0f,
+            0.0f,
+            0.0f,
+            0.0f,
+            false);
     }
 
     @Nonnull
