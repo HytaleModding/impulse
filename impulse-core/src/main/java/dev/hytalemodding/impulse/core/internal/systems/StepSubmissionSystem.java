@@ -67,10 +67,15 @@ public final class StepSubmissionSystem extends TickingSystem<PhysicsStore> {
         if (safeDt <= 0.0f) {
             return;
         }
+        PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
+        List<RuntimeStepBinding> bindings = runtimeStepBindings(runtime);
+        if (bindings.isEmpty()) {
+            return;
+        }
+
         PhysicsWorldSettingsResource settingsResource = store.getResource(
             PhysicsWorldSettingsResource.getResourceType());
         PhysicsWorldSettings settings = settingsResource.getSettings();
-        PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
         PhysicsSpaceCompatibilityIndexResource compatibility = store.getResource(
             PhysicsSpaceCompatibilityIndexResource.getResourceType());
         PhysicsStepSchedulerResource scheduler = store.getResource(
@@ -103,7 +108,6 @@ public final class StepSubmissionSystem extends TickingSystem<PhysicsStore> {
         if (profilingEnabled) {
             resetStepPhaseStats(runtime);
         }
-        List<RuntimeStepBinding> bindings = runtimeStepBindings(runtime);
         boolean collectBackendEvents = settings.getEventCollectionMode().collectsBackendEvents();
         boolean submitted = scheduler.submitStep(input,
             () -> runOwnerStep(runtime,
