@@ -6,6 +6,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsIdentityIndexResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsEventResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsProfilingResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsRestoreStatusResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSnapshotResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceCompatibilityIndexResource;
@@ -41,5 +42,7 @@ public final class PhysicsStoreRuntimeCleaner {
         store.getResource(PhysicsStoreReadQueueResource.getResourceType()).clear();
         store.getResource(PhysicsChunkCollisionPayloadResource.getResourceType()).clear();
         store.getResource(PhysicsChunkSettingsIndexResource.getResourceType()).clear();
+        store.getResource(PhysicsRestoreStatusResource.getResourceType())
+            .markRecoveredFromCleanup();
     }
 }

@@ -7,6 +7,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsEventResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsIdentityIndexResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsRestoreStatusResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSnapshotResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceCompatibilityIndexResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkCollisionMutationQueueResource;
@@ -66,6 +67,8 @@ public final class PhysicsTopologyMutations {
         runtime.clearTransientBodyOperations();
         int keptSpaces = store.getResource(PhysicsSpaceCompatibilityIndexResource.getResourceType())
             .size();
+        store.getResource(PhysicsRestoreStatusResource.getResourceType())
+            .markRecoveredFromCleanup();
         return new PhysicsRuntimeResetResult(removed.bodyCount(),
             removed.jointCount(),
             keptSpaces);

@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.hypixel.hytale.component.AddReason;
 import com.hypixel.hytale.component.ComponentRegistry;
@@ -22,12 +23,14 @@ import dev.hytalemodding.impulse.api.runtime.BackendJointType;
 import dev.hytalemodding.impulse.api.runtime.BackendRuntimeCodes;
 import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntime;
 import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackendRuntimeProvider;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkStoreTypes;
 import dev.hytalemodding.impulse.core.internal.registration.PhysicsComponentTypeRegistry;
 import dev.hytalemodding.impulse.core.internal.resources.BackendBodyHandle;
 import dev.hytalemodding.impulse.core.internal.resources.BackendJointHandle;
 import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsIdentityIndexResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsResourceTypes;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsRestoreStatusResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSnapshotResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceCompatibilityIndexResource;
@@ -122,6 +125,42 @@ class PhysicsStoreTopologyMutationsTest {
         } finally {
             registry.removeStore(store);
             registry.shutdown();
+        }
+    }
+
+    @Test
+    void clearBodiesKeepingSpacesRecoversFailedRestoreStatus() {
+        ComponentRegistry<PhysicsStore> registry = new ComponentRegistry<>();
+        ComponentRegistryProxy<PhysicsStore> proxy =
+            new ComponentRegistryProxy<>(new ArrayList<>(), registry);
+        PhysicsComponentTypeRegistry.registerComponentTypes(proxy);
+        PhysicsResourceTypes.registerResourceTypes(proxy);
+        PhysicsChunkStoreTypes.registerPhysicsStoreResourceTypes(proxy);
+        Store<PhysicsStore> store = registry.addStore(
+            new PhysicsStore(TestInstanceFactory.world("topology-clean-recovers-restore")),
+            EmptyResourceStorage.get());
+        try {
+            markCurrentThreadAsWorldThread(store);
+            UUID spaceUuid = uuid(1);
+            UUID bodyUuid = uuid(2);
+            BoundSpace space = addBoundSpace(store,
+                spaceUuid,
+                new BackendId("test:topology-clean-recovers-restore"));
+            Ref<PhysicsStore> bodyRef = addBody(store, spaceUuid, space.ref(), bodyUuid);
+            bindBody(store, space, bodyUuid, bodyRef, 0.0f);
+            PhysicsRestoreStatusResource restore = store.getResource(
+                PhysicsRestoreStatusResource.getResourceType());
+            restore.markFailed("backend binding failed");
+
+            PhysicsTopologyMutations.clearBodiesKeepingSpaces(store);
+
+            assertFalse(restore.isFailed(), restore.getFailureMessage());
+            assertFalse(restore.isPending());
+            assertTrue(restore.isHydrated());
+        } finally {
+            registry.removeStore(store);
+            registry.shutdown();
+            PhysicsChunkStoreTypes.clearPhysicsStoreResourceTypes();
         }
     }
 

@@ -57,6 +57,14 @@ public final class PhysicsRestoreStatusResource implements Resource<PhysicsStore
         hydrated = true;
     }
 
+    public void markRecoveredFromCleanup() {
+        pending = false;
+        failed = false;
+        hydrated = true;
+        failureMessage = "";
+        softSkipsByReason.clear();
+    }
+
     public void recordSoftSkip(@Nonnull String reason) {
         softSkipsByReason.put(reason, softSkipsByReason.getInt(reason) + 1);
     }
