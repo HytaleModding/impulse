@@ -336,6 +336,201 @@ class ChunkCollisionMutationDrainSystemTest {
     }
 
     @Test
+    void removeDeletesManyGeneratedSourcesWithoutPerSourceFullStoreScans() {
+        ComponentRegistry<PhysicsStore> registry = new ComponentRegistry<>();
+        ComponentRegistryProxy<PhysicsStore> proxy =
+            new ComponentRegistryProxy<>(new ArrayList<>(), registry);
+        registerTypes(proxy);
+        Store<PhysicsStore> store = registry.addStore(
+            new PhysicsStore(TestInstanceFactory.world("chunk-collision-drain-remove-scale-test")),
+            EmptyResourceStorage.get());
+        try {
+            markCurrentThreadAsWorldThread(store);
+            UUID spaceUuid = uuid(71);
+            addBoundSpace(store,
+                spaceUuid,
+                new BackendId("test:chunk-collision-drain-remove-scale"));
+            PhysicsChunkCollisionMutationQueueResource queue = store.getResource(
+                PhysicsChunkCollisionMutationQueueResource.getResourceType());
+            int sources = 4_096;
+            for (int index = 0; index < sources; index++) {
+                String sourceKey = "scale:" + index;
+                queue.enqueue(ChunkCollisionMutation.upsert(spaceUuid,
+                    sourceKey,
+                    index,
+                    1,
+                    2,
+                    "chunk-collision/scale/" + index,
+                    boxPayload(index, 2.0, 3.0)));
+            }
+            new ChunkCollisionMutationDrainSystem().tick(0.0f, 0, store);
+            assertNotNull(generatedBodyRef(store, spaceUuid, "scale:0", PartKind.BOX, 0));
+            assertNotNull(generatedBodyRef(store,
+                spaceUuid,
+                "scale:" + (sources - 1),
+                PartKind.BOX,
+                0));
+
+            for (int index = 0; index < sources; index++) {
+                queue.enqueue(ChunkCollisionMutation.remove(spaceUuid,
+                    "scale:" + index,
+                    index,
+                    1,
+                    2));
+            }
+            new ChunkCollisionMutationDrainSystem().tick(0.0f, 0, store);
+
+            assertEquals(0, queue.size());
+            for (int index = 0; index < sources; index++) {
+                assertNull(generatedBodyRef(store, spaceUuid, "scale:" + index, PartKind.BOX, 0));
+            }
+            assertSoftSkipsEmpty(store);
+        } finally {
+            registry.removeStore(store);
+            registry.shutdown();
+        }
+    }
+
+    @Test
+    void invalidFreshReplacementKeepsExistingGeneratedRows() {
+        ComponentRegistry<PhysicsStore> registry = new ComponentRegistry<>();
+        ComponentRegistryProxy<PhysicsStore> proxy =
+            new ComponentRegistryProxy<>(new ArrayList<>(), registry);
+        registerTypes(proxy);
+        Store<PhysicsStore> store = registry.addStore(
+            new PhysicsStore(TestInstanceFactory.world("chunk-collision-drain-invalid-replace-test")),
+            EmptyResourceStorage.get());
+        try {
+            markCurrentThreadAsWorldThread(store);
+            UUID spaceUuid = uuid(72);
+            Ref<PhysicsStore> spaceRef = addBoundSpace(store,
+                spaceUuid,
+                new BackendId("test:chunk-collision-drain-invalid-replace"));
+            String sourceKey = "invalid:replace";
+            String payloadKey = "chunk-collision/invalid/replace";
+            BoxPayload initialBox = new BoxPayload(1.0, 2.0, 3.0, 0.5, 0.5, 0.5);
+            ChunkCollisionPayload initialPayload = new ChunkCollisionPayload(1.0f,
+                1.0f,
+                1.0f,
+                new int[0],
+                List.of(initialBox),
+                List.of(),
+                false,
+                List.of());
+
+            PhysicsChunkCollisionMutationQueueResource queue = store.getResource(
+                PhysicsChunkCollisionMutationQueueResource.getResourceType());
+            queue.enqueue(ChunkCollisionMutation.upsert(spaceUuid,
+                sourceKey,
+                0,
+                1,
+                2,
+                payloadKey,
+                initialPayload));
+            new ChunkCollisionMutationDrainSystem().tick(0.0f, 0, store);
+
+            ChunkCollisionPayload emptyPayload = new ChunkCollisionPayload(1.0f,
+                1.0f,
+                1.0f,
+                new int[0],
+                List.of(),
+                List.of(),
+                false,
+                List.of());
+            queue.enqueue(ChunkCollisionMutation.upsert(spaceUuid,
+                sourceKey,
+                0,
+                1,
+                2,
+                payloadKey,
+                emptyPayload));
+            new ChunkCollisionMutationDrainSystem().tick(0.0f, 0, store);
+
+            assertEquals(0, queue.size());
+            assertGeneratedBox(store,
+                spaceUuid,
+                spaceRef,
+                sourceKey,
+                payloadKey,
+                PartKind.BOX,
+                0,
+                initialBox);
+            assertSoftSkip(store,
+                "Chunk collision upsert payload is missing: " + sourceKey,
+                1);
+        } finally {
+            registry.removeStore(store);
+            registry.shutdown();
+        }
+    }
+
+    @Test
+    void unboundFreshReplacementKeepsExistingGeneratedRows() {
+        ComponentRegistry<PhysicsStore> registry = new ComponentRegistry<>();
+        ComponentRegistryProxy<PhysicsStore> proxy =
+            new ComponentRegistryProxy<>(new ArrayList<>(), registry);
+        registerTypes(proxy);
+        Store<PhysicsStore> store = registry.addStore(
+            new PhysicsStore(TestInstanceFactory.world("chunk-collision-drain-unbound-replace-test")),
+            EmptyResourceStorage.get());
+        try {
+            markCurrentThreadAsWorldThread(store);
+            UUID spaceUuid = uuid(73);
+            Ref<PhysicsStore> spaceRef = addBoundSpace(store,
+                spaceUuid,
+                new BackendId("test:chunk-collision-drain-unbound-replace"));
+            String sourceKey = "unbound:replace";
+            String payloadKey = "chunk-collision/unbound/replace";
+            BoxPayload initialBox = new BoxPayload(1.0, 2.0, 3.0, 0.5, 0.5, 0.5);
+
+            PhysicsChunkCollisionMutationQueueResource queue = store.getResource(
+                PhysicsChunkCollisionMutationQueueResource.getResourceType());
+            queue.enqueue(ChunkCollisionMutation.upsert(spaceUuid,
+                sourceKey,
+                0,
+                1,
+                2,
+                payloadKey,
+                new ChunkCollisionPayload(1.0f,
+                    1.0f,
+                    1.0f,
+                    new int[0],
+                    List.of(initialBox),
+                    List.of(),
+                    false,
+                    List.of())));
+            new ChunkCollisionMutationDrainSystem().tick(0.0f, 0, store);
+
+            store.getResource(PhysicsRuntimeResource.getResourceType())
+                .removeSpaceHandle(spaceRef);
+            queue.enqueue(ChunkCollisionMutation.upsert(spaceUuid,
+                sourceKey,
+                0,
+                1,
+                2,
+                payloadKey,
+                boxPayload(4.0, 5.0, 6.0)));
+            new ChunkCollisionMutationDrainSystem().tick(0.0f, 0, store);
+
+            assertEquals(0, queue.size());
+            assertGeneratedBox(store,
+                spaceUuid,
+                spaceRef,
+                sourceKey,
+                payloadKey,
+                PartKind.BOX,
+                0,
+                initialBox);
+            assertSoftSkip(store,
+                "Chunk collision references unbound space: " + sourceKey,
+                1);
+        } finally {
+            registry.removeStore(store);
+            registry.shutdown();
+        }
+    }
+
+    @Test
     void staleLifecycleUpsertDoesNotCreateGeneratedRows() {
         ComponentRegistry<PhysicsStore> registry = new ComponentRegistry<>();
         ComponentRegistryProxy<PhysicsStore> proxy =
@@ -882,6 +1077,15 @@ class ChunkCollisionMutationDrainSystemTest {
             store.getResource(PhysicsRestoreStatusResource.getResourceType())
                 .getSoftSkipsByReason()
                 .size());
+    }
+
+    private static void assertSoftSkip(@Nonnull Store<PhysicsStore> store,
+        @Nonnull String reason,
+        int count) {
+        var softSkips = store.getResource(PhysicsRestoreStatusResource.getResourceType())
+            .getSoftSkipsByReason();
+        assertEquals(1, softSkips.size());
+        assertEquals(count, softSkips.getInt(reason));
     }
 
     private static void markCurrentThreadAsWorldThread(@Nonnull Store<PhysicsStore> store) {

@@ -27,12 +27,11 @@ import dev.hytalemodding.impulse.core.internal.modules.physicschunk.profiling.Ph
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.profiling.PhysicsChunkProfilingResource.StreamingTargetDiagnostic;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkCollisionMutationQueueResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSnapshotResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsSnapshotResource.BodyCursor;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkSettingsIndexResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkSettingsIndexResource.PhysicsChunkSpaceSettings;
 import dev.hytalemodding.impulse.core.internal.modules.physicsentity.systems.sync.PhysicsSyncSystem;
 import dev.hytalemodding.impulse.core.plugin.physics.PhysicsThreading;
-import dev.hytalemodding.impulse.core.plugin.snapshots.PhysicsBodySnapshot;
-import dev.hytalemodding.impulse.core.plugin.snapshots.PhysicsSnapshotFrame;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSet;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
@@ -109,7 +108,12 @@ public final class PhysicsChunkCollisionProducerSystem extends TickingSystem<Ent
             }
             streaming.retainSpaces(retainedSpaces, queue);
 
-            PhysicsSnapshotFrame physicsFrame = snapshotResource.getLatestFrame();
+            Map<UUID, List<BodyStreamingTarget>> bodyTargetsBySpace =
+                collectDynamicBodyTargetsBySpace(streaming,
+                    spaces,
+                    snapshotResource,
+                    currentTick,
+                    snapshot);
             for (PhysicsChunkSpaceSettings settings : spaces) {
                 if (snapshot != null) {
                     snapshot.incrementStreamingSpaces();
@@ -119,7 +123,7 @@ public final class PhysicsChunkCollisionProducerSystem extends TickingSystem<Ent
                     queue,
                     settings,
                     playerPositions,
-                    physicsFrame,
+                    bodyTargetsBySpace.getOrDefault(settings.spaceUuid(), List.of()),
                     currentTick,
                     snapshot);
             }
@@ -136,7 +140,7 @@ public final class PhysicsChunkCollisionProducerSystem extends TickingSystem<Ent
         @Nonnull PhysicsChunkCollisionMutationQueueResource queue,
         @Nonnull PhysicsChunkSpaceSettings settings,
         @Nonnull List<Vector3d> playerPositions,
-        @Nonnull PhysicsSnapshotFrame physicsFrame,
+        @Nonnull List<BodyStreamingTarget> bodyTargets,
         long currentTick,
         @Nullable Snapshot snapshot) {
         LongSet visitedSections = new LongOpenHashSet();
@@ -159,11 +163,7 @@ public final class PhysicsChunkCollisionProducerSystem extends TickingSystem<Ent
             }
         }
 
-        for (BodyStreamingTarget target : collectDynamicBodyTargets(streaming,
-            settings,
-            physicsFrame,
-            currentTick,
-            snapshot)) {
+        for (BodyStreamingTarget target : bodyTargets) {
             int sectionsBefore = visitedSections.size();
             streaming.ensureAround(world,
                 settings.spaceUuid(),
@@ -197,63 +197,87 @@ public final class PhysicsChunkCollisionProducerSystem extends TickingSystem<Ent
     }
 
     @Nonnull
-    private static List<BodyStreamingTarget> collectDynamicBodyTargets(
+    private static Map<UUID, List<BodyStreamingTarget>> collectDynamicBodyTargetsBySpace(
         @Nonnull PhysicsChunkCollisionStreamingResource streaming,
-        @Nonnull PhysicsChunkSpaceSettings settings,
-        @Nonnull PhysicsSnapshotFrame physicsFrame,
+        @Nonnull List<PhysicsChunkSpaceSettings> spaces,
+        @Nonnull PhysicsSnapshotResource snapshotResource,
         long currentTick,
         @Nullable Snapshot snapshot) {
-        Map<PhysicsChunkStreamingBounds, BodyStreamingTarget> uniqueTargets =
-            new Object2ObjectOpenHashMap<>();
-        int spatialCandidates = 0;
-        int dynamicCandidates = 0;
-        for (PhysicsBodySnapshot body : physicsFrame.bodies()) {
-            if (!body.spaceUuid().equals(settings.spaceUuid())) {
-                continue;
-            }
-            spatialCandidates++;
-            if (body.bodyType() != PhysicsBodyType.DYNAMIC) {
-                continue;
-            }
-            Ref<PhysicsStore> bodyRef = body.bodyRef();
-            if (bodyRef == null || !bodyRef.isValid()) {
-                continue;
-            }
-            dynamicCandidates++;
-            Vector3f position = body.position();
-            PhysicsChunkStreamingBounds bounds = PhysicsChunkStreamingBounds.from(position.x,
-                position.y,
-                position.z,
-                settings.bodyRadius());
-            TargetRefreshDecision decision = streaming.shouldRefreshBodyTarget(settings.spaceUuid(),
-                bodyRef,
-                bounds,
-                body.sleeping(),
-                currentTick,
-                settings.ttlTicks(),
-                snapshot);
-            if (!decision.refresh()) {
-                continue;
-            }
-
-            BodyStreamingTarget target = uniqueTargets.get(bounds);
-            if (target == null) {
-                target = new BodyStreamingTarget(new Vector3d(position.x, position.y, position.z),
-                    bounds,
-                    new ArrayList<>());
-                uniqueTargets.put(bounds, target);
-            } else if (snapshot != null) {
-                snapshot.incrementBodyTargetDedupeSkips();
-            }
-            target.refreshes().add(new BodyStreamingRefresh(bodyRef, body.sleeping()));
+        Map<UUID, PhysicsChunkSpaceSettings> settingsBySpace = new Object2ObjectOpenHashMap<>();
+        Map<UUID, BodyTargetAccumulator> accumulators = new Object2ObjectOpenHashMap<>();
+        for (PhysicsChunkSpaceSettings settings : spaces) {
+            settingsBySpace.put(settings.spaceUuid(), settings);
+            accumulators.put(settings.spaceUuid(), new BodyTargetAccumulator());
         }
+        snapshotResource.forEachBodyCursor(body -> collectDynamicBodyTarget(streaming,
+            settingsBySpace,
+            accumulators,
+            body,
+            currentTick,
+            snapshot));
 
+        Map<UUID, List<BodyStreamingTarget>> targetsBySpace = new Object2ObjectOpenHashMap<>();
         if (snapshot != null) {
-            snapshot.addBodySpatialIndexCandidates(spatialCandidates);
-            snapshot.addBodyStreamingCandidates(dynamicCandidates);
-            snapshot.addBodyStreamingTargets(uniqueTargets.size());
+            for (BodyTargetAccumulator accumulator : accumulators.values()) {
+                snapshot.addBodySpatialIndexCandidates(accumulator.spatialCandidates);
+                snapshot.addBodyStreamingCandidates(accumulator.dynamicCandidates);
+                snapshot.addBodyStreamingTargets(accumulator.targets.size());
+            }
         }
-        return new ArrayList<>(uniqueTargets.values());
+        for (Map.Entry<UUID, BodyTargetAccumulator> entry : accumulators.entrySet()) {
+            targetsBySpace.put(entry.getKey(), new ArrayList<>(entry.getValue().targets.values()));
+        }
+        return targetsBySpace;
+    }
+
+    private static void collectDynamicBodyTarget(
+        @Nonnull PhysicsChunkCollisionStreamingResource streaming,
+        @Nonnull Map<UUID, PhysicsChunkSpaceSettings> settingsBySpace,
+        @Nonnull Map<UUID, BodyTargetAccumulator> accumulators,
+        @Nonnull BodyCursor body,
+        long currentTick,
+        @Nullable Snapshot snapshot) {
+        PhysicsChunkSpaceSettings settings = settingsBySpace.get(body.spaceUuid());
+        if (settings == null) {
+            return;
+        }
+        BodyTargetAccumulator accumulator = accumulators.get(settings.spaceUuid());
+        accumulator.spatialCandidates++;
+        if (body.bodyType() != PhysicsBodyType.DYNAMIC) {
+            return;
+        }
+        Ref<PhysicsStore> bodyRef = body.bodyRef();
+        if (bodyRef == null || !bodyRef.isValid()) {
+            return;
+        }
+        accumulator.dynamicCandidates++;
+        PhysicsChunkStreamingBounds bounds = PhysicsChunkStreamingBounds.from(body.positionX(),
+            body.positionY(),
+            body.positionZ(),
+            settings.bodyRadius());
+        TargetRefreshDecision decision = streaming.shouldRefreshBodyTarget(settings.spaceUuid(),
+            bodyRef,
+            bounds,
+            body.sleeping(),
+            currentTick,
+            settings.ttlTicks(),
+            snapshot);
+        if (!decision.refresh()) {
+            return;
+        }
+
+        BodyStreamingTarget target = accumulator.targets.get(bounds);
+        if (target == null) {
+            target = new BodyStreamingTarget(new Vector3d(body.positionX(),
+                body.positionY(),
+                body.positionZ()),
+                bounds,
+                new ArrayList<>());
+            accumulator.targets.put(bounds, target);
+        } else if (snapshot != null) {
+            snapshot.incrementBodyTargetDedupeSkips();
+        }
+        target.refreshes().add(new BodyStreamingRefresh(bodyRef, body.sleeping()));
     }
 
     @Nonnull
@@ -343,6 +367,14 @@ public final class PhysicsChunkCollisionProducerSystem extends TickingSystem<Ent
 
     private record BodyStreamingRefresh(@Nonnull Ref<PhysicsStore> bodyRef,
                                         boolean sleeping) {
+    }
+
+    private static final class BodyTargetAccumulator {
+
+        private final Map<PhysicsChunkStreamingBounds, BodyStreamingTarget> targets =
+            new Object2ObjectOpenHashMap<>();
+        private int spatialCandidates;
+        private int dynamicCandidates;
     }
 
 }

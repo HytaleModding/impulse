@@ -39,6 +39,8 @@ import dev.hytalemodding.impulse.core.plugin.components.UuidComponent;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.components.ChunkCollisionSourceComponent;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.components.ChunkCollisionSourceComponent.PartKind;
 import dev.hytalemodding.impulse.core.plugin.physics.PhysicsEntities;
+import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -85,15 +87,21 @@ public final class ChunkCollisionMutationDrainSystem extends TickingSystem<Physi
             PhysicsChunkCollisionPayloadResource.getResourceType());
         PhysicsChunkSettingsIndexResource settingsIndex = store.getResource(
             PhysicsChunkSettingsIndexResource.getResourceType());
-
-        applyRemovals(store, runtime, identity, chunkCollisionPayloads, mutations);
-        applyUpserts(store,
+        List<PreparedUpsert> upserts = prepareUpserts(store,
             runtime,
             identity,
-            chunkCollisionPayloads,
             settingsIndex,
             restore,
             mutations);
+
+        removeGeneratedRows(store,
+            runtime,
+            identity,
+            removalKeys(mutations, upserts));
+        applyPreparedUpserts(store,
+            identity,
+            chunkCollisionPayloads,
+            upserts);
     }
 
     @Nonnull
@@ -108,31 +116,45 @@ public final class ChunkCollisionMutationDrainSystem extends TickingSystem<Physi
         return new ArrayList<>(latest.values());
     }
 
-    private static void applyRemovals(@Nonnull Store<PhysicsStore> store,
-        @Nonnull PhysicsRuntimeResource runtime,
-        @Nonnull PhysicsIdentityIndexResource identity,
-        @Nonnull PhysicsChunkCollisionPayloadResource chunkCollisionPayloads,
-        @Nonnull List<ChunkCollisionMutation> mutations) {
+    @Nonnull
+    private static Map<UUID, ObjectOpenHashSet<String>> removalKeys(
+        @Nonnull List<ChunkCollisionMutation> mutations,
+        @Nonnull List<PreparedUpsert> upserts) {
+        Map<UUID, ObjectOpenHashSet<String>> keys = new Object2ObjectOpenHashMap<>();
         for (ChunkCollisionMutation mutation : mutations) {
             if (mutation.remove()) {
-                removeGeneratedRows(store, runtime, identity, mutation);
-                removePayload(chunkCollisionPayloads, mutation.payloadResourceKey());
+                addRemovalKey(keys, mutation);
             }
         }
+        for (PreparedUpsert upsert : upserts) {
+            addRemovalKey(keys, upsert.mutation());
+        }
+        return keys;
     }
 
-    private static void applyUpserts(@Nonnull Store<PhysicsStore> store,
+    private static void addRemovalKey(@Nonnull Map<UUID, ObjectOpenHashSet<String>> keys,
+        @Nonnull ChunkCollisionMutation mutation) {
+        keys.computeIfAbsent(mutation.spaceUuid(), _ -> new ObjectOpenHashSet<>())
+            .add(mutation.sourceKey());
+    }
+
+    @Nonnull
+    private static List<PreparedUpsert> prepareUpserts(@Nonnull Store<PhysicsStore> store,
         @Nonnull PhysicsRuntimeResource runtime,
         @Nonnull PhysicsIdentityIndexResource identity,
-        @Nonnull PhysicsChunkCollisionPayloadResource chunkCollisionPayloads,
         @Nonnull PhysicsChunkSettingsIndexResource settingsIndex,
         @Nonnull PhysicsRestoreStatusResource restore,
         @Nonnull List<ChunkCollisionMutation> mutations) {
+        List<PreparedUpsert> upserts = new ArrayList<>();
         for (ChunkCollisionMutation mutation : mutations) {
             if (!mutation.remove() && isFreshUpsert(settingsIndex, mutation)) {
-                applyUpsert(store, runtime, identity, chunkCollisionPayloads, restore, mutation);
+                PreparedUpsert upsert = prepareUpsert(store, runtime, identity, restore, mutation);
+                if (upsert != null) {
+                    upserts.add(upsert);
+                }
             }
         }
+        return upserts;
     }
 
     private static boolean isFreshUpsert(@Nonnull PhysicsChunkSettingsIndexResource settingsIndex,
@@ -142,17 +164,17 @@ public final class ChunkCollisionMutationDrainSystem extends TickingSystem<Physi
             && settingsIndex.settings(mutation.spaceUuid()) != null;
     }
 
-    private static void applyUpsert(@Nonnull Store<PhysicsStore> store,
+    @Nullable
+    private static PreparedUpsert prepareUpsert(@Nonnull Store<PhysicsStore> store,
         @Nonnull PhysicsRuntimeResource runtime,
         @Nonnull PhysicsIdentityIndexResource identity,
-        @Nonnull PhysicsChunkCollisionPayloadResource chunkCollisionPayloads,
         @Nonnull PhysicsRestoreStatusResource restore,
         @Nonnull ChunkCollisionMutation mutation) {
         ChunkCollisionPayload payload = mutation.payload();
         if (payload == null || payload.isEmpty()) {
             restore.recordSoftSkip("Chunk collision upsert payload is missing: "
                 + mutation.sourceKey());
-            return;
+            return null;
         }
         Ref<PhysicsStore> spaceRef = PhysicsStoreSystemSupport.refForUuid(identity,
             mutation.spaceUuid());
@@ -163,34 +185,56 @@ public final class ChunkCollisionMutationDrainSystem extends TickingSystem<Physi
         if (spaceRef == null || spaceHandle == null || backendRuntime == null) {
             restore.recordSoftSkip("Chunk collision references unbound space: "
                 + mutation.sourceKey());
-            return;
+            return null;
         }
         boolean nativeVoxel = payload.nativeVoxelCollisionEnabled()
             && payload.hasFullCubeVoxels()
             && backendRuntime.supportsVoxelTerrain(spaceHandle.value());
         MaterialComponent material = material(store, spaceRef);
         CollisionFilterComponent filter = filter(store, spaceRef);
-        removeGeneratedRows(store, runtime, identity, mutation);
+        return new PreparedUpsert(mutation, payload, spaceRef, material, filter, nativeVoxel);
+    }
+
+    private static void applyPreparedUpserts(@Nonnull Store<PhysicsStore> store,
+        @Nonnull PhysicsIdentityIndexResource identity,
+        @Nonnull PhysicsChunkCollisionPayloadResource chunkCollisionPayloads,
+        @Nonnull List<PreparedUpsert> upserts) {
+        for (PreparedUpsert upsert : upserts) {
+            applyPreparedUpsert(store, identity, chunkCollisionPayloads, upsert);
+        }
+    }
+
+    private static void applyPreparedUpsert(@Nonnull Store<PhysicsStore> store,
+        @Nonnull PhysicsIdentityIndexResource identity,
+        @Nonnull PhysicsChunkCollisionPayloadResource chunkCollisionPayloads,
+        @Nonnull PreparedUpsert upsert) {
+        ChunkCollisionMutation mutation = upsert.mutation();
+        ChunkCollisionPayload payload = upsert.payload();
         removePayload(chunkCollisionPayloads, mutation.payloadResourceKey());
-        if (nativeVoxel) {
+        if (upsert.nativeVoxel()) {
             chunkCollisionPayloads.put(mutation.payloadResourceKey(), voxelPayload(payload));
-            addNativeVoxelBody(store, identity, spaceRef, mutation, material, filter);
+            addNativeVoxelBody(store,
+                identity,
+                upsert.spaceRef(),
+                mutation,
+                upsert.material(),
+                upsert.filter());
         } else {
             addBoxBodies(store,
                 identity,
-                spaceRef,
+                upsert.spaceRef(),
                 mutation,
-                material,
-                filter,
+                upsert.material(),
+                upsert.filter(),
                 payload.mergedFullCubeBoxes(),
                 PartKind.BOX);
         }
         addBoxBodies(store,
             identity,
-            spaceRef,
+            upsert.spaceRef(),
             mutation,
-            material,
-            filter,
+            upsert.material(),
+            upsert.filter(),
             payload.detailBoxes(),
             PartKind.DETAIL_BOX);
     }
@@ -342,11 +386,13 @@ public final class ChunkCollisionMutationDrainSystem extends TickingSystem<Physi
     private static void removeGeneratedRows(@Nonnull Store<PhysicsStore> store,
         @Nonnull PhysicsRuntimeResource runtime,
         @Nonnull PhysicsIdentityIndexResource identity,
-        @Nonnull ChunkCollisionMutation mutation) {
-        List<GeneratedRow> rows = collectGeneratedRows(store, mutation);
+        @Nonnull Map<UUID, ObjectOpenHashSet<String>> keys) {
+        if (keys.isEmpty()) {
+            return;
+        }
+        List<GeneratedRow> rows = collectGeneratedRows(store, keys);
         rows.sort((first, second) -> Integer.compare(second.ref().getIndex(),
             first.ref().getIndex()));
-        boolean removedAny = false;
         List<PhysicsStoreRowCleanup.BodyEntityRemoval> bodyEntityRemovals =
             new ArrayList<>(rows.size());
         for (GeneratedRow row : rows) {
@@ -354,9 +400,8 @@ public final class ChunkCollisionMutationDrainSystem extends TickingSystem<Physi
             bodyEntityRemovals.add(new PhysicsStoreRowCleanup.BodyEntityRemoval(row.uuid(),
                 row.ref(),
                 row.payloadResourceKey()));
-            removedAny = true;
         }
-        if (removedAny) {
+        if (!bodyEntityRemovals.isEmpty()) {
             PhysicsStoreRowCleanup.removeBodyEntities(store, bodyEntityRemovals);
             PhysicsStoreRowCleanup.refreshIdentityAndRuntimeRefs(store);
         }
@@ -364,7 +409,7 @@ public final class ChunkCollisionMutationDrainSystem extends TickingSystem<Physi
 
     @Nonnull
     private static List<GeneratedRow> collectGeneratedRows(@Nonnull Store<PhysicsStore> store,
-        @Nonnull ChunkCollisionMutation mutation) {
+        @Nonnull Map<UUID, ObjectOpenHashSet<String>> keys) {
         ConcurrentLinkedQueue<GeneratedRow> rows = new ConcurrentLinkedQueue<>();
         store.forEachEntityParallel(UuidComponent.getComponentType(), (index, chunk, _) -> {
             UUID rowUuid = PhysicsStoreSystemSupport.rowUuid(chunk, index);
@@ -376,7 +421,7 @@ public final class ChunkCollisionMutationDrainSystem extends TickingSystem<Physi
             BodyComponent body = chunk.getComponent(index, BodyComponent.getComponentType());
             if (source != null
                 && body != null
-                && matchesSource(mutation, body, source)) {
+                && containsRemovalKey(keys, body, source)) {
                 rows.add(new GeneratedRow(chunk.getReferenceTo(index),
                     rowUuid,
                     source.getPayloadResourceKey()));
@@ -385,11 +430,12 @@ public final class ChunkCollisionMutationDrainSystem extends TickingSystem<Physi
         return new ArrayList<>(rows);
     }
 
-    private static boolean matchesSource(@Nonnull ChunkCollisionMutation mutation,
+    private static boolean containsRemovalKey(
+        @Nonnull Map<UUID, ObjectOpenHashSet<String>> keys,
         @Nonnull BodyComponent body,
         @Nonnull ChunkCollisionSourceComponent source) {
-        return mutation.spaceUuid().equals(body.getSpaceUuid())
-            && mutation.sourceKey().equals(source.getSourceKey());
+        ObjectOpenHashSet<String> sourceKeys = keys.get(body.getSpaceUuid());
+        return sourceKeys != null && sourceKeys.contains(source.getSourceKey());
     }
 
     private static void removePayload(@Nonnull PhysicsChunkCollisionPayloadResource chunkCollisionPayloads,
@@ -428,6 +474,21 @@ public final class ChunkCollisionMutationDrainSystem extends TickingSystem<Physi
         private MutationKey {
             Objects.requireNonNull(spaceUuid, "spaceUuid");
             Objects.requireNonNull(sourceKey, "sourceKey");
+        }
+    }
+
+    private record PreparedUpsert(@Nonnull ChunkCollisionMutation mutation,
+                                  @Nonnull ChunkCollisionPayload payload,
+                                  @Nonnull Ref<PhysicsStore> spaceRef,
+                                  @Nonnull MaterialComponent material,
+                                  @Nonnull CollisionFilterComponent filter,
+                                  boolean nativeVoxel) {
+        private PreparedUpsert {
+            Objects.requireNonNull(mutation, "mutation");
+            Objects.requireNonNull(payload, "payload");
+            Objects.requireNonNull(spaceRef, "spaceRef");
+            Objects.requireNonNull(material, "material");
+            Objects.requireNonNull(filter, "filter");
         }
     }
 }
