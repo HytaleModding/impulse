@@ -1,4 +1,4 @@
-package dev.hytalemodding.impulse.core.internal.systems.sync;
+package dev.hytalemodding.impulse.core.internal.modules.physicsentity.systems.sync;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -177,7 +177,7 @@ class PhysicsSyncPolicyTest {
     }
 
     @Test
-    void controlledBodiesBypassLowSpeedDeadzoneThresholds() {
+    void kinematicBodiesBypassLowSpeedDeadzoneThresholds() {
         PhysicsBodyRuntimeState.BodySyncState syncState = initializedState(false);
 
         assertEquals(PhysicsSyncPolicy.SyncDecision.THRESHOLD,
@@ -238,7 +238,7 @@ class PhysicsSyncPolicyTest {
     }
 
     @Test
-    void rangeTierReturnsNearForNonLimitedOrControlledVisuals() {
+    void rangeTierReturnsNearForNonLimitedOrKinematicVisuals() {
         PhysicsVisualSyncSettings settings = new PhysicsVisualSyncSettings();
         List<PhysicsSyncPolicy.PlayerInterest> players =
             interests(new Vector3f(100.0f, 0.0f, 0.0f));
@@ -256,6 +256,13 @@ class PhysicsSyncPolicyTest {
                 true,
                 true,
                 players,
+                new Vector3f()));
+        assertEquals(PhysicsSyncPolicy.SyncRangeTier.NEAR,
+            PhysicsSyncPolicy.resolveRangeTier(settings,
+                null,
+                true,
+                true,
+                List.of(),
                 new Vector3f()));
     }
 

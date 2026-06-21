@@ -210,7 +210,7 @@ public class PhysicsVisualSyncSettings {
 
     /**
      * If enabled, entity-backed physics body transforms use the same player-interest culling
-     * as follower visuals. Controlled bodies are always synced.
+     * as follower visuals. Kinematic bodies are always synced.
      */
     @Setter
     @Getter

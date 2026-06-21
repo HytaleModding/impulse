@@ -1,4 +1,4 @@
-package dev.hytalemodding.impulse.core.internal.systems.sync;
+package dev.hytalemodding.impulse.core.internal.modules.physicsentity.systems.sync;
 
 import com.hypixel.hytale.component.CommandBuffer;
 import com.hypixel.hytale.component.ComponentType;

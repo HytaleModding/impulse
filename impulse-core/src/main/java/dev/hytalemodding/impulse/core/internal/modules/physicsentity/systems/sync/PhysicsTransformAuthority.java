@@ -1,4 +1,4 @@
-package dev.hytalemodding.impulse.core.internal.systems.sync;
+package dev.hytalemodding.impulse.core.internal.modules.physicsentity.systems.sync;
 
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.BodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.BodyAttachmentComponent.TransformAuthority;

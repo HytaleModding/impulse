@@ -7,6 +7,7 @@ import lombok.Getter;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 import java.util.Map;
+import java.util.UUID;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -50,17 +51,43 @@ public final class PhysicsBodyRuntimeState {
         private boolean sleeping;
         @Getter
         private boolean snapshotObserved;
+        @Nullable
+        private UUID lastSyncedBodyUuid;
         @Getter
         private float secondsSinceSync;
 
         public void recordSync(@Nonnull Vector3f position,
             @Nonnull Quaternionf rotation,
             boolean sleeping) {
+            recordSync(null, position, rotation, sleeping);
+        }
+
+        public void recordSync(@Nullable UUID bodyUuid,
+            @Nonnull Vector3f position,
+            @Nonnull Quaternionf rotation,
+            boolean sleeping) {
+            lastSyncedBodyUuid = bodyUuid;
             lastSyncedPosition.set(position);
             lastSyncedRotation.set(rotation);
             initialized = true;
             this.sleeping = sleeping;
             secondsSinceSync = 0.0f;
+        }
+
+        public boolean isInitializedFor(@Nonnull UUID bodyUuid) {
+            return initialized
+                && (lastSyncedBodyUuid == null || lastSyncedBodyUuid.equals(bodyUuid));
+        }
+
+        public void clear() {
+            initialized = false;
+            sleeping = false;
+            snapshotObserved = false;
+            lastSyncedBodyUuid = null;
+            secondsSinceSync = 0.0f;
+            lastSyncedPosition.zero();
+            lastSyncedRotation.identity();
+            lastObservedSnapshotPosition.zero();
         }
 
         public float recordSnapshotObservation(@Nonnull Vector3f position) {

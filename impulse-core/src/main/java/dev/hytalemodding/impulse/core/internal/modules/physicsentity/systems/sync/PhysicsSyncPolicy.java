@@ -1,4 +1,4 @@
-package dev.hytalemodding.impulse.core.internal.systems.sync;
+package dev.hytalemodding.impulse.core.internal.modules.physicsentity.systems.sync;
 
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRuntimeState;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsVisualRuntime.BodyVisualInterestState;
@@ -63,10 +63,10 @@ public final class PhysicsSyncPolicy {
     static SyncRangeTier resolveRangeTier(@Nullable PhysicsVisualSyncSettings settings,
         @Nullable BodyVisualInterestState visualInterestState,
         boolean rangeLimitedVisual,
-        boolean controlled,
+        boolean kinematic,
         @Nonnull List<PlayerInterest> playerInterests,
         @Nonnull Vector3f visualPosition) {
-        if (!rangeLimitedVisual || controlled) {
+        if (!rangeLimitedVisual || kinematic) {
             return SyncRangeTier.NEAR;
         }
         if (playerInterests.isEmpty()) {
@@ -107,7 +107,7 @@ public final class PhysicsSyncPolicy {
         @Nonnull Quaternionf rotation,
         boolean sleeping,
         boolean lowSpeed,
-        boolean controlled,
+        boolean kinematic,
         @Nonnull SyncRangeTier rangeTier) {
         if (!syncState.isInitialized()) {
             return SyncDecision.INITIAL;
@@ -128,22 +128,22 @@ public final class PhysicsSyncPolicy {
         float rotationDotThreshold;
         float keepaliveSeconds;
         int minimumIntervalTicks = 1;
-        if (rangeTier == SyncRangeTier.FAR && !controlled) {
+        if (rangeTier == SyncRangeTier.FAR && !kinematic) {
             positionThresholdSquared = MID_RANGE_POSITION_SYNC_THRESHOLD_SQUARED;
             rotationDotThreshold = MID_RANGE_ROTATION_SYNC_DOT_THRESHOLD;
             keepaliveSeconds = intervalSeconds(visualSyncSettings.getVisualFarSyncIntervalTicks());
             minimumIntervalTicks = visualSyncSettings.getVisualFarSyncIntervalTicks();
-        } else if (rangeTier == SyncRangeTier.MID && !controlled) {
+        } else if (rangeTier == SyncRangeTier.MID && !kinematic) {
             positionThresholdSquared = MID_RANGE_POSITION_SYNC_THRESHOLD_SQUARED;
             rotationDotThreshold = MID_RANGE_ROTATION_SYNC_DOT_THRESHOLD;
             keepaliveSeconds = MID_RANGE_KEEPALIVE_SECONDS;
             minimumIntervalTicks = visualSyncSettings.getVisualMidSyncIntervalTicks();
         } else {
-            positionThresholdSquared = lowSpeed && !controlled
+            positionThresholdSquared = lowSpeed && !kinematic
                 ? LOW_SPEED_POSITION_SYNC_THRESHOLD_SQUARED : POSITION_SYNC_THRESHOLD_SQUARED;
-            rotationDotThreshold = lowSpeed && !controlled
+            rotationDotThreshold = lowSpeed && !kinematic
                 ? LOW_SPEED_ROTATION_SYNC_DOT_THRESHOLD : ROTATION_SYNC_DOT_THRESHOLD;
-            keepaliveSeconds = lowSpeed && !controlled
+            keepaliveSeconds = lowSpeed && !kinematic
                 ? LOW_SPEED_KEEPALIVE_SECONDS : ACTIVE_KEEPALIVE_SECONDS;
         }
 
@@ -165,7 +165,7 @@ public final class PhysicsSyncPolicy {
         if (rangeTier == SyncRangeTier.MID) {
             return SyncDecision.SKIP_VISUAL_RANGE;
         }
-        return lowSpeed && !controlled ? SyncDecision.SKIP_VISUAL_DEADZONE
+        return lowSpeed && !kinematic ? SyncDecision.SKIP_VISUAL_DEADZONE
             : SyncDecision.SKIP_THRESHOLD;
     }
 

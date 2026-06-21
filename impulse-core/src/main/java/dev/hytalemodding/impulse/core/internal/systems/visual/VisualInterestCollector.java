@@ -11,7 +11,7 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsVisualInterestResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsVisualRuntime;
-import dev.hytalemodding.impulse.core.internal.systems.sync.PhysicsSyncPolicy;
+import dev.hytalemodding.impulse.core.internal.modules.physicsentity.systems.sync.PhysicsSyncPolicy;
 import java.util.ArrayList;
 import java.util.List;
 import javax.annotation.Nonnull;
