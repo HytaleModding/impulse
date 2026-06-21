@@ -1,11 +1,11 @@
-package dev.hytalemodding.impulse.examples.utils;
+package dev.hytalemodding.impulse.examples.commands.stress;
 
-import javax.annotation.Nonnull;
 import java.util.Arrays;
 import java.util.Objects;
 import java.util.UUID;
+import javax.annotation.Nonnull;
 
-public final class BlockBodyBatchBuilder {
+final class BlockBodyBatchBuilder {
 
     private static final int POSITION_STRIDE = 3;
 
@@ -24,7 +24,7 @@ public final class BlockBodyBatchBuilder {
     }
 
     @Nonnull
-    public BlockBodyBatchBuilder addBody(float positionX,
+    BlockBodyBatchBuilder addBody(float positionX,
         float positionY,
         float positionZ) {
         return addBody(bodyUuidRunId,
@@ -35,38 +35,7 @@ public final class BlockBodyBatchBuilder {
     }
 
     @Nonnull
-    public BlockBodyBatchBuilder addBody(@Nonnull UUID bodyUuid,
-        float positionX,
-        float positionY,
-        float positionZ) {
-        Objects.requireNonNull(bodyUuid, "bodyUuid");
-        return addBody(bodyUuid.getMostSignificantBits(),
-            bodyUuid.getLeastSignificantBits(),
-            positionX,
-            positionY,
-            positionZ);
-    }
-
-    @Nonnull
-    public UUID body(float positionX,
-        float positionY,
-        float positionZ) {
-        long leastSignificantBits = size + 1L;
-        addBody(bodyUuidRunId, leastSignificantBits, positionX, positionY, positionZ);
-        return new UUID(bodyUuidRunId, leastSignificantBits);
-    }
-
-    @Nonnull
-    public UUID body(@Nonnull UUID bodyUuid,
-        float positionX,
-        float positionY,
-        float positionZ) {
-        addBody(bodyUuid, positionX, positionY, positionZ);
-        return bodyUuid;
-    }
-
-    @Nonnull
-    public BlockBodyBatchBuilder addBody(long bodyUuidMostSignificantBits,
+    BlockBodyBatchBuilder addBody(long bodyUuidMostSignificantBits,
         long bodyUuidLeastSignificantBits,
         float positionX,
         float positionY,

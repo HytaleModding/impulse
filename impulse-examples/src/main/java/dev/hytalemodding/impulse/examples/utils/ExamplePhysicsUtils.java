@@ -11,7 +11,6 @@ import com.hypixel.hytale.server.core.modules.time.TimeResource;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
-import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.components.BodyCommandComponent;
 import dev.hytalemodding.impulse.core.plugin.components.JointComponent;
@@ -32,7 +31,6 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
-import java.util.function.Consumer;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.joml.Quaternionf;
@@ -114,22 +112,6 @@ public final class ExamplePhysicsUtils {
         return bodyRef;
     }
 
-    public static void addPhysicsStoreBodies(@Nonnull World world,
-        @Nonnull Iterable<Holder<PhysicsStore>> bodyHolders) {
-        Objects.requireNonNull(bodyHolders, "bodyHolders");
-        Store<PhysicsStore> store = PhysicsThreading.store(world);
-        PhysicsThreading.requireWorldThread(store, "add PhysicsStore body entities");
-        List<Holder<PhysicsStore>> holders = new ArrayList<>();
-        for (Holder<PhysicsStore> holder : bodyHolders) {
-            holders.add(Objects.requireNonNull(holder, "holder"));
-        }
-        if (!holders.isEmpty()) {
-            @SuppressWarnings("unchecked")
-            Holder<PhysicsStore>[] holderArray = holders.toArray(Holder[]::new);
-            store.addEntities(holderArray, AddReason.SPAWN);
-        }
-    }
-
     @Nonnull
     private static Ref<PhysicsStore> addPhysicsStoreBody(@Nonnull Store<PhysicsStore> store,
         @Nonnull Holder<PhysicsStore> holder) {
@@ -195,133 +177,7 @@ public final class ExamplePhysicsUtils {
             linearVelocity);
     }
 
-    @Nonnull
-    public static BodyEntityBatchTiming addDynamicBodyBatchMeasured(@Nonnull World world,
-        @Nonnull Ref<PhysicsStore> spaceRef,
-        @Nonnull SpaceId spaceId,
-        int expectedBodies,
-        @Nonnull PhysicsShapeSpec shape,
-        float mass,
-        @Nonnull RigidBodySpawnSettings settings,
-        @Nonnull Consumer<BlockBodyBatchBuilder> builder) {
-        DynamicBodyBatchPlan plan = dynamicBodyBatchPlan(spaceRef,
-            spaceId,
-            expectedBodies,
-            shape,
-            mass,
-            settings,
-            builder);
-        if (plan.isEmpty()) {
-            return new BodyEntityBatchTiming(0, plan.setupWallNanos(), 0L);
-        }
-
-        long applyStartNanos = System.nanoTime();
-        addPhysicsStoreBodies(world, plan.bodies());
-        long physicsStoreApplyNanos = System.nanoTime() - applyStartNanos;
-        return new BodyEntityBatchTiming(plan.count(),
-            plan.setupWallNanos(),
-            physicsStoreApplyNanos);
-    }
-
-    @Nonnull
-    private static DynamicBodyBatchPlan dynamicBodyBatchPlan(@Nonnull World world,
-        @Nonnull SpaceId spaceId,
-        int expectedBodies,
-        @Nonnull PhysicsShapeSpec shape,
-        float mass,
-        @Nonnull RigidBodySpawnSettings settings,
-        @Nonnull Consumer<BlockBodyBatchBuilder> builder) {
-        Objects.requireNonNull(world, "world");
-        Objects.requireNonNull(spaceId, "spaceId");
-        Objects.requireNonNull(shape, "shape");
-        Objects.requireNonNull(settings, "settings");
-
-        long setupStartNanos = System.nanoTime();
-        BlockBodyBatchBuilder batch = new BlockBodyBatchBuilder(expectedBodies);
-        Objects.requireNonNull(builder, "builder").accept(batch);
-        batch.seal();
-        if (batch.isEmpty()) {
-            return new DynamicBodyBatchPlan(List.of(), 0L);
-        }
-
-        Ref<PhysicsStore> spaceRef = resolveSpaceRef(world, spaceId);
-        if (spaceRef == null) {
-            throw new IllegalStateException("Cannot add dynamic body entities because the target space is not "
-                + "bound in PhysicsStore: " + spaceId.value());
-        }
-
-        return dynamicBodyBatchPlan(spaceRef,
-            spaceId,
-            shape,
-            mass,
-            settings,
-            batch,
-            setupStartNanos);
-    }
-
-    @Nonnull
-    private static DynamicBodyBatchPlan dynamicBodyBatchPlan(@Nonnull Ref<PhysicsStore> spaceRef,
-        @Nonnull SpaceId spaceId,
-        int expectedBodies,
-        @Nonnull PhysicsShapeSpec shape,
-        float mass,
-        @Nonnull RigidBodySpawnSettings settings,
-        @Nonnull Consumer<BlockBodyBatchBuilder> builder) {
-        Objects.requireNonNull(spaceRef, "spaceRef");
-        Objects.requireNonNull(spaceId, "spaceId");
-        Objects.requireNonNull(shape, "shape");
-        Objects.requireNonNull(settings, "settings");
-
-        PhysicsThreading.requireWorldThread(spaceRef.getStore(),
-            "add dynamic PhysicsStore body entities");
-        if (!spaceRef.isValid()) {
-            throw new IllegalStateException("Cannot add dynamic body entities because the target "
-                + "PhysicsStore space entity is no longer valid: " + spaceId.value());
-        }
-
-        long setupStartNanos = System.nanoTime();
-        BlockBodyBatchBuilder batch = new BlockBodyBatchBuilder(expectedBodies);
-        Objects.requireNonNull(builder, "builder").accept(batch);
-        batch.seal();
-        if (batch.isEmpty()) {
-            return new DynamicBodyBatchPlan(List.of(), 0L);
-        }
-
-        return dynamicBodyBatchPlan(spaceRef,
-            spaceId,
-            shape,
-            mass,
-            settings,
-            batch,
-            setupStartNanos);
-    }
-
-    @Nonnull
-    private static DynamicBodyBatchPlan dynamicBodyBatchPlan(@Nonnull Ref<PhysicsStore> spaceRef,
-        @Nonnull SpaceId spaceId,
-        @Nonnull PhysicsShapeSpec shape,
-        float mass,
-        @Nonnull RigidBodySpawnSettings settings,
-        @Nonnull BlockBodyBatchBuilder batch,
-        long setupStartNanos) {
-        List<Holder<PhysicsStore>> bodies = new ArrayList<>(batch.size());
-        for (int i = 0; i < batch.size(); i++) {
-            UUID bodyUuid = batch.bodyUuid(i);
-            bodies.add(PhysicsBodyEntities.bodyHolder(spaceRef,
-                bodyUuid,
-                new Vector3f(batch.positionX(i), batch.positionY(i), batch.positionZ(i)),
-                shape,
-                PhysicsBodyType.DYNAMIC,
-                mass,
-                settings,
-                null));
-        }
-
-        return new DynamicBodyBatchPlan(bodies, System.nanoTime() - setupStartNanos);
-    }
-
-    @Nonnull
-    public static SpawnedBlockBody attachBlockBody(@Nonnull Store<EntityStore> store,
+    public static void attachBlockBody(@Nonnull Store<EntityStore> store,
         @Nonnull TimeResource time,
         @Nonnull CreatedBlockBody created) {
         Ref<PhysicsStore> bodyRef = created.bodyRef();
@@ -331,193 +187,13 @@ public final class ExamplePhysicsUtils {
             throw new IllegalStateException("Cannot attach visual because PhysicsStore body entity "
                 + "is no longer valid: " + created.bodyUuid());
         }
-        Ref<EntityStore> entity = spawnAttachedBlockEntity(store,
+        spawnAttachedBlockEntity(store,
             time,
             bodyRef,
             created.bodyUuid(),
             created.blockType(),
             new Vector3d(created.positionX(), created.positionY(), created.positionZ()),
             created.controllable());
-        assert entity != null;
-        return new SpawnedBlockBody(created.bodyUuid(), created.spaceId(), entity);
-    }
-
-    @Nonnull
-    public static BlockBodyBatchTiming spawnBlockBodiesMeasured(@Nonnull Store<EntityStore> store,
-        @Nonnull TimeResource time,
-        long serverTick,
-        @Nonnull Ref<PhysicsStore> spaceRef,
-        @Nonnull SpaceId spaceId,
-        int expectedBodies,
-        @Nullable String blockType,
-        @Nonnull PhysicsShapeSpec shape,
-        float mass,
-        @Nonnull RigidBodySpawnSettings settings,
-        @Nonnull Consumer<BlockBodyBatchBuilder> builder) {
-        return spawnBlockBodiesInternal(store,
-            time,
-            serverTick,
-            spaceRef,
-            spaceId,
-            expectedBodies,
-            blockType,
-            shape,
-            mass,
-            settings,
-            builder,
-            false).timing();
-    }
-
-    @Nonnull
-    private static BlockBodyBatchResult spawnBlockBodiesInternal(@Nonnull Store<EntityStore> store,
-        @Nonnull TimeResource time,
-        long serverTick,
-        @Nonnull SpaceId spaceId,
-        int expectedBodies,
-        @Nullable String blockType,
-        @Nonnull PhysicsShapeSpec shape,
-        float mass,
-        @Nonnull RigidBodySpawnSettings settings,
-        @Nonnull Consumer<BlockBodyBatchBuilder> builder,
-        boolean collectBodies) {
-        BlockBodyBatchBuilder batch = new BlockBodyBatchBuilder(expectedBodies);
-        Objects.requireNonNull(builder, "builder").accept(batch);
-        batch.seal();
-        if (batch.isEmpty()) {
-            return new BlockBodyBatchResult(collectBodies ? new SpawnedBlockBody[0] : null,
-                0,
-                0L,
-                0L);
-        }
-
-        World world = store.getExternalData().getWorld();
-        Ref<PhysicsStore> spaceRef = resolveSpaceRef(world, spaceId);
-        if (spaceRef == null) {
-            throw new IllegalStateException("Cannot spawn block body batch because the target space is not "
-                + "bound in PhysicsStore: " + spaceId.value());
-        }
-
-        return spawnBlockBodiesInternal(store,
-            time,
-            serverTick,
-            spaceRef,
-            spaceId,
-            blockType,
-            shape,
-            mass,
-            settings,
-            batch,
-            collectBodies);
-    }
-
-    @Nonnull
-    private static BlockBodyBatchResult spawnBlockBodiesInternal(@Nonnull Store<EntityStore> store,
-        @Nonnull TimeResource time,
-        long serverTick,
-        @Nonnull Ref<PhysicsStore> spaceRef,
-        @Nonnull SpaceId spaceId,
-        int expectedBodies,
-        @Nullable String blockType,
-        @Nonnull PhysicsShapeSpec shape,
-        float mass,
-        @Nonnull RigidBodySpawnSettings settings,
-        @Nonnull Consumer<BlockBodyBatchBuilder> builder,
-        boolean collectBodies) {
-        Objects.requireNonNull(spaceRef, "spaceRef");
-        Objects.requireNonNull(spaceId, "spaceId");
-        Objects.requireNonNull(shape, "shape");
-        Objects.requireNonNull(settings, "settings");
-
-        PhysicsThreading.requireWorldThread(spaceRef.getStore(),
-            "spawn PhysicsStore block body entities");
-        if (!spaceRef.isValid()) {
-            throw new IllegalStateException("Cannot spawn block body batch because the target "
-                + "PhysicsStore space entity is no longer valid: " + spaceId.value());
-        }
-
-        BlockBodyBatchBuilder batch = new BlockBodyBatchBuilder(expectedBodies);
-        Objects.requireNonNull(builder, "builder").accept(batch);
-        batch.seal();
-        if (batch.isEmpty()) {
-            return new BlockBodyBatchResult(collectBodies ? new SpawnedBlockBody[0] : null,
-                0,
-                0L,
-                0L);
-        }
-
-        return spawnBlockBodiesInternal(store,
-            time,
-            serverTick,
-            spaceRef,
-            spaceId,
-            blockType,
-            shape,
-            mass,
-            settings,
-            batch,
-            collectBodies);
-    }
-
-    @Nonnull
-    private static BlockBodyBatchResult spawnBlockBodiesInternal(@Nonnull Store<EntityStore> store,
-        @Nonnull TimeResource time,
-        long serverTick,
-        @Nonnull Ref<PhysicsStore> spaceRef,
-        @Nonnull SpaceId spaceId,
-        @Nullable String blockType,
-        @Nonnull PhysicsShapeSpec shape,
-        float mass,
-        @Nonnull RigidBodySpawnSettings settings,
-        @Nonnull BlockBodyBatchBuilder batch,
-        boolean collectBodies) {
-        World world = store.getExternalData().getWorld();
-        List<Holder<PhysicsStore>> bodyHolders = new ArrayList<>(batch.size());
-        for (int i = 0; i < batch.size(); i++) {
-            UUID bodyUuid = batch.bodyUuid(i);
-            bodyHolders.add(bodyEntity(spaceRef,
-                bodyUuid,
-                new Vector3f(batch.positionX(i), batch.positionY(i), batch.positionZ(i)),
-                shape,
-                mass,
-                settings,
-                null));
-        }
-
-        long physicsStoreApplyStartNanos = System.nanoTime();
-        addPhysicsStoreBodies(world, bodyHolders);
-        long physicsStoreApplyNanos = System.nanoTime() - physicsStoreApplyStartNanos;
-
-        long visualAttachStartNanos = System.nanoTime();
-        SpawnedBlockBody[] spawned = collectBodies ? new SpawnedBlockBody[batch.size()] : null;
-        for (int i = 0; i < batch.size(); i++) {
-            UUID bodyUuid = batch.bodyUuid(i);
-            Ref<EntityStore> entity = spawnAttachedBlockEntity(store,
-                time,
-                null,
-                bodyUuid,
-                blockType,
-                new Vector3d(batch.positionX(i), batch.positionY(i), batch.positionZ(i)),
-                mass > 0.0f);
-            if (spawned != null) {
-                assert entity != null;
-                spawned[i] = new SpawnedBlockBody(bodyUuid, spaceId, entity);
-            }
-        }
-        long visualAttachNanos = System.nanoTime() - visualAttachStartNanos;
-        return new BlockBodyBatchResult(spawned,
-            batch.size(),
-            physicsStoreApplyNanos,
-            visualAttachNanos);
-    }
-
-    static void addControllableMarkerIfAvailable(@Nonnull Holder<EntityStore> holder,
-        @Nonnull PhysicsBodyType bodyType) {
-        Objects.requireNonNull(holder, "holder");
-        Objects.requireNonNull(bodyType, "bodyType");
-        if (bodyType == PhysicsBodyType.DYNAMIC && PhysicsControlSessions.isAvailable()) {
-            holder.addComponent(ImpulseControllableComponent.getComponentType(),
-                new ImpulseControllableComponent());
-        }
     }
 
     @Nullable
@@ -635,56 +311,12 @@ public final class ExamplePhysicsUtils {
         return new Vector3f((float) vector.x, (float) vector.y, (float) vector.z);
     }
 
-    public record SpawnedBlockBody(@Nonnull UUID bodyUuid,
-                                   @Nonnull SpaceId spaceId,
-                                   @Nonnull Ref<EntityStore> entity) {
-    }
-
     public record SpaceSelection(@Nonnull SpaceId spaceId,
                                  @Nonnull Ref<PhysicsStore> spaceRef) {
 
         public SpaceSelection {
             Objects.requireNonNull(spaceId, "spaceId");
             Objects.requireNonNull(spaceRef, "spaceRef");
-        }
-    }
-
-    public record BlockBodyBatchTiming(int count,
-                                       long physicsStoreApplyNanos,
-                                       long visualAttachNanos) {
-
-        public BlockBodyBatchTiming {
-            count = Math.max(0, count);
-            physicsStoreApplyNanos = Math.max(0L, physicsStoreApplyNanos);
-            visualAttachNanos = Math.max(0L, visualAttachNanos);
-        }
-    }
-
-    public record BodyEntityBatchTiming(int count,
-                                        long setupWallNanos,
-                                        long physicsStoreApplyNanos) {
-
-        public BodyEntityBatchTiming {
-            count = Math.max(0, count);
-            setupWallNanos = Math.max(0L, setupWallNanos);
-            physicsStoreApplyNanos = Math.max(0L, physicsStoreApplyNanos);
-        }
-    }
-
-    private record DynamicBodyBatchPlan(@Nonnull List<Holder<PhysicsStore>> bodies,
-                                        long setupWallNanos) {
-
-        DynamicBodyBatchPlan {
-            bodies = List.copyOf(Objects.requireNonNull(bodies, "bodies"));
-            setupWallNanos = Math.max(0L, setupWallNanos);
-        }
-
-        private int count() {
-            return bodies.size();
-        }
-
-        private boolean isEmpty() {
-            return bodies.isEmpty();
         }
     }
 

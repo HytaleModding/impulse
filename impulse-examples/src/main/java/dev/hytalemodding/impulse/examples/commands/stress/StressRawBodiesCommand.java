@@ -15,7 +15,6 @@ import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
 import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
 import dev.hytalemodding.impulse.examples.utils.ExamplePhysicsUtils;
-import dev.hytalemodding.impulse.examples.utils.ExamplePhysicsUtils.BodyEntityBatchTiming;
 import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
@@ -74,7 +73,7 @@ public class StressRawBodiesCommand extends AbstractAsyncPlayerCommand {
         PhysicsShapeSpec box = PhysicsShapeSpec.box(0.48f, 0.48f, 0.48f);
         RigidBodySpawnSettings spawnSettings = RigidBodySpawnSettings.material(0.65f, 0.15f);
         long totalStartNanos = System.nanoTime();
-        BodyEntityBatchTiming timing = ExamplePhysicsUtils.addDynamicBodyBatchMeasured(world,
+        StressBodyBatches.BodyEntityBatchTiming timing = StressBodyBatches.addDynamicBodyBatchMeasured(world,
             spaceRef,
             spaceId,
             count,
@@ -102,7 +101,7 @@ public class StressRawBodiesCommand extends AbstractAsyncPlayerCommand {
     }
 
     @Nonnull
-    private static String successMessage(@Nonnull BodyEntityBatchTiming timing,
+    private static String successMessage(@Nonnull StressBodyBatches.BodyEntityBatchTiming timing,
         long totalWallNanos) {
         return "PhysicsStore added body rows for " + timing.count()
             + " physics-only bodies: setupWallMs=" + millis(timing.setupWallNanos())

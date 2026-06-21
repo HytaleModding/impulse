@@ -183,7 +183,7 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
         if (mode == StressMode.ENTITY) {
             PhysicsShapeSpec box = PhysicsShapeSpec.box(0.48f, 0.48f, 0.48f);
             RigidBodySpawnSettings spawnSettings = RigidBodySpawnSettings.material(0.65f, 0.15f);
-            ExamplePhysicsUtils.BlockBodyBatchTiming batchTiming = ExamplePhysicsUtils.spawnBlockBodiesMeasured(store,
+            StressBodyBatches.BlockBodyBatchTiming batchTiming = StressBodyBatches.spawnBlockBodiesMeasured(store,
                 time,
                 serverTick,
                 spaceRef,
@@ -206,8 +206,8 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
         } else {
             PhysicsShapeSpec box = PhysicsShapeSpec.box(0.48f, 0.48f, 0.48f);
             RigidBodySpawnSettings spawnSettings = detachedSpawnSettings(collisionPolicy);
-            ExamplePhysicsUtils.BodyEntityBatchTiming batchTiming =
-                ExamplePhysicsUtils.addDynamicBodyBatchMeasured(world,
+            StressBodyBatches.BodyEntityBatchTiming batchTiming =
+                StressBodyBatches.addDynamicBodyBatchMeasured(world,
                     spaceRef,
                     spaceId,
                     count,

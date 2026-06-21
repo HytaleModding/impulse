@@ -165,8 +165,8 @@ public class StressBenchmarkCommand extends AbstractAsyncPlayerCommand {
         int count) {
         PhysicsShapeSpec box = PhysicsShapeSpec.box(0.48f, 0.48f, 0.48f);
         RigidBodySpawnSettings spawnSettings = RigidBodySpawnSettings.material(0.65f, 0.15f);
-        ExamplePhysicsUtils.BodyEntityBatchTiming timing =
-            ExamplePhysicsUtils.addDynamicBodyBatchMeasured(world,
+        StressBodyBatches.BodyEntityBatchTiming timing =
+            StressBodyBatches.addDynamicBodyBatchMeasured(world,
                 spaceRef,
                 spaceId,
                 count,
@@ -197,7 +197,7 @@ public class StressBenchmarkCommand extends AbstractAsyncPlayerCommand {
         TimeResource time = store.getResource(TimeResource.getResourceType());
         PhysicsShapeSpec box = PhysicsShapeSpec.box(0.48f, 0.48f, 0.48f);
         RigidBodySpawnSettings spawnSettings = RigidBodySpawnSettings.material(0.65f, 0.15f);
-        ExamplePhysicsUtils.BlockBodyBatchTiming timing = ExamplePhysicsUtils.spawnBlockBodiesMeasured(store,
+        StressBodyBatches.BlockBodyBatchTiming timing = StressBodyBatches.spawnBlockBodiesMeasured(store,
             time,
             serverTick,
             spaceRef,

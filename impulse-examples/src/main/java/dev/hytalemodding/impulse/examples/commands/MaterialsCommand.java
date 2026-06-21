@@ -13,6 +13,8 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
+import dev.hytalemodding.impulse.core.plugin.physics.PhysicsBodyEntities;
+import dev.hytalemodding.impulse.core.plugin.physics.PhysicsThreading;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
 import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
 import java.util.UUID;
@@ -50,28 +52,31 @@ public class MaterialsCommand extends AbstractAsyncPlayerCommand {
             return CompletableFuture.completedFuture(null);
         }
         TimeResource time = store.getResource(TimeResource.getResourceType());
+        Store<PhysicsStore> physicsStore = PhysicsThreading.store(world);
+        PhysicsThreading.requireWorldThread(physicsStore,
+            "spawn material example PhysicsStore body entities");
 
         Vector3d origin = new Vector3d(playerPos).add(-3.0, 5.0, 4.0);
         spawnSphere(store,
-            world,
+            physicsStore,
             time,
             space.spaceRef(),
             new Vector3d(origin),
             0.05f, 0.9f, 3.0f);
         spawnSphere(store,
-            world,
+            physicsStore,
             time,
             space.spaceRef(),
             new Vector3d(origin).add(2.0, 0.0, 0.0),
             0.95f, 0.9f, 3.0f);
         spawnSphere(store,
-            world,
+            physicsStore,
             time,
             space.spaceRef(),
             new Vector3d(origin).add(4.0, 0.0, 0.0),
             0.5f, 0.0f, 2.0f);
         spawnSphere(store,
-            world,
+            physicsStore,
             time,
             space.spaceRef(),
             new Vector3d(origin).add(6.0, 0.0, 0.0),
@@ -83,7 +88,7 @@ public class MaterialsCommand extends AbstractAsyncPlayerCommand {
     }
 
     private static void spawnSphere(@Nonnull Store<EntityStore> store,
-        @Nonnull World world,
+        @Nonnull Store<PhysicsStore> physicsStore,
         @Nonnull TimeResource time,
         @Nonnull Ref<PhysicsStore> spaceRef,
         @Nonnull Vector3d position,
@@ -91,14 +96,15 @@ public class MaterialsCommand extends AbstractAsyncPlayerCommand {
         float friction,
         float speed) {
         UUID bodyUuid = UUID.randomUUID();
-        var bodyHolder = ExamplePhysicsUtils.bodyEntity(spaceRef,
+        var bodyHolder = PhysicsBodyEntities.dynamicBodyHolder(spaceRef,
             bodyUuid,
             ExamplePhysicsUtils.toVector3f(position),
             PhysicsShapeSpec.sphere(0.5f),
             1.0f,
             RigidBodySpawnSettings.material(friction, restitution),
             new Vector3f(speed, 0.0f, 0.0f));
-        Ref<PhysicsStore> bodyRef = ExamplePhysicsUtils.addPhysicsStoreBody(world, bodyHolder);
+        Ref<PhysicsStore> bodyRef = physicsStore.addEntity(bodyHolder, AddReason.SPAWN);
+        assert bodyRef != null;
         store.addEntity(ExamplePhysicsUtils.attachedPhysicsBlockEntityHolder(
             time,
             bodyRef,
