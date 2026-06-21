@@ -557,7 +557,7 @@ final class JoltBackendRuntime implements PhysicsBackendRuntime {
             bodyHandles,
             hits);
         int emitted = 0;
-        int boundedHits = Math.min(Math.max(nativeHits, 0), maxHits);
+        int boundedHits = Math.clamp(nativeHits, 0, maxHits);
         for (int index = 0; index < boundedHits; index++) {
             if (emitRayHit(space,
                 bodyHandles[index],
