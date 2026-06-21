@@ -15,7 +15,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.util.TargetUtil;
 import dev.hytalemodding.impulse.core.plugin.physics.PhysicsAsync;
 import dev.hytalemodding.impulse.core.plugin.physics.PhysicsRaycasts;
-import dev.hytalemodding.impulse.core.plugin.simulation.view.RaycastHitView;
+import dev.hytalemodding.impulse.core.plugin.physics.RaycastHitView;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
 import dev.hytalemodding.impulse.examples.utils.ExamplePhysicsUtils;

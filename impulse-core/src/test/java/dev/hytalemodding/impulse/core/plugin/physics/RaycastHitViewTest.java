@@ -1,4 +1,4 @@
-package dev.hytalemodding.impulse.core.plugin.simulation;
+package dev.hytalemodding.impulse.core.plugin.physics;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -17,7 +17,6 @@ import dev.hytalemodding.impulse.core.internal.registration.PhysicsComponentType
 import dev.hytalemodding.impulse.core.internal.testsupport.TestInstanceFactory;
 import dev.hytalemodding.impulse.core.plugin.components.DynamicsComponent;
 import dev.hytalemodding.impulse.core.plugin.components.ShapeComponent;
-import dev.hytalemodding.impulse.core.plugin.simulation.view.RaycastHitView;
 import java.util.ArrayList;
 import org.joml.Vector3f;
 import org.junit.jupiter.api.Test;

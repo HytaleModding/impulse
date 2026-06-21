@@ -16,7 +16,7 @@ import dev.hytalemodding.impulse.core.plugin.physics.PhysicsAsync;
 import dev.hytalemodding.impulse.core.plugin.physics.PhysicsSpaces;
 import dev.hytalemodding.impulse.core.plugin.physics.PhysicsThreading;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSolverSettings;
-import dev.hytalemodding.impulse.core.plugin.simulation.SolverCapabilitySummary;
+import dev.hytalemodding.impulse.core.plugin.physics.SolverCapabilitySummary;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
 

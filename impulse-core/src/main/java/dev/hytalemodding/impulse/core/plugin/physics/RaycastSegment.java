@@ -1,4 +1,4 @@
-package dev.hytalemodding.impulse.core.plugin.simulation;
+package dev.hytalemodding.impulse.core.plugin.physics;
 
 import java.util.Objects;
 import javax.annotation.Nonnull;

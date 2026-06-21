@@ -1,4 +1,4 @@
-package dev.hytalemodding.impulse.core.plugin.simulation.view;
+package dev.hytalemodding.impulse.core.plugin.physics;
 
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;

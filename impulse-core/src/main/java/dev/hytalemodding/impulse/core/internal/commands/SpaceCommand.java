@@ -23,7 +23,7 @@ import dev.hytalemodding.impulse.core.plugin.physics.PhysicsSpaces;
 import dev.hytalemodding.impulse.core.plugin.physics.PhysicsThreading;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkCollisionMode;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.settings.PhysicsChunkCollisionSettings;
-import dev.hytalemodding.impulse.core.plugin.simulation.SpaceSummary;
+import dev.hytalemodding.impulse.core.plugin.physics.SpaceSummary;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;

@@ -14,7 +14,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.physics.PhysicsAsync;
 import dev.hytalemodding.impulse.core.plugin.physics.PhysicsRaycasts;
-import dev.hytalemodding.impulse.core.plugin.simulation.RaycastSegment;
+import dev.hytalemodding.impulse.core.plugin.physics.RaycastSegment;
 import dev.hytalemodding.impulse.examples.utils.ExamplePhysicsUtils;
 import java.util.ArrayList;
 import java.util.List;

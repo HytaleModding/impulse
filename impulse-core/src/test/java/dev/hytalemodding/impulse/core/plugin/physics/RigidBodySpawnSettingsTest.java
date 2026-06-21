@@ -1,4 +1,4 @@
-package dev.hytalemodding.impulse.core.plugin.simulation;
+package dev.hytalemodding.impulse.core.plugin.physics;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;

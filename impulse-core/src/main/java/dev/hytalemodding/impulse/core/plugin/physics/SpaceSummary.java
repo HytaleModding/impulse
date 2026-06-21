@@ -1,4 +1,4 @@
-package dev.hytalemodding.impulse.core.plugin.simulation;
+package dev.hytalemodding.impulse.core.plugin.physics;
 
 import dev.hytalemodding.impulse.api.BackendId;
 import dev.hytalemodding.impulse.api.SpaceId;

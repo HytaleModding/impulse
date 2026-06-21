@@ -19,7 +19,7 @@ import dev.hytalemodding.impulse.core.plugin.physics.PhysicsDiagnostics;
 import dev.hytalemodding.impulse.core.plugin.physics.PhysicsAsync;
 import dev.hytalemodding.impulse.core.plugin.physics.PhysicsWorlds;
 import dev.hytalemodding.impulse.core.plugin.physics.PhysicsThreading;
-import dev.hytalemodding.impulse.core.plugin.simulation.SpaceSummary;
+import dev.hytalemodding.impulse.core.plugin.physics.SpaceSummary;
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.CompletableFuture;

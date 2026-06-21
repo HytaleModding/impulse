@@ -7,8 +7,6 @@ import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceCompatibilityIndexResource;
-import dev.hytalemodding.impulse.core.plugin.simulation.SolverCapabilitySummary;
-import dev.hytalemodding.impulse.core.plugin.simulation.SpaceSummary;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;

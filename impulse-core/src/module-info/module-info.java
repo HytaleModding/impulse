@@ -17,8 +17,6 @@ module dev.hytalemodding.impulse.core {
     exports dev.hytalemodding.impulse.core.plugin.persistence;
     exports dev.hytalemodding.impulse.core.plugin.physics;
     exports dev.hytalemodding.impulse.core.plugin.settings;
-    exports dev.hytalemodding.impulse.core.plugin.simulation;
-    exports dev.hytalemodding.impulse.core.plugin.simulation.view;
     exports dev.hytalemodding.impulse.core.plugin.snapshot;
     exports dev.hytalemodding.impulse.core.plugin.snapshots;
 }

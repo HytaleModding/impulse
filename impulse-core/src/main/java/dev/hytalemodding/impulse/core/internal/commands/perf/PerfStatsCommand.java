@@ -6,7 +6,7 @@ import com.hypixel.hytale.server.core.command.system.basecommands.AbstractAsyncW
 import com.hypixel.hytale.server.core.universe.world.World;
 import dev.hytalemodding.impulse.core.plugin.physics.PhysicsDiagnostics;
 import dev.hytalemodding.impulse.core.plugin.physics.PhysicsAsync;
-import dev.hytalemodding.impulse.core.plugin.simulation.SpaceSummary;
+import dev.hytalemodding.impulse.core.plugin.physics.SpaceSummary;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
