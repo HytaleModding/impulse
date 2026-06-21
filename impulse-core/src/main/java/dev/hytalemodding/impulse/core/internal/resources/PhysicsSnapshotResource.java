@@ -15,6 +15,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.function.Consumer;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -32,6 +33,20 @@ public final class PhysicsSnapshotResource implements Resource<PhysicsStore> {
     @Nonnull
     public PhysicsSnapshotFrame getLatestFrame() {
         return snapshot.frame();
+    }
+
+    public long latestSequence() {
+        return snapshot.sequence();
+    }
+
+    /**
+     * Iterates the compact published body frame without materializing snapshot objects.
+     *
+     * <p>The cursor instance is reused during iteration. Consumers must read the needed values
+     * synchronously and must not retain the cursor after the callback returns.</p>
+     */
+    public void forEachBodyCursor(@Nonnull Consumer<? super BodyCursor> consumer) {
+        snapshot.forEachBodyCursor(Objects.requireNonNull(consumer, "consumer"));
     }
 
     @Nullable
@@ -284,8 +299,171 @@ public final class PhysicsSnapshotResource implements Resource<PhysicsStore> {
                 sleeping[index]);
         }
 
+        private void forEachBodyCursor(@Nonnull Consumer<? super BodyCursor> consumer) {
+            PublishedBodyCursor cursor = new PublishedBodyCursor(this);
+            for (int index = 0; index < bodyCount(); index++) {
+                cursor.index = index;
+                consumer.accept(cursor);
+            }
+        }
+
         private float value(int bodyIndex, int valueIndex) {
             return values[bodyIndex * FLOAT_STRIDE + valueIndex];
+        }
+    }
+
+    public interface BodyCursor {
+
+        @Nullable
+        Ref<PhysicsStore> bodyRef();
+
+        @Nonnull
+        UUID bodyUuid();
+
+        @Nonnull
+        UUID spaceUuid();
+
+        @Nonnull
+        PhysicsBodyType bodyType();
+
+        float positionX();
+
+        float positionY();
+
+        float positionZ();
+
+        float rotationX();
+
+        float rotationY();
+
+        float rotationZ();
+
+        float rotationW();
+
+        float linearVelocityX();
+
+        float linearVelocityY();
+
+        float linearVelocityZ();
+
+        float angularVelocityX();
+
+        float angularVelocityY();
+
+        float angularVelocityZ();
+
+        float centerOfMassOffsetY();
+
+        boolean sleeping();
+    }
+
+    private static final class PublishedBodyCursor implements BodyCursor {
+
+        @Nonnull
+        private final PublishedSnapshot snapshot;
+        private int index;
+
+        private PublishedBodyCursor(@Nonnull PublishedSnapshot snapshot) {
+            this.snapshot = snapshot;
+        }
+
+        @Nullable
+        @Override
+        public Ref<PhysicsStore> bodyRef() {
+            return snapshot.bodyRefs[index];
+        }
+
+        @Nonnull
+        @Override
+        public UUID bodyUuid() {
+            return snapshot.bodyUuids[index];
+        }
+
+        @Nonnull
+        @Override
+        public UUID spaceUuid() {
+            return snapshot.spaceUuids[index];
+        }
+
+        @Nonnull
+        @Override
+        public PhysicsBodyType bodyType() {
+            return snapshot.bodyTypes[index];
+        }
+
+        @Override
+        public float positionX() {
+            return snapshot.value(index, PublishedSnapshot.POSITION_X);
+        }
+
+        @Override
+        public float positionY() {
+            return snapshot.value(index, PublishedSnapshot.POSITION_Y);
+        }
+
+        @Override
+        public float positionZ() {
+            return snapshot.value(index, PublishedSnapshot.POSITION_Z);
+        }
+
+        @Override
+        public float rotationX() {
+            return snapshot.value(index, PublishedSnapshot.ROTATION_X);
+        }
+
+        @Override
+        public float rotationY() {
+            return snapshot.value(index, PublishedSnapshot.ROTATION_Y);
+        }
+
+        @Override
+        public float rotationZ() {
+            return snapshot.value(index, PublishedSnapshot.ROTATION_Z);
+        }
+
+        @Override
+        public float rotationW() {
+            return snapshot.value(index, PublishedSnapshot.ROTATION_W);
+        }
+
+        @Override
+        public float linearVelocityX() {
+            return snapshot.value(index, PublishedSnapshot.LINEAR_VELOCITY_X);
+        }
+
+        @Override
+        public float linearVelocityY() {
+            return snapshot.value(index, PublishedSnapshot.LINEAR_VELOCITY_Y);
+        }
+
+        @Override
+        public float linearVelocityZ() {
+            return snapshot.value(index, PublishedSnapshot.LINEAR_VELOCITY_Z);
+        }
+
+        @Override
+        public float angularVelocityX() {
+            return snapshot.value(index, PublishedSnapshot.ANGULAR_VELOCITY_X);
+        }
+
+        @Override
+        public float angularVelocityY() {
+            return snapshot.value(index, PublishedSnapshot.ANGULAR_VELOCITY_Y);
+        }
+
+        @Override
+        public float angularVelocityZ() {
+            return snapshot.value(index, PublishedSnapshot.ANGULAR_VELOCITY_Z);
+        }
+
+        @Override
+        public float centerOfMassOffsetY() {
+            return snapshot.value(index, PublishedSnapshot.CENTER_OF_MASS_OFFSET_Y);
+        }
+
+        @Override
+        public boolean sleeping() {
+            return snapshot.sleeping[index];
         }
     }
 

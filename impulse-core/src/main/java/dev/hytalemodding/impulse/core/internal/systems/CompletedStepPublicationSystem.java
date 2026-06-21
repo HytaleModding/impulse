@@ -61,7 +61,7 @@ public final class CompletedStepPublicationSystem extends TickingSystem<PhysicsS
                 input.dtCapHit());
         }
         List<PhysicsBodySnapshot> bodies = completed.bodySnapshots();
-        long nextSequence = snapshot.getLatestFrame().sequence() + 1L;
+        long nextSequence = snapshot.latestSequence() + 1L;
         float frameDt = input != null ? input.submittedDtSeconds() : dt;
         PhysicsSnapshotFrame frame = new PhysicsSnapshotFrame(nextSequence,
             frameDt,

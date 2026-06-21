@@ -96,7 +96,6 @@ class SpaceBindingSystemTest {
             Method bindChunk = SpaceBindingSystem.class.getDeclaredMethod("bindChunk",
                 PhysicsRuntimeResource.class,
                 PhysicsSpaceCompatibilityIndexResource.class,
-                PhysicsIdentityIndexResource.class,
                 PhysicsRestoreStatusResource.class,
                 PhysicsStepMode.class,
                 ArchetypeChunk.class);
@@ -105,8 +104,6 @@ class SpaceBindingSystemTest {
                 PhysicsRuntimeResource.getResourceType());
             PhysicsSpaceCompatibilityIndexResource compatibility = store.getResource(
                 PhysicsSpaceCompatibilityIndexResource.getResourceType());
-            PhysicsIdentityIndexResource identity = store.getResource(
-                PhysicsIdentityIndexResource.getResourceType());
             PhysicsRestoreStatusResource restore = store.getResource(
                 PhysicsRestoreStatusResource.getResourceType());
             PhysicsStepMode stepMode =
@@ -117,7 +114,6 @@ class SpaceBindingSystemTest {
                 (chunk, _) -> invoke(bindChunk,
                     runtime,
                     compatibility,
-                    identity,
                     restore,
                     stepMode,
                     chunk);

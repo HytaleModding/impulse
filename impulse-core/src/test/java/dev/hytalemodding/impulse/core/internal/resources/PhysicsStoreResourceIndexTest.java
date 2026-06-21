@@ -1,9 +1,11 @@
 package dev.hytalemodding.impulse.core.internal.resources;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
@@ -239,6 +241,30 @@ class PhysicsStoreResourceIndexTest {
     }
 
     @Test
+    void runtimeBindsLargeDistinctBodyMetadataSetWithoutQuadraticDuplicateScan() {
+        PhysicsRuntimeResource runtime = new PhysicsRuntimeResource();
+        UUID spaceUuid = UUID.fromString("00000000-0000-0000-0000-000000000033");
+        BackendId backendId = new BackendId("test:runtime-body-metadata-scale");
+        BackendSpaceHandle spaceHandle = new BackendSpaceHandle(71);
+        Ref<PhysicsStore> spaceRef = new TestRef(70);
+        runtime.putSpaceHandle(spaceRef, backendId, spaceHandle);
+        runtime.putSpaceMetadata(backendId, spaceHandle, spaceUuid, spaceRef);
+
+        for (int index = 0; index < 20_000; index++) {
+            Ref<PhysicsStore> bodyRef = new TestRef(1_000 + index);
+            BackendBodyHandle bodyHandle = new BackendBodyHandle(10_000L + index);
+            runtime.putBodyHandle(bodyRef, spaceRef, spaceHandle, bodyHandle);
+            runtime.putBodySnapshotMetadata(backendId,
+                spaceHandle,
+                bodyHandle,
+                new UUID(0L, 1_000_000L + index),
+                bodyRef,
+                spaceUuid);
+        }
+        assertEquals(20_000, runtime.bodyHandleCount(backendId, spaceHandle));
+    }
+
+    @Test
     void runtimeRefreshRebuildsRefIndexesFromScopedBackendMetadata() {
         PhysicsRuntimeResource runtime = new PhysicsRuntimeResource();
         PhysicsIdentityIndexResource identity = new PhysicsIdentityIndexResource();
@@ -340,6 +366,33 @@ class PhysicsStoreResourceIndexTest {
 
         assertEquals(PhysicsSnapshotFrame.EMPTY, resource.getLatestFrame());
         assertNull(resource.getBody(bodyUuid));
+    }
+
+    @Test
+    void snapshotResourceCursorReadsCompactBodyStateWithoutFrameMaterialization() {
+        PhysicsSnapshotResource resource = new PhysicsSnapshotResource();
+        UUID spaceUuid = UUID.fromString("00000000-0000-0000-0000-000000000026");
+        UUID firstBodyUuid = UUID.fromString("00000000-0000-0000-0000-000000000027");
+        UUID secondBodyUuid = UUID.fromString("00000000-0000-0000-0000-000000000028");
+        Ref<PhysicsStore> firstBodyRef = new TestRef(27);
+        Ref<PhysicsStore> secondBodyRef = new TestRef(28);
+        PhysicsBodySnapshot first = snapshot(firstBodyRef, firstBodyUuid, spaceUuid);
+        PhysicsBodySnapshot second = snapshot(secondBodyRef, secondBodyUuid, spaceUuid);
+        resource.publish(new PhysicsSnapshotFrame(14L, 0.05f, List.of(first, second)));
+
+        List<UUID> visited = new ArrayList<>();
+        resource.forEachBodyCursor(cursor -> {
+            visited.add(cursor.bodyUuid());
+            assertEquals(spaceUuid, cursor.spaceUuid());
+            assertEquals(PhysicsBodyType.KINEMATIC, cursor.bodyType());
+            assertTrue(cursor.bodyRef() == firstBodyRef || cursor.bodyRef() == secondBodyRef);
+            assertTrue(cursor.positionX() > 0.0f);
+            assertEquals(0.0f, cursor.centerOfMassOffsetY(), 0.0001f);
+            assertFalse(cursor.sleeping());
+        });
+
+        assertEquals(14L, resource.latestSequence());
+        assertEquals(List.of(firstBodyUuid, secondBodyUuid), visited);
     }
 
     @Test

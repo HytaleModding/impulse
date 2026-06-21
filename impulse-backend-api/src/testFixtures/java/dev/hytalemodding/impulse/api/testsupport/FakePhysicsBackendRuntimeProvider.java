@@ -127,6 +127,11 @@ public final class FakePhysicsBackendRuntimeProvider implements PhysicsBackendRu
         }
 
         @Override
+        public void close() {
+            spaces.clear();
+        }
+
+        @Override
         public void step(int spaceId, float dt) {
             requireSpace(spaceId);
         }

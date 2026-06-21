@@ -79,23 +79,35 @@ public final class PhysicsChunkStoreTypes {
             PhysicsChunkComponentSyncResource::clear);
     }
 
+    @Nullable
+    public static PhysicsChunkCollisionPayloadResource collisionPayloadsIfPresent(
+        @Nonnull Store<PhysicsStore> store) {
+        return resourceIfPresent(store, PhysicsChunkCollisionPayloadResource.getResourceType());
+    }
+
     private static <T extends Resource<PhysicsStore>> void clearIfPresent(
         @Nonnull Store<PhysicsStore> store,
         @Nullable ResourceType<PhysicsStore, T> type,
         @Nonnull Consumer<T> clear) {
-        if (type == null) {
-            return;
-        }
-        T resource;
-        try {
-            type.validate();
-            resource = store.getResource(type);
-        } catch (ArrayIndexOutOfBoundsException | IllegalArgumentException | IllegalStateException _) {
-            // Optional PhysicsChunk resources can be unregistered before the core shutdown hook runs.
-            return;
-        }
+        T resource = resourceIfPresent(store, type);
         if (resource != null) {
             clear.accept(resource);
+        }
+    }
+
+    @Nullable
+    private static <T extends Resource<PhysicsStore>> T resourceIfPresent(
+        @Nonnull Store<PhysicsStore> store,
+        @Nullable ResourceType<PhysicsStore, T> type) {
+        if (type == null) {
+            return null;
+        }
+        try {
+            type.validate();
+            return store.getResource(type);
+        } catch (ArrayIndexOutOfBoundsException | IllegalArgumentException | IllegalStateException _) {
+            // PhysicsChunk resources are optional when the PhysicsChunk module is not registered.
+            return null;
         }
     }
 }

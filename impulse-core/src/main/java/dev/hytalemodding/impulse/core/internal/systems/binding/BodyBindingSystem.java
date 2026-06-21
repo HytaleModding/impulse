@@ -16,6 +16,7 @@ import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.runtime.BackendRuntimeCodes;
 import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntime;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkStoreTypes;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsIdentityIndexResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRestoreStatusResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResource;
@@ -59,8 +60,8 @@ public final class BodyBindingSystem extends TickingSystem<PhysicsStore>
             return;
         }
         PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
-        PhysicsChunkCollisionPayloadResource chunkCollisionPayloads = store.getResource(
-            PhysicsChunkCollisionPayloadResource.getResourceType());
+        PhysicsChunkCollisionPayloadResource chunkCollisionPayloads =
+            PhysicsChunkStoreTypes.collisionPayloadsIfPresent(store);
         PhysicsIdentityIndexResource identity =
             store.getResource(PhysicsIdentityIndexResource.getResourceType());
         BiConsumer<ArchetypeChunk<PhysicsStore>, CommandBuffer<PhysicsStore>> collector =
@@ -69,7 +70,7 @@ public final class BodyBindingSystem extends TickingSystem<PhysicsStore>
     }
 
     private static void bindBodies(@Nonnull PhysicsRuntimeResource runtime,
-        @Nonnull PhysicsChunkCollisionPayloadResource chunkCollisionPayloads,
+        @Nullable PhysicsChunkCollisionPayloadResource chunkCollisionPayloads,
         @Nonnull PhysicsIdentityIndexResource identity,
         @Nonnull PhysicsRestoreStatusResource restore,
         @Nonnull ArchetypeChunk<PhysicsStore> chunk) {
@@ -103,7 +104,7 @@ public final class BodyBindingSystem extends TickingSystem<PhysicsStore>
     }
 
     private static void bindBody(@Nonnull PhysicsRuntimeResource runtime,
-        @Nonnull PhysicsChunkCollisionPayloadResource chunkCollisionPayloads,
+        @Nullable PhysicsChunkCollisionPayloadResource chunkCollisionPayloads,
         @Nonnull PhysicsIdentityIndexResource identity,
         @Nonnull PhysicsRestoreStatusResource restore,
         @Nonnull Ref<PhysicsStore> bodyRef,
@@ -226,7 +227,7 @@ public final class BodyBindingSystem extends TickingSystem<PhysicsStore>
         }
     }
 
-    private static long createVoxelBody(@Nonnull PhysicsChunkCollisionPayloadResource chunkCollisionPayloads,
+    private static long createVoxelBody(@Nullable PhysicsChunkCollisionPayloadResource chunkCollisionPayloads,
         @Nonnull PhysicsBackendRuntime backendRuntime,
         @Nonnull BackendSpaceHandle spaceHandle,
         @Nonnull ShapeComponent shape,
@@ -235,6 +236,9 @@ public final class BodyBindingSystem extends TickingSystem<PhysicsStore>
         @Nonnull Vector3f position) {
         String payloadKey = shape.getResourceKey();
         if (payloadKey.isBlank() || !backendRuntime.supportsVoxelTerrain(spaceHandle.value())) {
+            return Long.MIN_VALUE;
+        }
+        if (chunkCollisionPayloads == null) {
             return Long.MIN_VALUE;
         }
         ChunkCollisionPayload payload = chunkCollisionPayloads.get(payloadKey);

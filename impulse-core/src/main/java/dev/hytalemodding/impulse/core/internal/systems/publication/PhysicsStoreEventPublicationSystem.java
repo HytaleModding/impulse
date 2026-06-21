@@ -67,6 +67,7 @@ public final class PhysicsStoreEventPublicationSystem extends TickingSystem<Enti
 
     private static void recordProfiling(@Nonnull Store<EntityStore> store,
         @Nonnull Store<PhysicsStore> physics) {
+        assert PhysicsRuntimeProfilingResource.getResourceType() != null;
         PhysicsRuntimeProfilingResource runtimeProfiling = store.getResource(
             PhysicsRuntimeProfilingResource.getResourceType());
         if (!runtimeProfiling.isEnabled()) {

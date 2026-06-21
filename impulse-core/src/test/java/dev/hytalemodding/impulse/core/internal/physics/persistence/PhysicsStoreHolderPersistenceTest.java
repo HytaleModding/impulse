@@ -25,16 +25,25 @@ import dev.hytalemodding.impulse.api.PhysicsAxis;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.PhysicsCollisionFilters;
 import dev.hytalemodding.impulse.api.ShapeType;
+import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackendRuntimeProvider;
+import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackendRuntimeProvider.FakePhysicsBackendRuntime;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkStoreTypes;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.components.ChunkCollisionSourceComponent;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.components.ChunkCollisionSourceComponent.PartKind;
 import dev.hytalemodding.impulse.core.internal.registration.PhysicsComponentTypeRegistry;
 import dev.hytalemodding.impulse.core.internal.registration.PhysicsStoreRegistration;
+import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsIdentityIndexResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsResourceTypes;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRestoreStatusResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSnapshotResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceCompatibilityIndexResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsStepSchedulerResource;
 import dev.hytalemodding.impulse.core.internal.systems.PersistenceHydrationSystem;
 import dev.hytalemodding.impulse.core.internal.testsupport.TestInstanceFactory;
+import dev.hytalemodding.impulse.early.PhysicsStoreHooks;
 import dev.hytalemodding.impulse.core.plugin.components.BodyCommandComponent;
 import dev.hytalemodding.impulse.core.plugin.components.BodyComponent;
 import dev.hytalemodding.impulse.core.plugin.components.ColliderComponent;
@@ -75,6 +84,7 @@ class PhysicsStoreHolderPersistenceTest {
     private static final UUID GENERATED_BODY_UUID = uuid(4);
     private static final UUID JOINT_UUID = uuid(5);
     private static final UUID LEGACY_SPACE_UUID = uuid(6);
+    private static final BackendId HOLDER_BACKEND_ID = new BackendId("test:holder-persistence");
 
     @TempDir
     Path tempDir;
@@ -276,6 +286,124 @@ class PhysicsStoreHolderPersistenceTest {
         }
     }
 
+    @Test
+    void registeredStoreReloadBindsSavedBodiesOnce() {
+        FakePhysicsBackendRuntimeProvider provider =
+            new FakePhysicsBackendRuntimeProvider(HOLDER_BACKEND_ID, false, false);
+        Impulse.registerRuntimeProvider(provider);
+        Path savePath = tempDir.resolve("registered-reload");
+
+        StoreFixture source = registeredStore("registered-reload-source", savePath);
+        try {
+            Ref<PhysicsStore> spaceRef = addSpace(source.store(), SPACE_UUID);
+            addBody(source.store(), BODY_A_UUID, spaceRef, null);
+            addBody(source.store(), BODY_B_UUID, spaceRef, null);
+
+            source.store().tick(0.0f);
+
+            BackendSpaceHandle sourceHandle = source.store()
+                .getResource(PhysicsRuntimeResource.getResourceType())
+                .getSpaceHandle(spaceRef);
+            assertNotNull(sourceHandle);
+            assertEquals(1, provider.createdRuntimes().size());
+            assertEquals(2, provider.createdRuntimes().get(0).bodyCount(sourceHandle.value()));
+
+            PhysicsStoreHooks.shutdown(source.store().getExternalData());
+        } finally {
+            source.close();
+        }
+
+        StoreFixture target = registeredStore("registered-reload-target", savePath);
+        try {
+            target.store().tick(0.0f);
+
+            PhysicsRestoreStatusResource restore = target.store().getResource(
+                PhysicsRestoreStatusResource.getResourceType());
+            assertTrue(restore.isHydrated());
+            assertFalse(restore.isFailed());
+            assertTrue(restore.getSoftSkipsByReason().isEmpty());
+            List<UUID> rowUuids = rowUuids(target.store());
+            assertEquals(3, rowUuids.size());
+            assertTrue(rowUuids.contains(SPACE_UUID));
+            assertTrue(rowUuids.contains(BODY_A_UUID));
+            assertTrue(rowUuids.contains(BODY_B_UUID));
+
+            Ref<PhysicsStore> spaceRef = target.store()
+                .getResource(PhysicsIdentityIndexResource.getResourceType())
+                .getByUuid(SPACE_UUID);
+            assertNotNull(spaceRef);
+            PhysicsRuntimeResource runtime = target.store().getResource(
+                PhysicsRuntimeResource.getResourceType());
+            BackendSpaceHandle handle = runtime.getSpaceHandle(spaceRef);
+            assertNotNull(handle);
+            assertEquals(2, provider.createdRuntimes().size());
+            FakePhysicsBackendRuntime reloadedRuntime = provider.createdRuntimes().get(1);
+            assertTrue(reloadedRuntime.hasSpace(handle.value()));
+            assertEquals(2, reloadedRuntime.bodyCount(handle.value()));
+
+            target.store().tick(0.05f);
+            target.store()
+                .getResource(PhysicsStepSchedulerResource.getResourceType())
+                .whenIdle()
+                .toCompletableFuture()
+                .join();
+            target.store().tick(0.0f);
+
+            assertEquals(2, target.store()
+                .getResource(PhysicsSnapshotResource.getResourceType())
+                .getLatestFrame()
+                .bodies()
+                .size());
+        } finally {
+            target.close();
+        }
+    }
+
+    @Test
+    void holderHydrationClosesStaleUntrackedBackendRuntimeBeforeRebinding() {
+        FakePhysicsBackendRuntimeProvider provider =
+            new FakePhysicsBackendRuntimeProvider(HOLDER_BACKEND_ID, false, false);
+        Impulse.registerRuntimeProvider(provider);
+        Path savePath = tempDir.resolve("stale-backend-runtime");
+        SpaceId compatibilitySpaceId = new SpaceId(2);
+
+        StoreFixture source = store("stale-runtime-source", savePath);
+        try {
+            Ref<PhysicsStore> spaceRef = addSpace(source.store(), SPACE_UUID);
+            addBody(source.store(), BODY_A_UUID, spaceRef, null);
+            PhysicsStoreHolderStorage.save(source.store()).join();
+        } finally {
+            source.close();
+        }
+
+        StoreFixture target = registeredStore("stale-runtime-target", savePath);
+        try {
+            FakePhysicsBackendRuntime staleRuntime = (FakePhysicsBackendRuntime)
+                provider.createRuntime();
+            staleRuntime.createSpace(compatibilitySpaceId);
+            target.store()
+                .getResource(PhysicsRuntimeResource.getResourceType())
+                .putRuntime(HOLDER_BACKEND_ID, staleRuntime);
+            target.store()
+                .getResource(PhysicsSpaceCompatibilityIndexResource.getResourceType())
+                .putSpace(compatibilitySpaceId, SPACE_UUID);
+
+            target.store().tick(0.0f);
+
+            PhysicsRestoreStatusResource restore = target.store().getResource(
+                PhysicsRestoreStatusResource.getResourceType());
+            assertTrue(restore.isHydrated());
+            assertFalse(restore.isFailed(), restore.getFailureMessage());
+            assertFalse(staleRuntime.hasSpace(compatibilitySpaceId.value()));
+            assertEquals(2, provider.createdRuntimes().size());
+            FakePhysicsBackendRuntime reboundRuntime = provider.createdRuntimes().get(1);
+            assertTrue(reboundRuntime.hasSpace(compatibilitySpaceId.value()));
+            assertEquals(1, reboundRuntime.bodyCount(compatibilitySpaceId.value()));
+        } finally {
+            target.close();
+        }
+    }
+
     @Nonnull
     private static StoreFixture store(@Nonnull String worldName, @Nonnull Path savePath) {
         ComponentRegistry<PhysicsStore> registry = new ComponentRegistry<>();
@@ -285,6 +413,7 @@ class PhysicsStoreHolderPersistenceTest {
         PhysicsResourceTypes.registerResourceTypes(proxy);
         PhysicsStore physicsStore = new PhysicsStore(world(worldName, savePath));
         Store<PhysicsStore> store = registry.addStore(physicsStore, EmptyResourceStorage.get());
+        setField(physicsStore, PhysicsStore.class, "store", store);
         return new StoreFixture(registry, store);
     }
 
@@ -294,9 +423,11 @@ class PhysicsStoreHolderPersistenceTest {
         ComponentRegistryProxy<PhysicsStore> proxy =
             new ComponentRegistryProxy<>(new ArrayList<>(), registry);
         PhysicsComponentTypeRegistry.registerComponentTypes(proxy);
+        PhysicsChunkStoreTypes.registerPhysicsStoreResourceTypes(proxy);
         PhysicsStoreRegistration.register(proxy);
         PhysicsStore physicsStore = new PhysicsStore(world(worldName, savePath));
         Store<PhysicsStore> store = registry.addStore(physicsStore, EmptyResourceStorage.get());
+        setField(physicsStore, PhysicsStore.class, "store", store);
         return new StoreFixture(registry, store);
     }
 
@@ -312,8 +443,7 @@ class PhysicsStoreHolderPersistenceTest {
         @Nonnull UUID spaceUuid) {
         Ref<PhysicsStore> ref = store.addEntity(PhysicsEntities.spaceHolder(store,
                 spaceUuid,
-                new SpaceComponent(new BackendId("test:holder-persistence"),
-                    new Vector3f(0.0f, -9.81f, 0.0f))),
+                new SpaceComponent(HOLDER_BACKEND_ID, new Vector3f(0.0f, -9.81f, 0.0f))),
             AddReason.SPAWN);
         assertNotNull(ref);
         return ref;
@@ -488,7 +618,9 @@ class PhysicsStoreHolderPersistenceTest {
                                 @Nonnull Store<PhysicsStore> store) {
 
         private void close() {
-            registry.removeStore(store);
+            if (!store.isShutdown()) {
+                registry.removeStore(store);
+            }
             registry.shutdown();
         }
     }

@@ -20,7 +20,11 @@ import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsStor
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentShapeDto;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentSpaceDto;
 import dev.hytalemodding.impulse.core.internal.persistence.PhysicsStoreHolderStorage;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsEventResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsIdentityIndexResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRestoreStatusResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsSnapshotResource;
 import dev.hytalemodding.impulse.core.plugin.physics.PhysicsEntities;
 import dev.hytalemodding.impulse.core.plugin.components.BodyComponent;
 import dev.hytalemodding.impulse.core.plugin.components.ColliderComponent;
@@ -59,6 +63,7 @@ public final class PersistenceHydrationSystem extends TickingSystem<PhysicsStore
             return;
         }
         try {
+            prepareTransientRestoreState(store);
             PhysicsStoreHolderStorage.LoadResult holderLoad = PhysicsStoreHolderStorage.load(store);
             if (holderLoad.present()) {
                 restore.markComplete();
@@ -85,6 +90,14 @@ public final class PersistenceHydrationSystem extends TickingSystem<PhysicsStore
         hydrateRows(store, persistent);
         restore.markComplete();
         restore.markHydrated();
+    }
+
+    private static void prepareTransientRestoreState(@Nonnull Store<PhysicsStore> store) {
+        store.getResource(PhysicsRuntimeResource.getResourceType()).destroyBackendBindings();
+        store.getResource(PhysicsIdentityIndexResource.getResourceType()).clear();
+        store.getExternalData().clearUuidIndex();
+        store.getResource(PhysicsSnapshotResource.getResourceType()).clear();
+        store.getResource(PhysicsEventResource.getResourceType()).clear();
     }
 
     private static void hydrateRows(@Nonnull Store<PhysicsStore> store,

@@ -15,7 +15,6 @@ import dev.hytalemodding.impulse.api.BackendId;
 import dev.hytalemodding.impulse.api.Impulse;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntime;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsIdentityIndexResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRestoreStatusResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceCompatibilityIndexResource;
@@ -55,19 +54,16 @@ public final class SpaceBindingSystem extends TickingSystem<PhysicsStore>
         PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
         PhysicsSpaceCompatibilityIndexResource compatibility = store.getResource(
             PhysicsSpaceCompatibilityIndexResource.getResourceType());
-        PhysicsIdentityIndexResource identity = store.getResource(
-            PhysicsIdentityIndexResource.getResourceType());
         PhysicsStepMode stepMode = store.getResource(PhysicsWorldSettingsResource.getResourceType())
             .getSettings()
             .getStepMode();
         BiConsumer<ArchetypeChunk<PhysicsStore>, CommandBuffer<PhysicsStore>> collector =
-            (chunk, _) -> bindChunk(runtime, compatibility, identity, restore, stepMode, chunk);
+            (chunk, _) -> bindChunk(runtime, compatibility, restore, stepMode, chunk);
         store.forEachChunk(systemIndex, collector);
     }
 
     private static void bindChunk(@Nonnull PhysicsRuntimeResource runtime,
         @Nonnull PhysicsSpaceCompatibilityIndexResource compatibility,
-        @Nonnull PhysicsIdentityIndexResource identity,
         @Nonnull PhysicsRestoreStatusResource restore,
         @Nonnull PhysicsStepMode stepMode,
         @Nonnull ArchetypeChunk<PhysicsStore> chunk) {
@@ -88,7 +84,6 @@ public final class SpaceBindingSystem extends TickingSystem<PhysicsStore>
             }
             bindSpace(runtime,
                 compatibility,
-                identity,
                 restore,
                 stepMode,
                 spaceRef,
@@ -120,7 +115,6 @@ public final class SpaceBindingSystem extends TickingSystem<PhysicsStore>
 
     private static void bindSpace(@Nonnull PhysicsRuntimeResource runtime,
         @Nonnull PhysicsSpaceCompatibilityIndexResource compatibility,
-        @Nonnull PhysicsIdentityIndexResource identity,
         @Nonnull PhysicsRestoreStatusResource restore,
         @Nonnull PhysicsStepMode stepMode,
         @Nonnull Ref<PhysicsStore> ref,

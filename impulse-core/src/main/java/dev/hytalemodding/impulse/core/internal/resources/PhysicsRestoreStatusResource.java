@@ -5,6 +5,7 @@ import com.hypixel.hytale.component.ResourceType;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import it.unimi.dsi.fastutil.objects.Object2IntLinkedOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Object2IntMap;
+import lombok.Getter;
 import javax.annotation.Nonnull;
 
 /**
@@ -12,8 +13,11 @@ import javax.annotation.Nonnull;
  */
 public final class PhysicsRestoreStatusResource implements Resource<PhysicsStore> {
 
+    @Getter
     private boolean pending;
+    @Getter
     private boolean failed;
+    @Getter
     private boolean hydrated;
     @Nonnull
     private String failureMessage = "";
@@ -23,20 +27,12 @@ public final class PhysicsRestoreStatusResource implements Resource<PhysicsStore
     public PhysicsRestoreStatusResource() {
     }
 
-    public boolean isPending() {
-        return pending;
-    }
-
     public void markPending() {
         pending = true;
         failed = false;
         hydrated = false;
         failureMessage = "";
         softSkipsByReason.clear();
-    }
-
-    public boolean isFailed() {
-        return failed;
     }
 
     @Nonnull
@@ -55,10 +51,6 @@ public final class PhysicsRestoreStatusResource implements Resource<PhysicsStore
         pending = false;
         failed = false;
         failureMessage = "";
-    }
-
-    public boolean isHydrated() {
-        return hydrated;
     }
 
     public void markHydrated() {
