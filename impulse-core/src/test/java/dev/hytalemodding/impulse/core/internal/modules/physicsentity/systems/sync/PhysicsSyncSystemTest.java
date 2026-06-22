@@ -183,6 +183,44 @@ class PhysicsSyncSystemTest {
     }
 
     @Test
+    void rotatingNearDynamicBodiesDoNotUseLowSpeedDeadzone() {
+        UUID bodyUuid = UUID.randomUUID();
+        UUID spaceUuid = UUID.randomUUID();
+        TransformComponent transform = new TransformComponent();
+        BodyAttachmentComponent attachment = new BodyAttachmentComponent(bodyUuid,
+            TransformAuthority.BODY,
+            AttachmentLifecycle.EXTERNAL_ENTITY);
+        PhysicsSyncSystem.Scratch scratch = new PhysicsSyncSystem.Scratch();
+        PhysicsBodyRuntimeState.BodySyncState syncState =
+            new PhysicsBodyRuntimeState.BodySyncState();
+
+        PhysicsSyncSystem.applyPhysicsStoreSnapshot(transform,
+            attachment,
+            snapshot(bodyUuid, spaceUuid, 10.0f, new Quaternionf(), false),
+            scratch,
+            syncState,
+            new PhysicsVisualSyncSettings(),
+            PhysicsSyncPolicy.SyncRangeTier.NEAR,
+            0.05f);
+
+        PhysicsSyncSystem.SyncResult rotated = PhysicsSyncSystem.applyPhysicsStoreSnapshot(transform,
+            attachment,
+            snapshot(bodyUuid,
+                spaceUuid,
+                10.0f,
+                new Quaternionf().rotateY((float) Math.toRadians(4.0)),
+                false),
+            scratch,
+            syncState,
+            new PhysicsVisualSyncSettings(),
+            PhysicsSyncPolicy.SyncRangeTier.NEAR,
+            0.05f);
+
+        assertEquals(PhysicsSyncPolicy.SyncDecision.THRESHOLD, rotated.decision());
+        assertTrue(rotated.transformChanged());
+    }
+
+    @Test
     void visualPositionKeepsCenterOfMassOffsetWorldUp() {
         Vector3f visualPosition = PhysicsVisualPoseMath.visualPositionFromBodyPose(new Vector3f(10.0f,
                 20.0f,
@@ -261,16 +299,24 @@ class PhysicsSyncSystemTest {
         @Nonnull UUID spaceUuid,
         float positionX,
         boolean sleeping) {
+        return snapshot(bodyUuid, spaceUuid, positionX, new Quaternionf(), sleeping);
+    }
+
+    private static PhysicsBodySnapshot snapshot(@Nonnull UUID bodyUuid,
+        @Nonnull UUID spaceUuid,
+        float positionX,
+        @Nonnull Quaternionf rotation,
+        boolean sleeping) {
         return PhysicsBodySnapshot.of(bodyUuid,
             spaceUuid,
             PhysicsBodyType.DYNAMIC,
             positionX,
             2.0f,
             3.0f,
-            0.0f,
-            0.0f,
-            0.0f,
-            1.0f,
+            rotation.x,
+            rotation.y,
+            rotation.z,
+            rotation.w,
             0.0f,
             0.0f,
             0.0f,

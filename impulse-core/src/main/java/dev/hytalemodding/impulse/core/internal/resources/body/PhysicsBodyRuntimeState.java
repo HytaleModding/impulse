@@ -45,6 +45,8 @@ public final class PhysicsBodyRuntimeState {
         private final Quaternionf lastSyncedRotation = new Quaternionf();
         @Nonnull
         private final Vector3f lastObservedSnapshotPosition = new Vector3f();
+        @Nonnull
+        private final Quaternionf lastObservedSnapshotRotation = new Quaternionf();
         @Getter
         private boolean initialized;
         @Getter
@@ -88,6 +90,7 @@ public final class PhysicsBodyRuntimeState {
             lastSyncedPosition.zero();
             lastSyncedRotation.identity();
             lastObservedSnapshotPosition.zero();
+            lastObservedSnapshotRotation.identity();
         }
 
         public float recordSnapshotObservation(@Nonnull Vector3f position) {
@@ -99,6 +102,23 @@ public final class PhysicsBodyRuntimeState {
             float distance = lastObservedSnapshotPosition.distance(position);
             lastObservedSnapshotPosition.set(position);
             return distance;
+        }
+
+        @Nonnull
+        public SnapshotMotion recordSnapshotObservation(@Nonnull Vector3f position,
+            @Nonnull Quaternionf rotation) {
+            if (!snapshotObserved) {
+                lastObservedSnapshotPosition.set(position);
+                lastObservedSnapshotRotation.set(rotation);
+                snapshotObserved = true;
+                return SnapshotMotion.unobserved();
+            }
+            float distance = lastObservedSnapshotPosition.distance(position);
+            float rotationRadians = rotationDistanceRadians(lastObservedSnapshotRotation,
+                rotation);
+            lastObservedSnapshotPosition.set(position);
+            lastObservedSnapshotRotation.set(rotation);
+            return new SnapshotMotion(distance, rotationRadians);
         }
 
         public void recordSkip(float dt) {
@@ -118,6 +138,29 @@ public final class PhysicsBodyRuntimeState {
         @Nonnull
         public Vector3f getLastObservedSnapshotPosition() {
             return lastObservedSnapshotPosition;
+        }
+
+        private static float rotationDistanceRadians(@Nonnull Quaternionf first,
+            @Nonnull Quaternionf second) {
+            float dot = Math.abs(first.x * second.x
+                + first.y * second.y
+                + first.z * second.z
+                + first.w * second.w);
+            return 2.0f * (float) Math.acos(Math.min(dot, 1.0f));
+        }
+
+        public record SnapshotMotion(float positionDistance,
+                                     float rotationRadians) {
+
+            @Nonnull
+            private static SnapshotMotion unobserved() {
+                return new SnapshotMotion(Float.NaN, Float.NaN);
+            }
+
+            public boolean observed() {
+                return !Float.isNaN(positionDistance)
+                    && !Float.isNaN(rotationRadians);
+            }
         }
 
     }

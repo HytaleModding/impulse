@@ -11,11 +11,10 @@ import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntime;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.SectionCollisionGeometry.BoxCollider;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsIdentityIndexResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSnapshotResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceCompatibilityIndexResource;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkCollisionPayloadResource;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.resources.PhysicsChunkCollisionPayloadResource;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.ChunkCollisionPayload;
 import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
 import dev.hytalemodding.impulse.core.plugin.physics.PhysicsThreading;
@@ -182,8 +181,7 @@ final class PhysicsStoreDebugQueries {
         if (spaceUuid == null) {
             return List.of();
         }
-        Ref<PhysicsStore> spaceRef = store.getResource(PhysicsIdentityIndexResource.getResourceType())
-            .getByUuid(spaceUuid);
+        Ref<PhysicsStore> spaceRef = store.getExternalData().getRefFromUUID(spaceUuid);
 
         PhysicsSnapshotResource snapshots = store.getResource(PhysicsSnapshotResource.getResourceType());
         double maxDistanceSquared = viewRadius * viewRadius;
@@ -223,8 +221,7 @@ final class PhysicsStoreDebugQueries {
         if (spaceUuid == null) {
             return List.of();
         }
-        Ref<PhysicsStore> spaceRef = store.getResource(PhysicsIdentityIndexResource.getResourceType())
-            .getByUuid(spaceUuid);
+        Ref<PhysicsStore> spaceRef = store.getExternalData().getRefFromUUID(spaceUuid);
 
         PhysicsChunkCollisionPayloadResource payloads = store.getResource(
             PhysicsChunkCollisionPayloadResource.getResourceType());
@@ -494,9 +491,8 @@ final class PhysicsStoreDebugQueries {
         if (spaceUuid == null) {
             return null;
         }
-        Ref<PhysicsStore> spaceRef = store.getResource(PhysicsIdentityIndexResource.getResourceType())
-            .getByUuid(spaceUuid);
-        if (spaceRef == null || !spaceRef.isValid()) {
+        Ref<PhysicsStore> spaceRef = store.getExternalData().getRefFromUUID(spaceUuid);
+        if (spaceRef == null || spaceRef.getStore() != store || !spaceRef.isValid()) {
             return null;
         }
         PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());

@@ -9,15 +9,17 @@ import lombok.Setter;
 import javax.annotation.Nonnull;
 
 /**
- * Runtime-only debug toggles owned by PhysicsStore.
+ * Runtime-only physics debug toggles owned by PhysicsStore.
  */
 @Setter
 @Getter
 public final class PhysicsDebugResource implements Resource<PhysicsStore> {
 
-    private boolean debugBodiesEnabled;
+    private boolean debugShapesEnabled = true;
+    private boolean debugMotionEnabled = true;
     private boolean debugContactsEnabled;
-    private boolean debugJointsEnabled;
+    private boolean debugJointsEnabled = true;
+    private boolean debugPhysicsChunkCollisionEnabled;
 
     public PhysicsDebugResource() {
     }
@@ -26,9 +28,11 @@ public final class PhysicsDebugResource implements Resource<PhysicsStore> {
     @Override
     public PhysicsDebugResource clone() {
         PhysicsDebugResource copy = new PhysicsDebugResource();
-        copy.debugBodiesEnabled = debugBodiesEnabled;
+        copy.debugShapesEnabled = debugShapesEnabled;
+        copy.debugMotionEnabled = debugMotionEnabled;
         copy.debugContactsEnabled = debugContactsEnabled;
         copy.debugJointsEnabled = debugJointsEnabled;
+        copy.debugPhysicsChunkCollisionEnabled = debugPhysicsChunkCollisionEnabled;
         return copy;
     }
 

@@ -24,7 +24,8 @@ import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.PhysicsEntityAttachments;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.BodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.BodyAttachmentComponent.AttachmentLifecycle;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsDebugResource;
+import dev.hytalemodding.impulse.core.internal.physics.resources.PhysicsDebugResource;
+import dev.hytalemodding.impulse.core.internal.modules.physicsentity.resources.PhysicsDebugOverlayResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceCompatibilityIndexResource;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkCollision;
 import dev.hytalemodding.impulse.core.plugin.physics.PhysicsBodies;
@@ -98,24 +99,28 @@ public class PhysicsDebugSystem extends TickingSystem<EntityStore> {
     @Override
     public void tick(float dt, int index, @Nonnull Store<EntityStore> store) {
         World world = store.getExternalData().getWorld();
-        assert PhysicsDebugResource.getResourceType() != null;
-        PhysicsDebugResource debug = store.getResource(PhysicsDebugResource.getResourceType());
+        assert PhysicsDebugOverlayResource.getResourceType() != null;
+        PhysicsDebugOverlayResource overlay =
+            store.getResource(PhysicsDebugOverlayResource.getResourceType());
 
-        if (!debug.hasSubscribers()) {
+        if (!overlay.hasSubscribers()) {
             return;
         }
 
-        List<PlayerRef> viewers = resolveSubscribers(world, debug);
+        List<PlayerRef> viewers = resolveSubscribers(world, overlay);
         if (viewers.isEmpty()) {
             return;
         }
 
-        boolean overlayDue = debug.tickOverlayBudget(dt);
-        boolean terrainDue = debug.tickPhysicsChunkBudget(dt);
+        boolean overlayDue = overlay.tickOverlayBudget(dt);
+        boolean terrainDue = overlay.tickPhysicsChunkBudget(dt);
         if (!overlayDue && !terrainDue) {
             return;
         }
 
+        Store<PhysicsStore> physicsStore = PhysicsThreading.store(world);
+        PhysicsDebugResource debug =
+            physicsStore.getResource(PhysicsDebugResource.getResourceType());
         boolean debugShapes = debug.isDebugShapesEnabled();
         boolean debugMotion = debug.isDebugMotionEnabled();
         boolean debugContacts = debug.isDebugContactsEnabled();
@@ -126,11 +131,10 @@ public class PhysicsDebugSystem extends TickingSystem<EntityStore> {
             return;
         }
 
-        Store<PhysicsStore> physicsStore = PhysicsThreading.store(world);
         float overlayLifetime = PhysicsDebugRenderer.lifetimeForRefresh(
-            debug.getOverlayRefreshSeconds(), dt);
+            overlay.getOverlayRefreshSeconds(), dt);
         float terrainLifetime = PhysicsDebugRenderer.lifetimeForRefresh(
-            debug.getPhysicsChunkRefreshSeconds(), dt);
+            overlay.getPhysicsChunkRefreshSeconds(), dt);
         DebugQueryCache queryCache = queryCacheFor(store);
 
         for (PlayerRef viewer : viewers) {
@@ -143,19 +147,19 @@ public class PhysicsDebugSystem extends TickingSystem<EntityStore> {
                     store,
                     physicsStore,
                     viewerPosition,
-                    debug.getViewRadius(),
+                    overlay.getViewRadius(),
                     debugShapes,
                     debugMotion,
-                    debug.getMaxBodies(),
+                    overlay.getMaxBodies(),
                     overlayLifetime);
                 renderDetachedBodies(target,
                     store,
                     physicsStore,
                     viewerPosition,
-                    debug.getViewRadius(),
+                    overlay.getViewRadius(),
                     debugShapes,
                     debugMotion,
-                    Math.max(0, debug.getMaxBodies() - renderedBodies),
+                    Math.max(0, overlay.getMaxBodies() - renderedBodies),
                     overlayLifetime);
             }
 
@@ -170,8 +174,8 @@ public class PhysicsDebugSystem extends TickingSystem<EntityStore> {
                         viewerUuid,
                         queryCache,
                         viewerPosition,
-                        debug.getViewRadius(),
-                        debug.getMaxContacts(),
+                        overlay.getViewRadius(),
+                        overlay.getMaxContacts(),
                         overlayLifetime);
                 }
                 if (overlayDue && debugJoints) {
@@ -181,8 +185,8 @@ public class PhysicsDebugSystem extends TickingSystem<EntityStore> {
                         viewerUuid,
                         queryCache,
                         viewerPosition,
-                        debug.getViewRadius(),
-                        debug.getMaxJoints(),
+                        overlay.getViewRadius(),
+                        overlay.getMaxJoints(),
                         overlayLifetime);
                 }
                 if (terrainDue && debugCollision) {
@@ -192,9 +196,9 @@ public class PhysicsDebugSystem extends TickingSystem<EntityStore> {
                         viewerUuid,
                         queryCache,
                         viewerPosition,
-                        debug.getViewRadius(),
-                        debug.getMaxPhysicsChunkSections(),
-                        debug.getMaxPhysicsChunkBoxes(),
+                        overlay.getViewRadius(),
+                        overlay.getMaxPhysicsChunkSections(),
+                        overlay.getMaxPhysicsChunkBoxes(),
                         terrainLifetime);
                 }
             }
@@ -210,8 +214,8 @@ public class PhysicsDebugSystem extends TickingSystem<EntityStore> {
 
     @Nonnull
     private static List<PlayerRef> resolveSubscribers(@Nonnull World world,
-        @Nonnull PhysicsDebugResource debug) {
-        Set<UUID> active = new ObjectOpenHashSet<>(debug.getSubscriberUuids());
+        @Nonnull PhysicsDebugOverlayResource overlay) {
+        Set<UUID> active = new ObjectOpenHashSet<>(overlay.getSubscriberUuids());
         List<PlayerRef> viewers = new ArrayList<>();
         for (PlayerRef player : world.getPlayerRefs()) {
             if (active.remove(player.getUuid())) {
@@ -220,7 +224,7 @@ public class PhysicsDebugSystem extends TickingSystem<EntityStore> {
         }
 
         for (UUID stale : active) {
-            debug.removeSubscriber(stale);
+            overlay.removeSubscriber(stale);
         }
         return viewers;
     }

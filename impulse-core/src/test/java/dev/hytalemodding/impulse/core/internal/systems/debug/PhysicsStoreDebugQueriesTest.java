@@ -16,7 +16,6 @@ import dev.hytalemodding.impulse.api.runtime.BackendContactSink;
 import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntime;
 import dev.hytalemodding.impulse.core.internal.registration.PhysicsComponentTypeRegistry;
 import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsIdentityIndexResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsResourceTypes;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceCompatibilityIndexResource;
@@ -77,8 +76,7 @@ class PhysicsStoreDebugQueriesTest {
                 spaceUuid,
                 new SpaceComponent(backendId, new Vector3f(0.0f, -9.81f, 0.0f))),
             AddReason.SPAWN);
-        store.getResource(PhysicsIdentityIndexResource.getResourceType())
-            .putUuid(spaceUuid, spaceRef);
+        store.getExternalData().putRefForUUID(spaceUuid, spaceRef);
         store.getResource(PhysicsSpaceCompatibilityIndexResource.getResourceType())
             .putSpace(new SpaceId(77), spaceUuid);
         PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
