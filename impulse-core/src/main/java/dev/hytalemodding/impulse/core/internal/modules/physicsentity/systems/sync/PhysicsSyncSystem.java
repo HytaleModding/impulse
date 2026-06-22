@@ -291,7 +291,8 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
         @Nonnull PhysicsBodySnapshot snapshot,
         @Nonnull Scratch scratch) {
         scratch.position.set(snapshot.positionX(), snapshot.positionY(), snapshot.positionZ());
-        scratch.rotation.set(snapshot.rotationX(),
+        setFiniteUnitQuaternionOrIdentity(scratch.rotation,
+            snapshot.rotationX(),
             snapshot.rotationY(),
             snapshot.rotationZ(),
             snapshot.rotationW());
@@ -302,8 +303,14 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
             scratch.visualPosition,
             scratch.worldOffset);
         scratch.visualRotation.set(scratch.rotation);
-        scratch.visualRotation.mul(attachment.getLocalRotationOffset());
+        setFiniteUnitQuaternionOrIdentity(scratch.localRotationOffset,
+            attachment.getLocalRotationOffset());
+        scratch.visualRotation.mul(scratch.localRotationOffset);
+        setFiniteUnitQuaternionOrIdentity(scratch.visualRotation, scratch.visualRotation);
         scratch.visualRotation.getEulerAnglesYXZ(scratch.euler);
+        if (!isFinite(scratch.euler)) {
+            scratch.euler.zero();
+        }
     }
 
     private static boolean writeTransformIfChanged(@Nonnull TransformComponent transform,
@@ -373,10 +380,49 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
             && Math.abs(transform.getRotation().z() - rotation.z) <= TRANSFORM_ROTATION_EPSILON;
     }
 
+    private static void setFiniteUnitQuaternionOrIdentity(@Nonnull Quaternionf target,
+        float x,
+        float y,
+        float z,
+        float w) {
+        target.set(x, y, z, w);
+        setFiniteUnitQuaternionOrIdentity(target, target);
+    }
+
+    private static void setFiniteUnitQuaternionOrIdentity(@Nonnull Quaternionf target,
+        @Nonnull Quaternionf source) {
+        if (target != source) {
+            target.set(source);
+        }
+        if (!isFiniteAndNonZero(target)) {
+            target.identity();
+            return;
+        }
+        target.normalize();
+        if (!isFiniteAndNonZero(target)) {
+            target.identity();
+        }
+    }
+
+    private static boolean isFiniteAndNonZero(@Nonnull Quaternionf quaternion) {
+        float lengthSquared = quaternion.x * quaternion.x
+            + quaternion.y * quaternion.y
+            + quaternion.z * quaternion.z
+            + quaternion.w * quaternion.w;
+        return Float.isFinite(lengthSquared) && lengthSquared > 0.0f;
+    }
+
+    private static boolean isFinite(@Nonnull Vector3f vector) {
+        return Float.isFinite(vector.x)
+            && Float.isFinite(vector.y)
+            && Float.isFinite(vector.z);
+    }
+
     static final class Scratch {
 
         private final Vector3f position = new Vector3f();
         private final Quaternionf rotation = new Quaternionf();
+        private final Quaternionf localRotationOffset = new Quaternionf();
         private final Vector3f visualPosition = new Vector3f();
         private final Quaternionf visualRotation = new Quaternionf();
         private final Vector3f worldOffset = new Vector3f();

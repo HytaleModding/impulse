@@ -221,6 +221,28 @@ class PhysicsSyncSystemTest {
     }
 
     @Test
+    void nonFiniteSnapshotRotationWritesFiniteFallbackRotation() {
+        UUID bodyUuid = UUID.randomUUID();
+        UUID spaceUuid = UUID.randomUUID();
+        TransformComponent transform = new TransformComponent();
+        transform.getRotation().set(0.1815971f, 1.2601684f, Float.NaN);
+        BodyAttachmentComponent attachment = new BodyAttachmentComponent(bodyUuid,
+            TransformAuthority.BODY,
+            AttachmentLifecycle.EXTERNAL_ENTITY);
+        PhysicsSyncSystem.Scratch scratch = new PhysicsSyncSystem.Scratch();
+        Quaternionf invalidRotation = new Quaternionf(Float.NaN, 0.0f, 0.0f, 1.0f);
+
+        assertTrue(PhysicsSyncSystem.applyPhysicsStoreSnapshot(transform,
+            attachment,
+            snapshot(bodyUuid, spaceUuid, 10.0f, invalidRotation, false),
+            scratch));
+
+        assertTrue(Float.isFinite(transform.getRotation().x()));
+        assertTrue(Float.isFinite(transform.getRotation().y()));
+        assertTrue(Float.isFinite(transform.getRotation().z()));
+    }
+
+    @Test
     void visualPositionKeepsCenterOfMassOffsetWorldUp() {
         Vector3f visualPosition = PhysicsVisualPoseMath.visualPositionFromBodyPose(new Vector3f(10.0f,
                 20.0f,
