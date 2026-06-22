@@ -49,6 +49,33 @@ public final class PhysicsControlSessions {
     }
 
     /**
+     * Returns whether the PhysicsStore body is currently driven by any active Impulse control
+     * session.
+     */
+    public static boolean isBodyControlled(@Nullable Ref<PhysicsStore> bodyRef) {
+        if (!ControlLifecycle.isEnabled()) {
+            return false;
+        }
+        return PhysicsControlRuntimeStates.isControlled(bodyRef);
+    }
+
+    /**
+     * Returns whether the controller's active session targets the supplied PhysicsStore body.
+     */
+    public static boolean hasSessionForBody(@Nonnull Store<EntityStore> store,
+        @Nonnull Ref<EntityStore> controllerRef,
+        @Nullable Ref<PhysicsStore> bodyRef) {
+        if (!isAvailable()) {
+            return false;
+        }
+        PhysicsControlSessionComponent session =
+            store.getComponent(controllerRef, PhysicsControlSessionComponent.getComponentType());
+        return session != null
+            && session.isActive()
+            && samePhysicsStoreRef(session.getBodyRef(), bodyRef);
+    }
+
+    /**
      * Starts or replaces the controller entity's Impulse control session from durable entity UUIDs.
      * Prefer the ref overload when the caller already has live PhysicsStore entity refs.
      */
@@ -102,6 +129,9 @@ public final class PhysicsControlSessions {
         ComponentType<EntityStore, PhysicsControlSessionComponent> sessionType =
             PhysicsControlSessionComponent.getComponentType();
         releaseSession(store, controllerRef, sessionType);
+        if (PhysicsControlRuntimeStates.isControlled(bodyRef)) {
+            throw new IllegalStateException("PhysicsStore body is already controlled");
+        }
         store.putComponent(controllerRef,
             sessionType,
             new PhysicsControlSessionComponent(bodyRef,
@@ -199,6 +229,16 @@ public final class PhysicsControlSessions {
             throw new IllegalArgumentException("PhysicsStore control-session " + role
                 + " ref is not valid");
         }
+    }
+
+    private static boolean samePhysicsStoreRef(@Nullable Ref<PhysicsStore> first,
+        @Nullable Ref<PhysicsStore> second) {
+        return first != null
+            && second != null
+            && first.getStore() == second.getStore()
+            && first.isValid()
+            && second.isValid()
+            && first.getIndex() == second.getIndex();
     }
 
     private static void requireAvailable() {

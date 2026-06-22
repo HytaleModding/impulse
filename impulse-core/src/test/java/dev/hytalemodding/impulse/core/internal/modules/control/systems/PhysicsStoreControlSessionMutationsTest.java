@@ -1,5 +1,6 @@
 package dev.hytalemodding.impulse.core.internal.modules.control.systems;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -20,10 +21,17 @@ import dev.hytalemodding.impulse.api.PhysicsAxis;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.SpaceId;
+import dev.hytalemodding.impulse.api.runtime.BackendJointType;
+import dev.hytalemodding.impulse.api.runtime.BackendRuntimeCodes;
+import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntime;
+import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackendRuntimeProvider;
 import dev.hytalemodding.impulse.core.internal.modules.control.components.PhysicsControlSessionComponent;
 import dev.hytalemodding.impulse.core.internal.registration.PhysicsComponentTypeRegistry;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsIdentityIndexResource;
+import dev.hytalemodding.impulse.core.internal.resources.BackendBodyHandle;
+import dev.hytalemodding.impulse.core.internal.resources.BackendJointHandle;
+import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsResourceTypes;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSnapshotResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceCompatibilityIndexResource;
 import dev.hytalemodding.impulse.core.plugin.components.BodyComponent;
@@ -62,7 +70,7 @@ class PhysicsStoreControlSessionMutationsTest {
     private static final SpaceId SPACE_ID = new SpaceId(42);
 
     @Test
-    void releaseClearsTemporaryAnchorBodyCopiedState() {
+    void releaseClearsTemporarySessionRuntimeAndCopiedState() {
         StoreFixture fixture = store("control-release-anchor-cleanup");
         Store<PhysicsStore> physicsStore = fixture.physicsStore();
         Store<EntityStore> entityStore = fixture.entityStore();
@@ -73,6 +81,7 @@ class PhysicsStoreControlSessionMutationsTest {
             UUID anchorBodyUuid = uuid(3);
             UUID controlJointUuid = uuid(4);
             Ref<PhysicsStore> spaceRef = addSpace(physicsStore, spaceUuid);
+            BoundSpace space = bindSpace(physicsStore, spaceUuid, spaceRef);
             Ref<PhysicsStore> controlledBodyRef = addBody(physicsStore,
                 spaceUuid,
                 spaceRef,
@@ -94,6 +103,24 @@ class PhysicsStoreControlSessionMutationsTest {
                 controlledBodyRef,
                 anchorBodyUuid,
                 anchorBodyRef);
+            BackendBodyHandle controlledBodyHandle = bindBody(physicsStore,
+                space,
+                controlledBodyUuid,
+                controlledBodyRef,
+                0.0f);
+            BackendBodyHandle anchorBodyHandle = bindBody(physicsStore,
+                space,
+                anchorBodyUuid,
+                anchorBodyRef,
+                1.0f);
+            bindJoint(physicsStore,
+                space,
+                controlJointUuid,
+                controlJointRef,
+                anchorBodyHandle,
+                controlledBodyHandle);
+            assertEquals(2, space.runtime().bodyCount(space.handle().value()));
+            assertEquals(1, space.runtime().jointCount(space.handle().value()));
 
             PhysicsControlSessionComponent session = new PhysicsControlSessionComponent(
                 controlledBodyRef,
@@ -107,9 +134,17 @@ class PhysicsStoreControlSessionMutationsTest {
 
             PhysicsStoreControlSessionMutations.applyRelease(entityStore, session);
 
+            PhysicsRuntimeResource runtime =
+                physicsStore.getResource(PhysicsRuntimeResource.getResourceType());
             assertFalse(anchorBodyRef.isValid());
-            assertNull(physicsStore.getResource(PhysicsIdentityIndexResource.getResourceType())
-                .getByUuid(anchorBodyUuid));
+            assertFalse(controlJointRef.isValid());
+            assertNull(physicsStore.getExternalData().getRefFromUUID(anchorBodyUuid));
+            assertNull(physicsStore.getExternalData().getRefFromUUID(controlJointUuid));
+            assertNull(runtime.getBodyHandle(anchorBodyRef));
+            assertNull(runtime.getJointHandle(controlJointRef));
+            assertNotNull(runtime.getBodyHandle(controlledBodyRef));
+            assertEquals(1, space.runtime().bodyCount(space.handle().value()));
+            assertEquals(0, space.runtime().jointCount(space.handle().value()));
             assertNull(physicsStore.getResource(PhysicsSnapshotResource.getResourceType())
                 .getBody(anchorBodyUuid));
             assertFalse(PhysicsBodies.isRegistered(physicsStore, anchorBodyUuid));
@@ -148,11 +183,25 @@ class PhysicsStoreControlSessionMutationsTest {
                 new SpaceComponent(BACKEND_ID, new Vector3f(0.0f, -9.81f, 0.0f))),
             AddReason.SPAWN);
         assertNotNull(ref);
-        store.getResource(PhysicsIdentityIndexResource.getResourceType()).putUuid(spaceUuid, ref);
         store.getExternalData().putRefForUUID(spaceUuid, ref);
         store.getResource(PhysicsSpaceCompatibilityIndexResource.getResourceType())
             .putSpace(SPACE_ID, spaceUuid);
         return ref;
+    }
+
+    @Nonnull
+    private static BoundSpace bindSpace(@Nonnull Store<PhysicsStore> store,
+        @Nonnull UUID spaceUuid,
+        @Nonnull Ref<PhysicsStore> spaceRef) {
+        PhysicsBackendRuntime backendRuntime =
+            new FakePhysicsBackendRuntimeProvider(BACKEND_ID, false, false).createRuntime();
+        BackendSpaceHandle spaceHandle =
+            new BackendSpaceHandle(backendRuntime.createSpace(SPACE_ID));
+        PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
+        runtime.putRuntime(BACKEND_ID, backendRuntime);
+        runtime.putSpaceHandle(spaceRef, BACKEND_ID, spaceHandle);
+        runtime.putSpaceMetadata(BACKEND_ID, spaceHandle, spaceUuid, spaceRef);
+        return new BoundSpace(spaceUuid, spaceRef, backendRuntime, spaceHandle);
     }
 
     @Nonnull
@@ -182,7 +231,6 @@ class PhysicsStoreControlSessionMutationsTest {
                 new CollisionFilterComponent(0x01, 0x02)),
             AddReason.SPAWN);
         assertNotNull(ref);
-        store.getResource(PhysicsIdentityIndexResource.getResourceType()).putUuid(bodyUuid, ref);
         store.getExternalData().putRefForUUID(bodyUuid, ref);
         return ref;
     }
@@ -205,9 +253,84 @@ class PhysicsStoreControlSessionMutationsTest {
                 joint),
             AddReason.SPAWN);
         assertNotNull(ref);
-        store.getResource(PhysicsIdentityIndexResource.getResourceType()).putUuid(jointUuid, ref);
         store.getExternalData().putRefForUUID(jointUuid, ref);
         return ref;
+    }
+
+    @Nonnull
+    private static BackendBodyHandle bindBody(@Nonnull Store<PhysicsStore> store,
+        @Nonnull BoundSpace space,
+        @Nonnull UUID bodyUuid,
+        @Nonnull Ref<PhysicsStore> bodyRef,
+        float positionX) {
+        long bodyId = space.runtime().createBody(space.handle().value(),
+            BackendRuntimeCodes.shapeTypeCode(ShapeType.BOX),
+            0.5f,
+            0.5f,
+            0.5f,
+            0.0f,
+            0.0f,
+            BackendRuntimeCodes.axisCode(PhysicsAxis.Y),
+            0.0f,
+            1.0f,
+            BackendRuntimeCodes.bodyTypeCode(PhysicsBodyType.DYNAMIC),
+            positionX,
+            0.0f,
+            0.0f,
+            0.0f,
+            0.0f,
+            0.0f,
+            1.0f);
+        BackendBodyHandle handle = new BackendBodyHandle(bodyId);
+        PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
+        runtime.putBodyHandle(bodyRef, space.ref(), space.handle(), handle);
+        runtime.putBodySnapshotMetadata(BACKEND_ID,
+            space.handle(),
+            handle,
+            bodyUuid,
+            bodyRef,
+            space.uuid());
+        runtime.putBodyHitMetadata(BACKEND_ID,
+            space.handle(),
+            handle,
+            bodyUuid,
+            bodyRef,
+            PhysicsBodyType.DYNAMIC,
+            ShapeType.BOX);
+        return handle;
+    }
+
+    private static void bindJoint(@Nonnull Store<PhysicsStore> store,
+        @Nonnull BoundSpace space,
+        @Nonnull UUID jointUuid,
+        @Nonnull Ref<PhysicsStore> jointRef,
+        @Nonnull BackendBodyHandle bodyAHandle,
+        @Nonnull BackendBodyHandle bodyBHandle) {
+        long jointId = space.runtime().createJoint(space.handle().value(),
+            BackendRuntimeCodes.jointTypeCode(BackendJointType.POINT),
+            bodyAHandle.value(),
+            bodyBHandle.value(),
+            0.0f,
+            0.0f,
+            0.0f,
+            0.0f,
+            0.0f,
+            0.0f,
+            0.0f,
+            1.0f,
+            0.0f,
+            0.0f,
+            0.0f,
+            0.0f,
+            0.0f,
+            0.0f,
+            false,
+            0.0f,
+            0.0f);
+        BackendJointHandle handle = new BackendJointHandle(jointId);
+        PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
+        runtime.putJointHandle(jointRef, space.ref(), space.handle(), handle);
+        runtime.putJointMetadata(BACKEND_ID, space.handle(), handle, jointUuid, jointRef);
     }
 
     private static void publishCopiedState(@Nonnull Store<PhysicsStore> store,
@@ -294,6 +417,13 @@ class PhysicsStoreControlSessionMutationsTest {
         public PhysicsStore getPhysicsStore() {
             return physicsStore;
         }
+    }
+
+    private record BoundSpace(
+        @Nonnull UUID uuid,
+        @Nonnull Ref<PhysicsStore> ref,
+        @Nonnull PhysicsBackendRuntime runtime,
+        @Nonnull BackendSpaceHandle handle) {
     }
 
     private record StoreFixture(

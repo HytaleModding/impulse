@@ -131,6 +131,7 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
         }
         HitSelection selection = selectControllableHit(physicsStore,
             store,
+            ref,
             controllableType,
             hits);
         if (selection == null) {
@@ -249,6 +250,7 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
     @Nullable
     private static HitSelection selectControllableHit(@Nonnull Store<PhysicsStore> physicsStore,
         @Nonnull Store<EntityStore> store,
+        @Nonnull Ref<EntityStore> controllerRef,
         @Nonnull ComponentType<EntityStore, ImpulseControllableComponent> controllableType,
         @Nonnull List<RaycastHitView> hits) {
         List<HitCandidate> candidates = new ArrayList<>(hits.size());
@@ -271,6 +273,12 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
         }
         HitSelection best = null;
         for (HitCandidate candidate : candidates) {
+            if (PhysicsControlSessions.isBodyControlled(candidate.bodyRef())
+                && !PhysicsControlSessions.hasSessionForBody(store,
+                    controllerRef,
+                    candidate.bodyRef())) {
+                continue;
+            }
             AttachmentSelection attachments =
                 inspectGameplayAttachments(store, controllableType, candidate.bodyRef());
             if (attachments.controllableAttachment() == null && attachments.hasGameplayAttachment()) {
