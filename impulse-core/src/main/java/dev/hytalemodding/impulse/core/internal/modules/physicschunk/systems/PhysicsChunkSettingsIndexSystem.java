@@ -1,4 +1,4 @@
-package dev.hytalemodding.impulse.core.internal.systems;
+package dev.hytalemodding.impulse.core.internal.modules.physicschunk.systems;
 
 import com.hypixel.hytale.component.ArchetypeChunk;
 import com.hypixel.hytale.component.CommandBuffer;
@@ -11,9 +11,11 @@ import com.hypixel.hytale.component.system.QuerySystem;
 import com.hypixel.hytale.component.system.tick.TickingSystem;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkLifecycle;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkCollisionMutationQueueResource;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkSettingsIndexResource;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkSettingsIndexResource.PhysicsChunkSpaceSettings;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.resources.PhysicsChunkCollisionMutationQueueResource;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.resources.PhysicsChunkSettingsIndexResource;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.resources.PhysicsChunkSettingsIndexResource.PhysicsChunkSpaceSettings;
+import dev.hytalemodding.impulse.core.internal.systems.IdentityIndexSystem;
+import dev.hytalemodding.impulse.core.internal.systems.PhysicsStoreSystemSupport;
 import dev.hytalemodding.impulse.core.internal.systems.binding.SpaceBindingSystem;
 import dev.hytalemodding.impulse.core.plugin.components.SpaceComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.ChunkCollisionSettingsComponent;

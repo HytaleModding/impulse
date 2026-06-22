@@ -5,8 +5,8 @@ import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.component.SystemGroup;
 import com.hypixel.hytale.component.event.WorldEventType;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsBodySyncStateResource;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsDebugResource;
+import dev.hytalemodding.impulse.core.internal.modules.physicsentity.resources.PhysicsBodySyncStateResource;
+import dev.hytalemodding.impulse.core.internal.modules.physicsentity.resources.PhysicsDebugOverlayResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsProjectionIndexResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsVisualInterestResource;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource;
@@ -14,7 +14,7 @@ import dev.hytalemodding.impulse.core.internal.systems.debug.PhysicsDebugSystem;
 import dev.hytalemodding.impulse.core.internal.systems.publication.PhysicsStoreEventPublicationSystem;
 import dev.hytalemodding.impulse.core.internal.modules.physicsentity.systems.sync.PhysicsBodyAttachmentIndexSystem;
 import dev.hytalemodding.impulse.core.internal.modules.physicsentity.systems.sync.PhysicsSyncSystem;
-import dev.hytalemodding.impulse.core.internal.systems.visual.PhysicsProjectionCleanupSystem;
+import dev.hytalemodding.impulse.core.internal.modules.physicsentity.systems.visual.PhysicsProjectionCleanupSystem;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsEventFramePublishedEvent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.BodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.GeneratedVisualProxyComponent;
@@ -53,8 +53,9 @@ public final class PhysicsEntityTypeRegistry {
     }
 
     public static void registerResourceTypes(@Nonnull ComponentRegistryProxy<EntityStore> registry) {
-        PhysicsDebugResource.setResourceType(registry.registerResource(PhysicsDebugResource.class,
-            PhysicsDebugResource::new));
+        PhysicsDebugOverlayResource.setResourceType(registry.registerResource(
+            PhysicsDebugOverlayResource.class,
+            PhysicsDebugOverlayResource::new));
         PhysicsRuntimeProfilingResource.setResourceType(registry.registerResource(
             PhysicsRuntimeProfilingResource.class,
             PhysicsRuntimeProfilingResource::new));
@@ -91,7 +92,7 @@ public final class PhysicsEntityTypeRegistry {
         generatedVisualProxyComponentType = null;
         physicsEventFramePublishedEventType = null;
         persistenceRestoreGroup = null;
-        PhysicsDebugResource.clearResourceType();
+        PhysicsDebugOverlayResource.clearResourceType();
         PhysicsRuntimeProfilingResource.clearResourceType();
         PhysicsProjectionIndexResource.clearResourceType();
         PhysicsBodySyncStateResource.clearResourceType();
@@ -103,7 +104,7 @@ public final class PhysicsEntityTypeRegistry {
             && generatedVisualProxyComponentType != null
             && physicsEventFramePublishedEventType != null
             && persistenceRestoreGroup != null
-            && PhysicsDebugResource.getResourceType() != null
+            && PhysicsDebugOverlayResource.getResourceType() != null
             && PhysicsRuntimeProfilingResource.getResourceType() != null
             && PhysicsProjectionIndexResource.getResourceType() != null
             && PhysicsBodySyncStateResource.getResourceType() != null

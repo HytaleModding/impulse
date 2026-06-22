@@ -1,4 +1,4 @@
-package dev.hytalemodding.impulse.core.internal.systems.visual;
+package dev.hytalemodding.impulse.core.internal.modules.physicsentity.systems.visual;
 
 import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.component.Ref;

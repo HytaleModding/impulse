@@ -1,7 +1,7 @@
 /**
- * Public API for the bundled PhysicsEntity subplugin.
- *
- * <p>Visual sync and generated-proxy settings live under
- * {@code dev.hytalemodding.impulse.core.plugin.modules.physicsentity.settings}.</p>
+ * Public API for the bundled PhysicsEntity module.
+ * <p>
+ * PhysicsEntity module handles the EntityStore projection of the PhysicsStore ecs entities.
+ * </p>
  */
 package dev.hytalemodding.impulse.core.plugin.modules.physicsentity;

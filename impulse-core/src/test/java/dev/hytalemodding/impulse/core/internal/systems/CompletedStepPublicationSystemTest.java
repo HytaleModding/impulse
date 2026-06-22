@@ -16,6 +16,7 @@ import dev.hytalemodding.impulse.core.internal.resources.PhysicsProfilingResourc
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsResourceTypes;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSnapshotResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsStepSchedulerResource;
+import dev.hytalemodding.impulse.core.internal.systems.publication.CompletedStepPublicationSystem;
 import dev.hytalemodding.impulse.core.internal.testsupport.TestInstanceFactory;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsEventFrame;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsStepEvent;

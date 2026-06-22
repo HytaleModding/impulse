@@ -1,4 +1,4 @@
-package dev.hytalemodding.impulse.core.internal.resources;
+package dev.hytalemodding.impulse.core.internal.modules.physicschunk.resources;
 
 import com.hypixel.hytale.component.Resource;
 import com.hypixel.hytale.component.ResourceType;

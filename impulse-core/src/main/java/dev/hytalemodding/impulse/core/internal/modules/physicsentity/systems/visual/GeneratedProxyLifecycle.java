@@ -1,4 +1,4 @@
-package dev.hytalemodding.impulse.core.internal.systems.visual;
+package dev.hytalemodding.impulse.core.internal.modules.physicsentity.systems.visual;
 
 import com.hypixel.hytale.component.CommandBuffer;
 import com.hypixel.hytale.component.ComponentAccessor;
@@ -8,7 +8,7 @@ import com.hypixel.hytale.component.RemoveReason;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsBodySyncStateResource;
+import dev.hytalemodding.impulse.core.internal.modules.physicsentity.resources.PhysicsBodySyncStateResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsProjectionIndexResource;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.BodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.BodyAttachmentComponent.AttachmentLifecycle;
@@ -41,6 +41,7 @@ public final class GeneratedProxyLifecycle {
         @Nonnull BodyAttachmentComponent attachment,
         @Nonnull CommandBuffer<EntityStore> commandBuffer) {
         UUID bodyUuid = attachment.getBodyUuid();
+        assert PhysicsProjectionIndexResource.getResourceType() != null;
         PhysicsProjectionIndexResource projection = commandBuffer.getResource(
             PhysicsProjectionIndexResource.getResourceType());
         projection.unregisterAttachment(bodyUuid, attachment.getBodyRef(), entityRef);

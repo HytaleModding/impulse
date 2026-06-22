@@ -1,4 +1,4 @@
-package dev.hytalemodding.impulse.core.internal.systems;
+package dev.hytalemodding.impulse.core.internal.systems.publication;
 
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.component.dependency.Dependency;
@@ -15,6 +15,7 @@ import dev.hytalemodding.impulse.core.internal.resources.PhysicsSnapshotResource
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsStepSchedulerResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsStepSchedulerResource.CompletedStep;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsStepSchedulerResource.StepInput;
+import dev.hytalemodding.impulse.core.internal.systems.PhysicsStoreSystemSupport;
 import dev.hytalemodding.impulse.core.internal.systems.binding.TargetBindingSystem;
 import java.util.Set;
 import javax.annotation.Nonnull;

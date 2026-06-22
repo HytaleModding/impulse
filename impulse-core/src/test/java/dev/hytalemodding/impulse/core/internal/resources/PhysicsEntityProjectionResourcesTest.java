@@ -11,6 +11,7 @@ import com.hypixel.hytale.component.ResourceType;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.core.internal.modules.physicsentity.PhysicsEntityTypeRegistry;
+import dev.hytalemodding.impulse.core.internal.modules.physicsentity.resources.PhysicsBodySyncStateResource;
 import dev.hytalemodding.impulse.core.internal.testsupport.TestInstanceFactory;
 import java.util.ArrayList;
 import javax.annotation.Nonnull;

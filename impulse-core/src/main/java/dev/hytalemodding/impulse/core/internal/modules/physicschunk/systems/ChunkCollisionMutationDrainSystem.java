@@ -1,4 +1,4 @@
-package dev.hytalemodding.impulse.core.internal.systems;
+package dev.hytalemodding.impulse.core.internal.modules.physicschunk.systems;
 
 import com.hypixel.hytale.component.AddReason;
 import com.hypixel.hytale.component.Ref;
@@ -14,18 +14,19 @@ import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntime;
 import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsIdentityIndexResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRestoreStatusResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResource;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkCollisionMutationQueueResource;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkCollisionPayloadResource;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkSettingsIndexResource;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.resources.PhysicsChunkCollisionMutationQueueResource;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.resources.PhysicsChunkCollisionPayloadResource;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.resources.PhysicsChunkSettingsIndexResource;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.ChunkCollisionMutation;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.ChunkCollisionPayload;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.ChunkCollisionPayload.BoxPayload;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkLifecycle;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkCollisionDefaults;
 import dev.hytalemodding.impulse.core.internal.physics.PhysicsStoreRowCleanup;
+import dev.hytalemodding.impulse.core.internal.systems.PhysicsStoreSystemSupport;
+import dev.hytalemodding.impulse.core.internal.systems.SpaceSettingsApplicationSystem;
 import dev.hytalemodding.impulse.core.internal.systems.binding.BodyBindingSystem;
 import dev.hytalemodding.impulse.core.internal.systems.binding.SpaceBindingSystem;
 import dev.hytalemodding.impulse.core.plugin.components.BodyComponent;
@@ -81,25 +82,20 @@ public final class ChunkCollisionMutationDrainSystem extends TickingSystem<Physi
             return;
         }
         PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
-        PhysicsIdentityIndexResource identity = store.getResource(
-            PhysicsIdentityIndexResource.getResourceType());
         PhysicsChunkCollisionPayloadResource chunkCollisionPayloads = store.getResource(
             PhysicsChunkCollisionPayloadResource.getResourceType());
         PhysicsChunkSettingsIndexResource settingsIndex = store.getResource(
             PhysicsChunkSettingsIndexResource.getResourceType());
         List<PreparedUpsert> upserts = prepareUpserts(store,
             runtime,
-            identity,
             settingsIndex,
             restore,
             mutations);
 
         removeGeneratedRows(store,
             runtime,
-            identity,
             removalKeys(mutations, upserts));
         applyPreparedUpserts(store,
-            identity,
             chunkCollisionPayloads,
             upserts);
     }
@@ -141,14 +137,13 @@ public final class ChunkCollisionMutationDrainSystem extends TickingSystem<Physi
     @Nonnull
     private static List<PreparedUpsert> prepareUpserts(@Nonnull Store<PhysicsStore> store,
         @Nonnull PhysicsRuntimeResource runtime,
-        @Nonnull PhysicsIdentityIndexResource identity,
         @Nonnull PhysicsChunkSettingsIndexResource settingsIndex,
         @Nonnull PhysicsRestoreStatusResource restore,
         @Nonnull List<ChunkCollisionMutation> mutations) {
         List<PreparedUpsert> upserts = new ArrayList<>();
         for (ChunkCollisionMutation mutation : mutations) {
             if (!mutation.remove() && isFreshUpsert(settingsIndex, mutation)) {
-                PreparedUpsert upsert = prepareUpsert(store, runtime, identity, restore, mutation);
+                PreparedUpsert upsert = prepareUpsert(store, runtime, restore, mutation);
                 if (upsert != null) {
                     upserts.add(upsert);
                 }
@@ -167,7 +162,6 @@ public final class ChunkCollisionMutationDrainSystem extends TickingSystem<Physi
     @Nullable
     private static PreparedUpsert prepareUpsert(@Nonnull Store<PhysicsStore> store,
         @Nonnull PhysicsRuntimeResource runtime,
-        @Nonnull PhysicsIdentityIndexResource identity,
         @Nonnull PhysicsRestoreStatusResource restore,
         @Nonnull ChunkCollisionMutation mutation) {
         ChunkCollisionPayload payload = mutation.payload();
@@ -176,36 +170,38 @@ public final class ChunkCollisionMutationDrainSystem extends TickingSystem<Physi
                 + mutation.sourceKey());
             return null;
         }
-        Ref<PhysicsStore> spaceRef = PhysicsStoreSystemSupport.refForUuid(identity,
-            mutation.spaceUuid());
-        BackendSpaceHandle spaceHandle = spaceRef != null ? runtime.getSpaceHandle(spaceRef) : null;
-        PhysicsBackendRuntime backendRuntime = spaceRef != null
-            ? runtime.runtimeForSpaceRef(spaceRef)
-            : null;
-        if (spaceRef == null || spaceHandle == null || backendRuntime == null) {
-            restore.recordSoftSkip("Chunk collision references unbound space: "
-                + mutation.sourceKey());
-            return null;
+        Ref<PhysicsStore> spaceRef = store.getExternalData().getRefFromUUID(mutation.spaceUuid());
+        if (spaceRef != null && (spaceRef.getStore() != store || !spaceRef.isValid())) {
+            spaceRef = null;
         }
-        boolean nativeVoxel = payload.nativeVoxelCollisionEnabled()
-            && payload.hasFullCubeVoxels()
-            && backendRuntime.supportsVoxelTerrain(spaceHandle.value());
+        BackendSpaceHandle spaceHandle = spaceRef != null ? runtime.getSpaceHandle(spaceRef) : null;
+        boolean nativeVoxel;
+        try (PhysicsBackendRuntime backendRuntime = spaceRef != null
+            ? runtime.runtimeForSpaceRef(spaceRef)
+            : null) {
+            if (spaceRef == null || spaceHandle == null || backendRuntime == null) {
+                restore.recordSoftSkip("Chunk collision references unbound space: "
+                    + mutation.sourceKey());
+                return null;
+            }
+            nativeVoxel = payload.nativeVoxelCollisionEnabled()
+                && payload.hasFullCubeVoxels()
+                && backendRuntime.supportsVoxelTerrain(spaceHandle.value());
+        }
         MaterialComponent material = material(store, spaceRef);
         CollisionFilterComponent filter = filter(store, spaceRef);
         return new PreparedUpsert(mutation, payload, spaceRef, material, filter, nativeVoxel);
     }
 
     private static void applyPreparedUpserts(@Nonnull Store<PhysicsStore> store,
-        @Nonnull PhysicsIdentityIndexResource identity,
         @Nonnull PhysicsChunkCollisionPayloadResource chunkCollisionPayloads,
         @Nonnull List<PreparedUpsert> upserts) {
         for (PreparedUpsert upsert : upserts) {
-            applyPreparedUpsert(store, identity, chunkCollisionPayloads, upsert);
+            applyPreparedUpsert(store, chunkCollisionPayloads, upsert);
         }
     }
 
     private static void applyPreparedUpsert(@Nonnull Store<PhysicsStore> store,
-        @Nonnull PhysicsIdentityIndexResource identity,
         @Nonnull PhysicsChunkCollisionPayloadResource chunkCollisionPayloads,
         @Nonnull PreparedUpsert upsert) {
         ChunkCollisionMutation mutation = upsert.mutation();
@@ -214,14 +210,12 @@ public final class ChunkCollisionMutationDrainSystem extends TickingSystem<Physi
         if (upsert.nativeVoxel()) {
             chunkCollisionPayloads.put(mutation.payloadResourceKey(), voxelPayload(payload));
             addNativeVoxelBody(store,
-                identity,
                 upsert.spaceRef(),
                 mutation,
                 upsert.material(),
                 upsert.filter());
         } else {
             addBoxBodies(store,
-                identity,
                 upsert.spaceRef(),
                 mutation,
                 upsert.material(),
@@ -230,7 +224,6 @@ public final class ChunkCollisionMutationDrainSystem extends TickingSystem<Physi
                 PartKind.BOX);
         }
         addBoxBodies(store,
-            identity,
             upsert.spaceRef(),
             mutation,
             upsert.material(),
@@ -252,7 +245,6 @@ public final class ChunkCollisionMutationDrainSystem extends TickingSystem<Physi
     }
 
     private static void addNativeVoxelBody(@Nonnull Store<PhysicsStore> store,
-        @Nonnull PhysicsIdentityIndexResource identity,
         @Nonnull Ref<PhysicsStore> spaceRef,
         @Nonnull ChunkCollisionMutation mutation,
         @Nonnull MaterialComponent material,
@@ -262,7 +254,6 @@ public final class ChunkCollisionMutationDrainSystem extends TickingSystem<Physi
             mutation.sectionY() << ChunkUtil.BITS,
             mutation.chunkZ() << ChunkUtil.BITS));
         addChunkCollisionBody(store,
-            identity,
             spaceRef,
             mutation,
             target,
@@ -283,7 +274,6 @@ public final class ChunkCollisionMutationDrainSystem extends TickingSystem<Physi
     }
 
     private static void addBoxBodies(@Nonnull Store<PhysicsStore> store,
-        @Nonnull PhysicsIdentityIndexResource identity,
         @Nonnull Ref<PhysicsStore> spaceRef,
         @Nonnull ChunkCollisionMutation mutation,
         @Nonnull MaterialComponent material,
@@ -300,7 +290,6 @@ public final class ChunkCollisionMutationDrainSystem extends TickingSystem<Physi
                 (float) box.centerY(),
                 (float) box.centerZ()));
             addChunkCollisionBody(store,
-                identity,
                 spaceRef,
                 mutation,
                 target,
@@ -322,7 +311,6 @@ public final class ChunkCollisionMutationDrainSystem extends TickingSystem<Physi
     }
 
     private static void addChunkCollisionBody(@Nonnull Store<PhysicsStore> store,
-        @Nonnull PhysicsIdentityIndexResource identity,
         @Nonnull Ref<PhysicsStore> spaceRef,
         @Nonnull ChunkCollisionMutation mutation,
         @Nonnull TargetComponent target,
@@ -357,7 +345,6 @@ public final class ChunkCollisionMutationDrainSystem extends TickingSystem<Physi
                 partIndex));
         Ref<PhysicsStore> ref = store.addEntity(holder, AddReason.SPAWN);
         assert ref != null;
-        identity.putUuid(bodyUuid, ref);
         store.getExternalData().putRefForUUID(bodyUuid, ref);
     }
 
@@ -385,7 +372,6 @@ public final class ChunkCollisionMutationDrainSystem extends TickingSystem<Physi
 
     private static void removeGeneratedRows(@Nonnull Store<PhysicsStore> store,
         @Nonnull PhysicsRuntimeResource runtime,
-        @Nonnull PhysicsIdentityIndexResource identity,
         @Nonnull Map<UUID, ObjectOpenHashSet<String>> keys) {
         if (keys.isEmpty()) {
             return;
@@ -393,13 +379,15 @@ public final class ChunkCollisionMutationDrainSystem extends TickingSystem<Physi
         List<GeneratedRow> rows = collectGeneratedRows(store, keys);
         rows.sort((first, second) -> Integer.compare(second.ref().getIndex(),
             first.ref().getIndex()));
+        PhysicsChunkCollisionPayloadResource chunkCollisionPayloads = store.getResource(
+            PhysicsChunkCollisionPayloadResource.getResourceType());
         List<PhysicsStoreRowCleanup.BodyEntityRemoval> bodyEntityRemovals =
             new ArrayList<>(rows.size());
         for (GeneratedRow row : rows) {
-            PhysicsStoreRowCleanup.removeRuntimeBody(runtime, identity, row.uuid(), row.ref());
+            PhysicsStoreRowCleanup.removeRuntimeBody(store, runtime, row.uuid(), row.ref());
+            removePayload(chunkCollisionPayloads, row.payloadResourceKey());
             bodyEntityRemovals.add(new PhysicsStoreRowCleanup.BodyEntityRemoval(row.uuid(),
-                row.ref(),
-                row.payloadResourceKey()));
+                row.ref()));
         }
         if (!bodyEntityRemovals.isEmpty()) {
             PhysicsStoreRowCleanup.removeBodyEntities(store, bodyEntityRemovals);
@@ -446,7 +434,7 @@ public final class ChunkCollisionMutationDrainSystem extends TickingSystem<Physi
     }
 
     @Nonnull
-    static UUID chunkCollisionBodyUuid(@Nonnull UUID spaceUuid,
+    public static UUID chunkCollisionBodyUuid(@Nonnull UUID spaceUuid,
         @Nonnull String sourceKey,
         @Nonnull PartKind partKind,
         int partIndex) {

@@ -1,4 +1,4 @@
-package dev.hytalemodding.impulse.core.internal.systems;
+package dev.hytalemodding.impulse.core.internal.modules.physicschunk.systems;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -28,8 +28,7 @@ import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunk
 import dev.hytalemodding.impulse.core.internal.registration.PhysicsComponentTypeRegistry;
 import dev.hytalemodding.impulse.core.internal.resources.BackendBodyHandle;
 import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkCollisionPayloadResource;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsIdentityIndexResource;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.resources.PhysicsChunkCollisionPayloadResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsResourceTypes;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRestoreStatusResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResource;
@@ -194,9 +193,6 @@ class ChunkCollisionVoxelStitchingSystemTest {
                 new SpaceComponent(backendId, new Vector3f(0.0f, -9.81f, 0.0f))),
             AddReason.SPAWN);
         assertNotNull(spaceRef);
-        PhysicsIdentityIndexResource identity = store.getResource(
-            PhysicsIdentityIndexResource.getResourceType());
-        identity.putUuid(spaceUuid, spaceRef);
         store.getExternalData().putRefForUUID(spaceUuid, spaceRef);
 
         FakePhysicsBackendRuntime runtime = (FakePhysicsBackendRuntime)
@@ -253,9 +249,6 @@ class ChunkCollisionVoxelStitchingSystemTest {
                 0));
         Ref<PhysicsStore> bodyRef = store.addEntity(holder, AddReason.SPAWN);
         assertNotNull(bodyRef);
-        PhysicsIdentityIndexResource identity = store.getResource(
-            PhysicsIdentityIndexResource.getResourceType());
-        identity.putUuid(bodyUuid, bodyRef);
         store.getExternalData().putRefForUUID(bodyUuid, bodyRef);
 
         long bodyHandle = runtime.backendRuntime()
@@ -319,8 +312,8 @@ class ChunkCollisionVoxelStitchingSystemTest {
             ChunkCollisionVoxelStitchingSystem system = new ChunkCollisionVoxelStitchingSystem();
             Method stitchChunk = ChunkCollisionVoxelStitchingSystem.class.getDeclaredMethod(
                 "stitchChunk",
+                Store.class,
                 PhysicsRuntimeResource.class,
-                PhysicsIdentityIndexResource.class,
                 PhysicsChunkCollisionPayloadResource.class,
                 PhysicsRestoreStatusResource.class,
                 Set.class,
@@ -329,16 +322,14 @@ class ChunkCollisionVoxelStitchingSystemTest {
             Set<Object> stitchedPairs = new HashSet<>();
             PhysicsRuntimeResource runtime = store.getResource(
                 PhysicsRuntimeResource.getResourceType());
-            PhysicsIdentityIndexResource identity = store.getResource(
-                PhysicsIdentityIndexResource.getResourceType());
             PhysicsChunkCollisionPayloadResource payloads = store.getResource(
                 PhysicsChunkCollisionPayloadResource.getResourceType());
             PhysicsRestoreStatusResource restore = store.getResource(
                 PhysicsRestoreStatusResource.getResourceType());
             BiConsumer<ArchetypeChunk<PhysicsStore>, CommandBuffer<PhysicsStore>> collector =
                 (chunk, _) -> invoke(stitchChunk,
+                    store,
                     runtime,
-                    identity,
                     payloads,
                     restore,
                     stitchedPairs,

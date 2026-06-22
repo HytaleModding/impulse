@@ -1,4 +1,4 @@
-package dev.hytalemodding.impulse.core.internal.resources;
+package dev.hytalemodding.impulse.core.internal.modules.physicsentity.resources;
 
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Resource;

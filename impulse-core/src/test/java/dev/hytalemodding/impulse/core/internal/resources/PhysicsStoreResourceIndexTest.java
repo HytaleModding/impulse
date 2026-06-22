@@ -20,10 +20,11 @@ import dev.hytalemodding.impulse.core.internal.modules.physicschunk.ChunkCollisi
 import dev.hytalemodding.impulse.core.internal.resources.BackendBodyHandle;
 import dev.hytalemodding.impulse.core.internal.resources.BackendJointHandle;
 import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkCollisionMutationQueueResource;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.resources.PhysicsChunkCollisionMutationQueueResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSnapshotResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceCompatibilityIndexResource;
+import dev.hytalemodding.impulse.core.internal.testsupport.TestInstanceFactory;
 import dev.hytalemodding.impulse.core.plugin.snapshots.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.core.plugin.snapshots.PhysicsSnapshotFrame;
 import java.util.ArrayList;
@@ -267,7 +268,8 @@ class PhysicsStoreResourceIndexTest {
     @Test
     void runtimeRefreshRebuildsRefIndexesFromScopedBackendMetadata() {
         PhysicsRuntimeResource runtime = new PhysicsRuntimeResource();
-        PhysicsIdentityIndexResource identity = new PhysicsIdentityIndexResource();
+        PhysicsStore physicsStore =
+            new PhysicsStore(TestInstanceFactory.world("runtime-refresh-index-test"));
         BackendId backendId = new BackendId("test:runtime-refresh");
         PhysicsBackendRuntime backendRuntime =
             new FakePhysicsBackendRuntimeProvider(backendId, false, false).createRuntime();
@@ -296,11 +298,11 @@ class PhysicsStoreResourceIndexTest {
             spaceUuid);
         runtime.putJointHandle(oldJointRef, oldSpaceRef, spaceHandle, jointHandle);
         runtime.putJointMetadata(backendId, spaceHandle, jointHandle, jointUuid, oldJointRef);
-        identity.putUuid(spaceUuid, newSpaceRef);
-        identity.putUuid(bodyUuid, newBodyRef);
-        identity.putUuid(jointUuid, newJointRef);
+        physicsStore.putRefForUUID(spaceUuid, newSpaceRef);
+        physicsStore.putRefForUUID(bodyUuid, newBodyRef);
+        physicsStore.putRefForUUID(jointUuid, newJointRef);
 
-        runtime.refreshRowRefs(identity);
+        runtime.refreshRowRefs(physicsStore);
 
         assertNull(runtime.getSpaceHandle(oldSpaceRef));
         assertNull(runtime.getBodyHandle(oldBodyRef));

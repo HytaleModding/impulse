@@ -25,11 +25,11 @@ import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunk
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.profiling.PhysicsChunkProfilingResource;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.profiling.PhysicsChunkProfilingResource.Snapshot;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.profiling.PhysicsChunkProfilingResource.StreamingTargetDiagnostic;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkCollisionMutationQueueResource;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.resources.PhysicsChunkCollisionMutationQueueResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSnapshotResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSnapshotResource.BodyCursor;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkSettingsIndexResource;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkSettingsIndexResource.PhysicsChunkSpaceSettings;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.resources.PhysicsChunkSettingsIndexResource;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.resources.PhysicsChunkSettingsIndexResource.PhysicsChunkSpaceSettings;
 import dev.hytalemodding.impulse.core.internal.modules.physicsentity.systems.sync.PhysicsSyncSystem;
 import dev.hytalemodding.impulse.core.plugin.physics.PhysicsThreading;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
@@ -45,12 +45,11 @@ import java.util.function.BiConsumer;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.joml.Vector3d;
-import org.joml.Vector3f;
 
 /**
  * Produces copied PhysicsStore chunk collision mutations from EntityStore and ChunkStore state.
  */
-public final class PhysicsChunkCollisionProducerSystem extends TickingSystem<EntityStore>
+public final class ChunkCollisionProducerSystem extends TickingSystem<EntityStore>
     implements QuerySystem<EntityStore> {
 
     @Nullable
@@ -318,7 +317,7 @@ public final class PhysicsChunkCollisionProducerSystem extends TickingSystem<Ent
         if (resolved != null) {
             return resolved;
         }
-        synchronized (PhysicsChunkCollisionProducerSystem.class) {
+        synchronized (ChunkCollisionProducerSystem.class) {
             resolved = query;
             if (resolved == null) {
                 resolved = Query.and(playerType(), transformType());
@@ -334,7 +333,7 @@ public final class PhysicsChunkCollisionProducerSystem extends TickingSystem<Ent
         if (resolved != null) {
             return resolved;
         }
-        synchronized (PhysicsChunkCollisionProducerSystem.class) {
+        synchronized (ChunkCollisionProducerSystem.class) {
             resolved = playerType;
             if (resolved == null) {
                 resolved = Player.getComponentType();
@@ -350,7 +349,7 @@ public final class PhysicsChunkCollisionProducerSystem extends TickingSystem<Ent
         if (resolved != null) {
             return resolved;
         }
-        synchronized (PhysicsChunkCollisionProducerSystem.class) {
+        synchronized (ChunkCollisionProducerSystem.class) {
             resolved = transformType;
             if (resolved == null) {
                 resolved = TransformComponent.getComponentType();

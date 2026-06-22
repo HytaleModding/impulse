@@ -1,4 +1,4 @@
-package dev.hytalemodding.impulse.core.internal.systems;
+package dev.hytalemodding.impulse.core.internal.modules.physicschunk.systems;
 
 import com.hypixel.hytale.component.ArchetypeChunk;
 import com.hypixel.hytale.component.CommandBuffer;
@@ -15,11 +15,11 @@ import dev.hytalemodding.impulse.api.BackendId;
 import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntime;
 import dev.hytalemodding.impulse.core.internal.resources.BackendBodyHandle;
 import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsIdentityIndexResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRestoreStatusResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResource;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkCollisionPayloadResource;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.resources.PhysicsChunkCollisionPayloadResource;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.ChunkCollisionPayload;
+import dev.hytalemodding.impulse.core.internal.systems.PhysicsStoreSystemSupport;
 import dev.hytalemodding.impulse.core.internal.systems.binding.BodyBindingSystem;
 import dev.hytalemodding.impulse.core.internal.systems.binding.TargetBindingSystem;
 import dev.hytalemodding.impulse.core.plugin.components.BodyComponent;
@@ -51,18 +51,16 @@ public final class ChunkCollisionVoxelStitchingSystem extends TickingSystem<Phys
             return;
         }
         PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
-        PhysicsIdentityIndexResource identity =
-            store.getResource(PhysicsIdentityIndexResource.getResourceType());
         PhysicsChunkCollisionPayloadResource payloads = store.getResource(
             PhysicsChunkCollisionPayloadResource.getResourceType());
         Set<BodyPair> stitchedPairs = new ObjectOpenHashSet<>();
         BiConsumer<ArchetypeChunk<PhysicsStore>, CommandBuffer<PhysicsStore>> collector =
-            (chunk, _) -> stitchChunk(runtime, identity, payloads, restore, stitchedPairs, chunk);
+            (chunk, _) -> stitchChunk(store, runtime, payloads, restore, stitchedPairs, chunk);
         store.forEachChunk(systemIndex, collector);
     }
 
-    private static void stitchChunk(@Nonnull PhysicsRuntimeResource runtime,
-        @Nonnull PhysicsIdentityIndexResource identity,
+    private static void stitchChunk(@Nonnull Store<PhysicsStore> store,
+        @Nonnull PhysicsRuntimeResource runtime,
         @Nonnull PhysicsChunkCollisionPayloadResource payloads,
         @Nonnull PhysicsRestoreStatusResource restore,
         @Nonnull Set<BodyPair> stitchedPairs,
@@ -82,7 +80,7 @@ public final class ChunkCollisionVoxelStitchingSystem extends TickingSystem<Phys
                 continue;
             }
             stitchBody(runtime,
-                identity,
+                store,
                 payloads,
                 restore,
                 stitchedPairs,
@@ -93,7 +91,7 @@ public final class ChunkCollisionVoxelStitchingSystem extends TickingSystem<Phys
     }
 
     private static void stitchBody(@Nonnull PhysicsRuntimeResource runtime,
-        @Nonnull PhysicsIdentityIndexResource identity,
+        @Nonnull Store<PhysicsStore> store,
         @Nonnull PhysicsChunkCollisionPayloadResource payloads,
         @Nonnull PhysicsRestoreStatusResource restore,
         @Nonnull Set<BodyPair> stitchedPairs,
@@ -119,7 +117,7 @@ public final class ChunkCollisionVoxelStitchingSystem extends TickingSystem<Phys
         }
         for (ChunkCollisionPayload.Neighbor neighbor : payload.neighbors()) {
             stitchNeighbor(runtime,
-                identity,
+                store,
                 backendRuntime,
                 backendId,
                 spaceHandle,
@@ -132,7 +130,7 @@ public final class ChunkCollisionVoxelStitchingSystem extends TickingSystem<Phys
     }
 
     private static void stitchNeighbor(@Nonnull PhysicsRuntimeResource runtime,
-        @Nonnull PhysicsIdentityIndexResource identity,
+        @Nonnull Store<PhysicsStore> store,
         @Nonnull PhysicsBackendRuntime backendRuntime,
         @Nonnull BackendId backendId,
         @Nonnull BackendSpaceHandle spaceHandle,
@@ -140,7 +138,7 @@ public final class ChunkCollisionVoxelStitchingSystem extends TickingSystem<Phys
         @Nonnull BackendBodyHandle bodyHandle,
         @Nonnull ChunkCollisionPayload.Neighbor neighbor,
         @Nonnull Set<BodyPair> stitchedPairs) {
-        Ref<PhysicsStore> neighborRef = neighborRef(identity, spaceUuid, neighbor.sourceKey());
+        Ref<PhysicsStore> neighborRef = neighborRef(store, spaceUuid, neighbor.sourceKey());
         if (neighborRef == null) {
             return;
         }
@@ -167,14 +165,15 @@ public final class ChunkCollisionVoxelStitchingSystem extends TickingSystem<Phys
     }
 
     @Nullable
-    private static Ref<PhysicsStore> neighborRef(@Nonnull PhysicsIdentityIndexResource identity,
+    private static Ref<PhysicsStore> neighborRef(@Nonnull Store<PhysicsStore> store,
         @Nonnull UUID spaceUuid,
         @Nonnull String sourceKey) {
         UUID neighborUuid = ChunkCollisionMutationDrainSystem.chunkCollisionBodyUuid(spaceUuid,
             sourceKey,
             PartKind.NATIVE_VOXELS,
             0);
-        return PhysicsStoreSystemSupport.refForUuid(identity, neighborUuid);
+        Ref<PhysicsStore> ref = store.getExternalData().getRefFromUUID(neighborUuid);
+        return ref != null && ref.getStore() == store && ref.isValid() ? ref : null;
     }
 
     @Nonnull

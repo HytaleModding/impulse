@@ -1,4 +1,4 @@
-package dev.hytalemodding.impulse.core.internal.resources;
+package dev.hytalemodding.impulse.core.internal.modules.physicsentity.resources;
 
 import com.hypixel.hytale.component.Resource;
 import com.hypixel.hytale.component.ResourceType;
@@ -9,21 +9,19 @@ import java.util.UUID;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import lombok.Getter;
-import lombok.Setter;
 
 /**
- * Runtime-only debug overlay state for one world EntityStore.
+ * Runtime-only debug overlay projection state for one world EntityStore.
  *
- * <p>This resource intentionally keeps transient debug session state separate from
- * PhysicsStore authority. Physics world state is persisted and shared by gameplay systems,
- * while debug subscriptions, cadence, and packet budgets are temporary operational concerns.</p>
+ * <p>Physics debug flags live on PhysicsStore. This resource owns only viewer subscription,
+ * projection cadence, and packet-budget state for rendering copied physics debug views.</p>
  */
 @Getter
-public class PhysicsDebugResource implements Resource<EntityStore> {
+public class PhysicsDebugOverlayResource implements Resource<EntityStore> {
 
     @Getter
     @Nullable
-    private static ResourceType<EntityStore, PhysicsDebugResource> resourceType;
+    private static ResourceType<EntityStore, PhysicsDebugOverlayResource> resourceType;
 
     public static final float MIN_REFRESH_SECONDS = 0.05f;
     public static final float MAX_REFRESH_SECONDS = 2.0f;
@@ -39,17 +37,6 @@ public class PhysicsDebugResource implements Resource<EntityStore> {
 
     private final Set<UUID> subscriberUuids = new ObjectOpenHashSet<>();
 
-    @Setter
-    private boolean debugShapesEnabled = true;
-    @Setter
-    private boolean debugMotionEnabled = true;
-    @Setter
-    private boolean debugContactsEnabled;
-    @Setter
-    private boolean debugJointsEnabled = true;
-    @Setter
-    private boolean debugPhysicsChunkCollisionEnabled;
-
     private float overlayRefreshSeconds = DEFAULT_OVERLAY_REFRESH_SECONDS;
     private float physicsChunkRefreshSeconds = DEFAULT_PHYSICS_CHUNK_REFRESH_SECONDS;
     private float overlayTimeUntilRefresh;
@@ -62,7 +49,7 @@ public class PhysicsDebugResource implements Resource<EntityStore> {
     private int maxPhysicsChunkSections = DEFAULT_MAX_PHYSICS_CHUNK_SECTIONS;
     private int maxPhysicsChunkBoxes = DEFAULT_MAX_PHYSICS_CHUNK_BOXES;
 
-    public PhysicsDebugResource() {
+    public PhysicsDebugOverlayResource() {
     }
 
     public boolean addSubscriber(@Nonnull UUID uuid) {
@@ -146,14 +133,9 @@ public class PhysicsDebugResource implements Resource<EntityStore> {
 
     @Nonnull
     @Override
-    public PhysicsDebugResource clone() {
-        PhysicsDebugResource copy = new PhysicsDebugResource();
+    public PhysicsDebugOverlayResource clone() {
+        PhysicsDebugOverlayResource copy = new PhysicsDebugOverlayResource();
         copy.subscriberUuids.addAll(subscriberUuids);
-        copy.debugShapesEnabled = debugShapesEnabled;
-        copy.debugMotionEnabled = debugMotionEnabled;
-        copy.debugContactsEnabled = debugContactsEnabled;
-        copy.debugJointsEnabled = debugJointsEnabled;
-        copy.debugPhysicsChunkCollisionEnabled = debugPhysicsChunkCollisionEnabled;
         copy.overlayRefreshSeconds = overlayRefreshSeconds;
         copy.physicsChunkRefreshSeconds = physicsChunkRefreshSeconds;
         copy.overlayTimeUntilRefresh = overlayTimeUntilRefresh;
@@ -168,7 +150,7 @@ public class PhysicsDebugResource implements Resource<EntityStore> {
     }
 
     public static void setResourceType(
-        @Nonnull ResourceType<EntityStore, PhysicsDebugResource> type) {
+        @Nonnull ResourceType<EntityStore, PhysicsDebugOverlayResource> type) {
         resourceType = type;
     }
 
