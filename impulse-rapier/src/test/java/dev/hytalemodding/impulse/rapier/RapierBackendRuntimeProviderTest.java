@@ -133,6 +133,46 @@ class RapierBackendRuntimeProviderTest {
     }
 
     @Test
+    void gravityRoundTripsEveryAxisDirection() {
+        RapierBackendRuntimeProvider provider = new RapierBackendRuntimeProvider();
+        provider.init();
+        PhysicsBackendRuntime runtime = provider.createRuntime();
+        float[][] gravities = {
+            {0.0f, -9.81f, 0.0f},
+            {0.0f, 9.81f, 0.0f},
+            {9.81f, 0.0f, 0.0f},
+            {-9.81f, 0.0f, 0.0f}
+        };
+        for (int index = 0; index < gravities.length; index++) {
+            int spaceId = runtime.createSpace(new SpaceId(700 + index));
+            try {
+                float[] expected = gravities[index];
+                runtime.setGravity(spaceId, expected[0], expected[1], expected[2]);
+
+                assertGravityEquals(expected, runtime, spaceId);
+                runtime.step(spaceId, 1.0f / 60.0f);
+                assertGravityEquals(expected, runtime, spaceId);
+            } finally {
+                runtime.destroySpace(spaceId);
+            }
+        }
+    }
+
+    private static void assertGravityEquals(float[] expected,
+        PhysicsBackendRuntime runtime,
+        int spaceId) {
+        float[] actual = new float[3];
+        runtime.getGravity(spaceId, (x, y, z) -> {
+            actual[0] = x;
+            actual[1] = y;
+            actual[2] = z;
+        });
+        assertEquals(expected[0], actual[0], 0.0001f);
+        assertEquals(expected[1], actual[1], 0.0001f);
+        assertEquals(expected[2], actual[2], 0.0001f);
+    }
+
+    @Test
     void failedNativeBodyRemovalKeepsJavaBodyStateForRetry() {
         RapierBackendRuntimeProvider provider = new RapierBackendRuntimeProvider();
         provider.init();
