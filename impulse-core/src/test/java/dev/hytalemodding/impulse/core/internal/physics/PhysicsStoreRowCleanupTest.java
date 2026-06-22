@@ -23,7 +23,6 @@ import dev.hytalemodding.impulse.core.internal.registration.PhysicsComponentType
 import dev.hytalemodding.impulse.core.internal.resources.BackendBodyHandle;
 import dev.hytalemodding.impulse.core.internal.resources.BackendJointHandle;
 import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsIdentityIndexResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsResourceTypes;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSnapshotResource;
@@ -75,8 +74,8 @@ class PhysicsStoreRowCleanupTest {
                 retainedBodyRef);
 
             PhysicsStoreRowCleanup.clearBodyCopiedState(store,
-                List.of(new BodyEntityRemoval(firstBodyUuid, firstBodyRef, null),
-                    new BodyEntityRemoval(secondBodyUuid, secondBodyRef, null)));
+                List.of(new BodyEntityRemoval(firstBodyUuid, firstBodyRef),
+                    new BodyEntityRemoval(secondBodyUuid, secondBodyRef)));
 
             PhysicsSnapshotResource snapshots =
                 store.getResource(PhysicsSnapshotResource.getResourceType());
@@ -118,10 +117,8 @@ class PhysicsStoreRowCleanupTest {
                 PhysicsStoreRowCleanup.refreshIdentityAndRuntimeRefs(store);
             }
 
-            PhysicsIdentityIndexResource identity = store.getResource(
-                PhysicsIdentityIndexResource.getResourceType());
             for (UUID bodyUuid : bodyUuids) {
-                assertNotNull(identity.getByUuid(bodyUuid));
+                assertNotNull(store.getExternalData().getRefFromUUID(bodyUuid));
             }
         } finally {
             registry.removeStore(store);
@@ -154,8 +151,8 @@ class PhysicsStoreRowCleanupTest {
             bindBody(runtime, fixture, firstBodyUuid, firstBodyRef, firstHandle);
             bindBody(runtime, fixture, secondBodyUuid, secondBodyRef, secondHandle);
 
-            boolean removed = PhysicsStoreRowCleanup.removeRuntimeBody(runtime,
-                store.getResource(PhysicsIdentityIndexResource.getResourceType()),
+            boolean removed = PhysicsStoreRowCleanup.removeRuntimeBody(store,
+                runtime,
                 firstBodyUuid,
                 secondBodyRef);
 
@@ -193,8 +190,8 @@ class PhysicsStoreRowCleanupTest {
             bindJoint(runtime, fixture, firstJointUuid, firstJointRef, firstHandle);
             bindJoint(runtime, fixture, secondJointUuid, secondJointRef, secondHandle);
 
-            boolean removed = PhysicsStoreRowCleanup.removeRuntimeJoint(runtime,
-                store.getResource(PhysicsIdentityIndexResource.getResourceType()),
+            boolean removed = PhysicsStoreRowCleanup.removeRuntimeJoint(store,
+                runtime,
                 firstJointUuid,
                 secondJointRef);
 

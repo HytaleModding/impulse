@@ -6,7 +6,6 @@ import com.hypixel.hytale.component.system.tick.TickingSystem;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.core.internal.persistence.PhysicsStoreHolderStorage;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsEventResource;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsIdentityIndexResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRestoreStatusResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSnapshotResource;
@@ -39,7 +38,6 @@ public final class PersistenceHydrationSystem extends TickingSystem<PhysicsStore
 
     private static void prepareTransientRestoreState(@Nonnull Store<PhysicsStore> store) {
         store.getResource(PhysicsRuntimeResource.getResourceType()).destroyBackendBindings();
-        store.getResource(PhysicsIdentityIndexResource.getResourceType()).clear();
         store.getExternalData().clearUuidIndex();
         store.getResource(PhysicsSnapshotResource.getResourceType()).clear();
         store.getResource(PhysicsEventResource.getResourceType()).clear();

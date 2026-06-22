@@ -5,13 +5,10 @@ import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsEventResource;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsIdentityIndexResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRestoreStatusResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSnapshotResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceCompatibilityIndexResource;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkCollisionMutationQueueResource;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkCollisionPayloadResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResetResult;
 import dev.hytalemodding.impulse.core.internal.modules.control.PhysicsControlRuntimeStates;
 import dev.hytalemodding.impulse.core.internal.physics.PhysicsStoreRowCleanup.BodyEntityRemoval;
@@ -19,7 +16,6 @@ import dev.hytalemodding.impulse.core.plugin.physics.PhysicsThreading;
 import dev.hytalemodding.impulse.core.plugin.components.BodyComponent;
 import dev.hytalemodding.impulse.core.plugin.components.JointComponent;
 import dev.hytalemodding.impulse.core.plugin.components.UuidComponent;
-import dev.hytalemodding.impulse.core.internal.modules.physicschunk.components.ChunkCollisionSourceComponent;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -41,11 +37,9 @@ public final class PhysicsTopologyMutations {
         UUID checkedBodyUuid = Objects.requireNonNull(bodyUuid, "bodyUuid");
         PhysicsThreading.requireBackendIdle(store, "destroy a PhysicsStore body entity");
         PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
-        PhysicsIdentityIndexResource identity =
-            store.getResource(PhysicsIdentityIndexResource.getResourceType());
-        Ref<PhysicsStore> bodyRef = identity.getByUuid(checkedBodyUuid);
+        Ref<PhysicsStore> bodyRef = store.getExternalData().getRefFromUUID(checkedBodyUuid);
         List<RowRemoval> removals = collectRows(store, null, null, checkedBodyUuid, bodyRef);
-        removeRuntimeRows(runtime, identity, removals);
+        removeRuntimeRows(store, runtime, removals);
         removeRows(store, removals);
     }
 
@@ -54,17 +48,13 @@ public final class PhysicsTopologyMutations {
         @Nonnull Store<PhysicsStore> store) {
         PhysicsThreading.requireBackendIdle(store, "clear PhysicsStore body entities");
         PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
-        PhysicsIdentityIndexResource identity =
-            store.getResource(PhysicsIdentityIndexResource.getResourceType());
         PhysicsControlRuntimeStates.clear(store);
         TopologyCounts removed = countBackendTopology(runtime);
         List<RowRemoval> removals = collectRows(store, null, null, null, null);
-        removeRuntimeRows(runtime, identity, removals);
+        runtime.destroyBackendBindings();
         removeRows(store, removals, false);
         clearCopiedBodyState(store);
-        store.getResource(PhysicsChunkCollisionMutationQueueResource.getResourceType()).clear();
-        store.getResource(PhysicsChunkCollisionPayloadResource.getResourceType()).clear();
-        runtime.clearTransientBodyOperations();
+        PhysicsStoreCleanupHooks.clearBodyRuntimeResources(store);
         int keptSpaces = store.getResource(PhysicsSpaceCompatibilityIndexResource.getResourceType())
             .size();
         store.getResource(PhysicsRestoreStatusResource.getResourceType())
@@ -78,66 +68,43 @@ public final class PhysicsTopologyMutations {
         @Nonnull UUID spaceUuid) {
         PhysicsThreading.requireBackendIdle(store, "remove a PhysicsStore space entity");
         PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
-        PhysicsIdentityIndexResource identity =
-            store.getResource(PhysicsIdentityIndexResource.getResourceType());
-        Ref<PhysicsStore> spaceRef = identity.getByUuid(spaceUuid);
+        Ref<PhysicsStore> spaceRef = store.getExternalData().getRefFromUUID(spaceUuid);
         List<RowRemoval> removals = collectRows(store, spaceUuid, spaceRef, null, null);
-        removeRuntimeRows(runtime, identity, removals);
-        store.getResource(PhysicsChunkCollisionMutationQueueResource.getResourceType())
-            .removeIf(mutation -> spaceUuid.equals(mutation.spaceUuid()));
+        removeRuntimeRows(store, runtime, removals);
+        PhysicsStoreCleanupHooks.cleanupSpaceRuntimeResources(store, spaceUuid);
         removeRows(store, removals);
         PhysicsSpaceMutations.removeEmptySpace(store, spaceUuid);
     }
 
-    public static int clearChunkCollisionRowsForSpace(@Nonnull Store<PhysicsStore> store,
-        @Nonnull UUID spaceUuid) {
-        PhysicsThreading.requireBackendIdle(store, "clear PhysicsStore chunk-collision rows");
-        PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
-        PhysicsIdentityIndexResource identity =
-            store.getResource(PhysicsIdentityIndexResource.getResourceType());
-        int removedBodies = 0;
-        Ref<PhysicsStore> spaceRef = identity.getByUuid(spaceUuid);
-        List<RowRemoval> removals = collectChunkCollisionRows(store, spaceUuid, spaceRef);
-        for (RowRemoval removal : removals) {
-            if (removeRuntimeBody(runtime, identity, removal)) {
-                removedBodies++;
-            }
-        }
-        store.getResource(PhysicsChunkCollisionMutationQueueResource.getResourceType())
-            .removeIf(mutation -> spaceUuid.equals(mutation.spaceUuid()));
-        removeRows(store, removals);
-        return removedBodies;
-    }
-
-    private static void removeRuntimeRows(@Nonnull PhysicsRuntimeResource runtime,
-        @Nonnull PhysicsIdentityIndexResource identity,
+    private static void removeRuntimeRows(@Nonnull Store<PhysicsStore> store,
+        @Nonnull PhysicsRuntimeResource runtime,
         @Nonnull List<RowRemoval> removals) {
         for (RowRemoval removal : removals) {
             if (removal.kind() == RowKind.JOINT) {
-                removeRuntimeJoint(runtime, identity, removal);
+                removeRuntimeJoint(store, runtime, removal);
             }
         }
         for (RowRemoval removal : removals) {
             if (removal.kind() == RowKind.BODY) {
-                removeRuntimeBody(runtime, identity, removal);
+                removeRuntimeBody(store, runtime, removal);
             }
         }
     }
 
-    private static boolean removeRuntimeJoint(@Nonnull PhysicsRuntimeResource runtime,
-        @Nonnull PhysicsIdentityIndexResource identity,
+    private static boolean removeRuntimeJoint(@Nonnull Store<PhysicsStore> store,
+        @Nonnull PhysicsRuntimeResource runtime,
         @Nonnull RowRemoval removal) {
-        return PhysicsStoreRowCleanup.removeRuntimeJoint(runtime,
-            identity,
+        return PhysicsStoreRowCleanup.removeRuntimeJoint(store,
+            runtime,
             removal.rowUuid(),
             removal.ref());
     }
 
-    private static boolean removeRuntimeBody(@Nonnull PhysicsRuntimeResource runtime,
-        @Nonnull PhysicsIdentityIndexResource identity,
+    private static boolean removeRuntimeBody(@Nonnull Store<PhysicsStore> store,
+        @Nonnull PhysicsRuntimeResource runtime,
         @Nonnull RowRemoval removal) {
-        return PhysicsStoreRowCleanup.removeRuntimeBody(runtime,
-            identity,
+        return PhysicsStoreRowCleanup.removeRuntimeBody(store,
+            runtime,
             removal.rowUuid(),
             removal.ref());
     }
@@ -169,43 +136,12 @@ public final class PhysicsTopologyMutations {
             Ref<PhysicsStore> ref = chunk.getReferenceTo(index);
             JointComponent joint = chunk.getComponent(index, JointComponent.getComponentType());
             if (matchesJoint(joint, spaceUuid, spaceRef, bodyUuid, bodyRef)) {
-                removals.add(new RowRemoval(ref, rowUuid, RowKind.JOINT, null));
+                removals.add(new RowRemoval(ref, rowUuid, RowKind.JOINT));
                 return;
             }
             BodyComponent body = chunk.getComponent(index, BodyComponent.getComponentType());
-            ChunkCollisionSourceComponent source = chunk.getComponent(index,
-                ChunkCollisionSourceComponent.getComponentType());
             if (matchesBody(body, rowUuid, ref, spaceUuid, spaceRef, bodyUuid, bodyRef)) {
-                removals.add(new RowRemoval(ref,
-                    rowUuid,
-                    RowKind.BODY,
-                    source != null ? source.getPayloadResourceKey() : null));
-            }
-        });
-        return new ArrayList<>(removals);
-    }
-
-    @Nonnull
-    private static List<RowRemoval> collectChunkCollisionRows(@Nonnull Store<PhysicsStore> store,
-        @Nonnull UUID spaceUuid,
-        @Nullable Ref<PhysicsStore> spaceRef) {
-        ComponentType<PhysicsStore, UuidComponent> uuidType = UuidComponent.getComponentType();
-        ConcurrentLinkedQueue<RowRemoval> removals = new ConcurrentLinkedQueue<>();
-        store.forEachEntityParallel(uuidType, (index, chunk, _) -> {
-            UuidComponent uuid = chunk.getComponent(index, uuidType);
-            if (uuid == null) {
-                return;
-            }
-            BodyComponent body = chunk.getComponent(index, BodyComponent.getComponentType());
-            ChunkCollisionSourceComponent source = chunk.getComponent(index,
-                ChunkCollisionSourceComponent.getComponentType());
-            if (source != null
-                && body != null
-                && matchesSpace(body.getSpaceRef(), body.getSpaceUuid(), spaceRef, spaceUuid)) {
-                removals.add(new RowRemoval(chunk.getReferenceTo(index),
-                    uuid.getUuid(),
-                    RowKind.BODY,
-                    source.getPayloadResourceKey()));
+                removals.add(new RowRemoval(ref, rowUuid, RowKind.BODY));
             }
         });
         return new ArrayList<>(removals);
@@ -296,8 +232,7 @@ public final class PhysicsTopologyMutations {
             if (removal.kind() == RowKind.BODY) {
                 PhysicsStoreRowCleanup.removeBodyEntityRow(store,
                     removal.rowUuid(),
-                    removal.ref(),
-                    removal.payloadResourceKey());
+                    removal.ref());
             } else {
                 PhysicsStoreRowCleanup.removeJointEntity(store,
                     removal.rowUuid(),
@@ -317,8 +252,7 @@ public final class PhysicsTopologyMutations {
         for (RowRemoval removal : removals) {
             if (removal.kind() == RowKind.BODY && removal.ref().isValid()) {
                 bodyRemovals.add(new BodyEntityRemoval(removal.rowUuid(),
-                    removal.ref(),
-                    removal.payloadResourceKey()));
+                    removal.ref()));
             }
         }
         return bodyRemovals;
@@ -336,8 +270,7 @@ public final class PhysicsTopologyMutations {
 
     private record RowRemoval(@Nonnull Ref<PhysicsStore> ref,
                               @Nonnull UUID rowUuid,
-                              @Nonnull RowKind kind,
-                              @Nullable String payloadResourceKey) {
+                              @Nonnull RowKind kind) {
     }
 
     private static final class TopologyCounts {

@@ -6,7 +6,6 @@ import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.component.Component;
 import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsIdentityIndexResource;
 import dev.hytalemodding.impulse.core.plugin.components.BodyComponent;
 import dev.hytalemodding.impulse.core.plugin.components.ColliderComponent;
 import dev.hytalemodding.impulse.core.plugin.components.CollisionFilterComponent;
@@ -56,9 +55,8 @@ public final class PhysicsEntities {
         @Nonnull UUID entityUuid) {
         Store<PhysicsStore> checkedStore = Objects.requireNonNull(store, "store");
         PhysicsThreading.requireWorldThread(checkedStore, "resolve a PhysicsStore entity ref");
-        Ref<PhysicsStore> ref = checkedStore
-            .getResource(PhysicsIdentityIndexResource.getResourceType())
-            .getByUuid(Objects.requireNonNull(entityUuid, "entityUuid"));
+        Ref<PhysicsStore> ref = checkedStore.getExternalData()
+            .getRefFromUUID(Objects.requireNonNull(entityUuid, "entityUuid"));
         return ref != null && ref.getStore() == checkedStore && ref.isValid() ? ref : null;
     }
 

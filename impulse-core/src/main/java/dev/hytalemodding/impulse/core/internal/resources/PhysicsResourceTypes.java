@@ -23,8 +23,6 @@ public final class PhysicsResourceTypes {
     private static ResourceType<PhysicsStore, PhysicsSpaceCompatibilityIndexResource>
         spaceCompatibilityIndexResourceType;
     @Nullable
-    private static ResourceType<PhysicsStore, PhysicsIdentityIndexResource> identityIndexResourceType;
-    @Nullable
     private static ResourceType<PhysicsStore, PhysicsSnapshotResource> snapshotResourceType;
     @Nullable
     private static ResourceType<PhysicsStore, PhysicsEventResource> eventResourceType;
@@ -55,9 +53,6 @@ public final class PhysicsResourceTypes {
         spaceCompatibilityIndexResourceType = registry.registerResource(
             PhysicsSpaceCompatibilityIndexResource.class,
             PhysicsSpaceCompatibilityIndexResource::new);
-        identityIndexResourceType = registry.registerResource(
-            PhysicsIdentityIndexResource.class,
-            PhysicsIdentityIndexResource::new);
         snapshotResourceType = registry.registerResource(
             PhysicsSnapshotResource.class,
             PhysicsSnapshotResource::new);
@@ -97,11 +92,6 @@ public final class PhysicsResourceTypes {
     public static ResourceType<PhysicsStore, PhysicsSpaceCompatibilityIndexResource>
         spaceCompatibilityIndexResourceType() {
         return spaceCompatibilityIndexResourceType;
-    }
-
-    @Nonnull
-    public static ResourceType<PhysicsStore, PhysicsIdentityIndexResource> identityIndexResourceType() {
-        return identityIndexResourceType;
     }
 
     @Nonnull

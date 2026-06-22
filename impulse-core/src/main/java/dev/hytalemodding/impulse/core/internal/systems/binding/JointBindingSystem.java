@@ -15,7 +15,6 @@ import dev.hytalemodding.impulse.api.BackendId;
 import dev.hytalemodding.impulse.api.runtime.BackendJointType;
 import dev.hytalemodding.impulse.api.runtime.BackendRuntimeCodes;
 import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntime;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsIdentityIndexResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRestoreStatusResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.resources.BackendBodyHandle;
@@ -23,6 +22,7 @@ import dev.hytalemodding.impulse.core.internal.resources.BackendJointHandle;
 import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
 import dev.hytalemodding.impulse.core.internal.systems.PhysicsStoreSystemSupport;
 import dev.hytalemodding.impulse.core.plugin.components.JointComponent;
+import dev.hytalemodding.impulse.core.plugin.components.UuidComponent;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.BiConsumer;
@@ -48,15 +48,13 @@ public final class JointBindingSystem extends TickingSystem<PhysicsStore>
             return;
         }
         PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
-        PhysicsIdentityIndexResource identity = store.getResource(
-            PhysicsIdentityIndexResource.getResourceType());
         BiConsumer<ArchetypeChunk<PhysicsStore>, CommandBuffer<PhysicsStore>> collector =
-            (chunk, _) -> bindChunk(runtime, identity, restore, chunk);
+            (chunk, _) -> bindChunk(store, runtime, restore, chunk);
         store.forEachChunk(systemIndex, collector);
     }
 
-    private static void bindChunk(@Nonnull PhysicsRuntimeResource runtime,
-        @Nonnull PhysicsIdentityIndexResource identity,
+    private static void bindChunk(@Nonnull Store<PhysicsStore> store,
+        @Nonnull PhysicsRuntimeResource runtime,
         @Nonnull PhysicsRestoreStatusResource restore,
         @Nonnull ArchetypeChunk<PhysicsStore> chunk) {
         for (int index = 0; index < chunk.size(); index++) {
@@ -70,29 +68,29 @@ public final class JointBindingSystem extends TickingSystem<PhysicsStore>
             }
             Ref<PhysicsStore> jointRef = chunk.getReferenceTo(index);
             if (!joint.isEnabled()) {
-                removeJoint(runtime, identity, jointRef, jointUuid);
+                removeJoint(runtime, jointRef);
                 continue;
             }
             BackendJointHandle existing = runtime.getJointHandle(jointRef);
             if (existing != null) {
-                if (!endpointsBound(runtime, identity, joint)) {
-                    removeJoint(runtime, identity, jointRef, jointUuid);
+                if (!endpointsBound(store, runtime, joint)) {
+                    removeJoint(runtime, jointRef);
                 }
                 continue;
             }
-            bindJoint(runtime, identity, restore, jointRef, jointUuid, joint);
+            bindJoint(store, runtime, restore, jointRef, jointUuid, joint);
         }
     }
 
-    private static void bindJoint(@Nonnull PhysicsRuntimeResource runtime,
-        @Nonnull PhysicsIdentityIndexResource identity,
+    private static void bindJoint(@Nonnull Store<PhysicsStore> store,
+        @Nonnull PhysicsRuntimeResource runtime,
         @Nonnull PhysicsRestoreStatusResource restore,
         @Nonnull Ref<PhysicsStore> jointRef,
         @Nonnull UUID jointUuid,
         @Nonnull JointComponent joint) {
-        Ref<PhysicsStore> spaceRef = resolveSpaceRef(identity, joint);
-        Ref<PhysicsStore> bodyARef = resolveBodyARef(identity, joint);
-        Ref<PhysicsStore> bodyBRef = resolveBodyBRef(identity, joint);
+        Ref<PhysicsStore> spaceRef = resolveSpaceRef(store, joint);
+        Ref<PhysicsStore> bodyARef = resolveBodyARef(store, joint);
+        Ref<PhysicsStore> bodyBRef = resolveBodyBRef(store, joint);
         BackendSpaceHandle spaceHandle = spaceRef != null ? runtime.getSpaceHandle(spaceRef) : null;
         BackendBodyHandle bodyA = bodyARef != null ? runtime.getBodyHandle(bodyARef) : null;
         BackendBodyHandle bodyB = bodyBRef != null ? runtime.getBodyHandle(bodyBRef) : null;
@@ -159,12 +157,12 @@ public final class JointBindingSystem extends TickingSystem<PhysicsStore>
         }
     }
 
-    private static boolean endpointsBound(@Nonnull PhysicsRuntimeResource runtime,
-        @Nonnull PhysicsIdentityIndexResource identity,
+    private static boolean endpointsBound(@Nonnull Store<PhysicsStore> store,
+        @Nonnull PhysicsRuntimeResource runtime,
         @Nonnull JointComponent joint) {
-        Ref<PhysicsStore> spaceRef = resolveSpaceRef(identity, joint);
-        Ref<PhysicsStore> bodyARef = resolveBodyARef(identity, joint);
-        Ref<PhysicsStore> bodyBRef = resolveBodyBRef(identity, joint);
+        Ref<PhysicsStore> spaceRef = resolveSpaceRef(store, joint);
+        Ref<PhysicsStore> bodyARef = resolveBodyARef(store, joint);
+        Ref<PhysicsStore> bodyBRef = resolveBodyBRef(store, joint);
         BackendSpaceHandle spaceHandle = spaceRef != null ? runtime.getSpaceHandle(spaceRef) : null;
         BackendSpaceHandle bodyASpace = bodyARef != null ? runtime.getBodySpaceHandle(bodyARef) : null;
         BackendSpaceHandle bodyBSpace = bodyBRef != null ? runtime.getBodySpaceHandle(bodyBRef) : null;
@@ -186,39 +184,49 @@ public final class JointBindingSystem extends TickingSystem<PhysicsStore>
     }
 
     @Nullable
-    private static Ref<PhysicsStore> resolveSpaceRef(@Nonnull PhysicsIdentityIndexResource identity,
+    private static Ref<PhysicsStore> resolveSpaceRef(@Nonnull Store<PhysicsStore> store,
         @Nonnull JointComponent joint) {
-        Ref<PhysicsStore> spaceRef = PhysicsStoreSystemSupport.resolvedRef(identity,
-            joint.getSpaceUuid(),
-            joint.getSpaceRef());
+        Ref<PhysicsStore> spaceRef = resolveRef(store, joint.getSpaceUuid(), joint.getSpaceRef());
         joint.setSpaceRef(spaceRef);
         return spaceRef;
     }
 
     @Nullable
-    private static Ref<PhysicsStore> resolveBodyARef(@Nonnull PhysicsIdentityIndexResource identity,
+    private static Ref<PhysicsStore> resolveBodyARef(@Nonnull Store<PhysicsStore> store,
         @Nonnull JointComponent joint) {
-        Ref<PhysicsStore> bodyRef = PhysicsStoreSystemSupport.resolvedRef(identity,
-            joint.getBodyAUuid(),
-            joint.getBodyARef());
+        Ref<PhysicsStore> bodyRef = resolveRef(store, joint.getBodyAUuid(), joint.getBodyARef());
         joint.setBodyARef(bodyRef);
         return bodyRef;
     }
 
     @Nullable
-    private static Ref<PhysicsStore> resolveBodyBRef(@Nonnull PhysicsIdentityIndexResource identity,
+    private static Ref<PhysicsStore> resolveBodyBRef(@Nonnull Store<PhysicsStore> store,
         @Nonnull JointComponent joint) {
-        Ref<PhysicsStore> bodyRef = PhysicsStoreSystemSupport.resolvedRef(identity,
-            joint.getBodyBUuid(),
-            joint.getBodyBRef());
+        Ref<PhysicsStore> bodyRef = resolveRef(store, joint.getBodyBUuid(), joint.getBodyBRef());
         joint.setBodyBRef(bodyRef);
         return bodyRef;
     }
 
+    @Nullable
+    private static Ref<PhysicsStore> resolveRef(@Nonnull Store<PhysicsStore> store,
+        @Nonnull UUID uuid,
+        @Nullable Ref<PhysicsStore> current) {
+        if (PhysicsStoreSystemSupport.isNil(uuid)) {
+            return null;
+        }
+        UuidComponent currentUuid = PhysicsStoreSystemSupport.component(store,
+            current,
+            UuidComponent.getComponentType());
+        Ref<PhysicsStore> resolved = currentUuid != null && uuid.equals(currentUuid.getUuid())
+            ? current
+            : store.getExternalData().getRefFromUUID(uuid);
+        return resolved != null && resolved.getStore() == store && resolved.isValid()
+            ? resolved
+            : null;
+    }
+
     private static void removeJoint(@Nonnull PhysicsRuntimeResource runtime,
-        @Nonnull PhysicsIdentityIndexResource identity,
-        @Nonnull Ref<PhysicsStore> jointRef,
-        @Nonnull UUID jointUuid) {
+        @Nonnull Ref<PhysicsStore> jointRef) {
         BackendJointHandle handle = runtime.getJointHandle(jointRef);
         if (handle == null) {
             return;

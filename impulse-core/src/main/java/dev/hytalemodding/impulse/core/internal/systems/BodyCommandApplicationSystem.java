@@ -47,7 +47,9 @@ public final class BodyCommandApplicationSystem extends TickingSystem<PhysicsSto
         PhysicsRestoreStatusResource restore = store.getResource(
             PhysicsRestoreStatusResource.getResourceType());
         BiConsumer<ArchetypeChunk<PhysicsStore>, CommandBuffer<PhysicsStore>> collector =
-            (chunk, commandBuffer) -> applyCommands(store, runtime, restore, chunk, commandBuffer);
+            (chunk, commandBuffer) -> {
+            applyCommands(store, runtime, restore, chunk, commandBuffer);
+        };
         store.forEachChunk(systemIndex, collector);
     }
 

@@ -12,7 +12,6 @@ import dev.hytalemodding.impulse.api.BackendId;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntime;
 import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsIdentityIndexResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceCompatibilityIndexResource;
 import dev.hytalemodding.impulse.core.plugin.components.ExtensionSettingsComponent;
@@ -60,9 +59,7 @@ public final class PhysicsSpaceMutations {
             throw new IllegalArgumentException("PhysicsStore space id="
                 + compatibilitySpaceId.value() + " is already registered");
         }
-        PhysicsIdentityIndexResource identity =
-            store.getResource(PhysicsIdentityIndexResource.getResourceType());
-        Ref<PhysicsStore> existing = identity.getByUuid(spaceUuid);
+        Ref<PhysicsStore> existing = store.getExternalData().getRefFromUUID(spaceUuid);
         if (existing != null && existing.isValid()) {
             throw new IllegalArgumentException("PhysicsStore space uuid=" + spaceUuid
                 + " is already registered");
@@ -72,7 +69,7 @@ public final class PhysicsSpaceMutations {
             new SpaceComponent(backendId, new Vector3f(0.0f, -9.81f, 0.0f)));
         Ref<PhysicsStore> ref = store.addEntity(holder, AddReason.SPAWN);
         assert ref != null;
-        identity.putUuid(spaceUuid, ref);
+        store.getExternalData().putRefForUUID(spaceUuid, ref);
         compatibility.putSpace(compatibilitySpaceId, spaceUuid);
         SpaceId.reserveAtLeast(compatibilitySpaceId.value());
         store.getResource(PhysicsRuntimeResource.getResourceType())
@@ -277,11 +274,9 @@ public final class PhysicsSpaceMutations {
         Objects.requireNonNull(spaceUuid, "spaceUuid");
         PhysicsThreading.requireBackendIdle(store, "remove a PhysicsStore space entity");
         PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
-        PhysicsIdentityIndexResource identity =
-            store.getResource(PhysicsIdentityIndexResource.getResourceType());
         PhysicsSpaceCompatibilityIndexResource compatibility = store.getResource(
             PhysicsSpaceCompatibilityIndexResource.getResourceType());
-        Ref<PhysicsStore> ref = identity.getByUuid(spaceUuid);
+        Ref<PhysicsStore> ref = store.getExternalData().getRefFromUUID(spaceUuid);
         BackendSpaceHandle handle = ref != null && ref.isValid()
             ? runtime.getSpaceHandle(ref)
             : null;
@@ -302,7 +297,7 @@ public final class PhysicsSpaceMutations {
         }
         compatibility.removeBySpaceUuid(spaceUuid);
         if (ref != null && ref.isValid()) {
-            identity.removeUuid(spaceUuid, ref);
+            store.getExternalData().removeRefForUUID(spaceUuid, ref);
             store.removeEntity(ref, store.getRegistry().newHolder(), RemoveReason.REMOVE);
         }
     }
@@ -324,8 +319,8 @@ public final class PhysicsSpaceMutations {
     private static Ref<PhysicsStore> requireSpaceRef(@Nonnull Store<PhysicsStore> store,
         @Nonnull UUID spaceUuid) {
         PhysicsThreading.requireWorldThread(store, "resolve a PhysicsStore space entity");
-        Ref<PhysicsStore> ref = store.getResource(PhysicsIdentityIndexResource.getResourceType())
-            .getByUuid(Objects.requireNonNull(spaceUuid, "spaceUuid"));
+        Ref<PhysicsStore> ref = store.getExternalData()
+            .getRefFromUUID(Objects.requireNonNull(spaceUuid, "spaceUuid"));
         if (ref == null || !ref.isValid()) {
             throw new IllegalArgumentException("PhysicsStore space uuid=" + spaceUuid
                 + " row is not registered");

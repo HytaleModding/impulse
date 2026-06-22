@@ -9,7 +9,6 @@ import dev.hytalemodding.impulse.api.BackendId;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.internal.physics.PhysicsSpaceMutations;
 import dev.hytalemodding.impulse.core.internal.physics.PhysicsTopologyMutations;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsIdentityIndexResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceCompatibilityIndexResource;
 import dev.hytalemodding.impulse.core.plugin.components.ExtensionSettingsComponent;
@@ -50,9 +49,7 @@ public final class PhysicsSpaces {
         if (spaceUuid == null) {
             return null;
         }
-        Ref<PhysicsStore> ref = checkedStore
-            .getResource(PhysicsIdentityIndexResource.getResourceType())
-            .getByUuid(spaceUuid);
+        Ref<PhysicsStore> ref = checkedStore.getExternalData().getRefFromUUID(spaceUuid);
         return ref != null && ref.getStore() == checkedStore && ref.isValid() ? ref : null;
     }
 

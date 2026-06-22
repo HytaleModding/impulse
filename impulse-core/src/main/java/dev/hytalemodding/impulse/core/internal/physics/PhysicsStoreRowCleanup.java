@@ -10,8 +10,6 @@ import dev.hytalemodding.impulse.core.internal.modules.control.PhysicsControlRun
 import dev.hytalemodding.impulse.core.internal.resources.BackendBodyHandle;
 import dev.hytalemodding.impulse.core.internal.resources.BackendJointHandle;
 import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkCollisionPayloadResource;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsIdentityIndexResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResource.BodySnapshotMetadata;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSnapshotResource;
@@ -33,11 +31,11 @@ public final class PhysicsStoreRowCleanup {
     private PhysicsStoreRowCleanup() {
     }
 
-    public static boolean removeRuntimeJoint(@Nonnull PhysicsRuntimeResource runtime,
-        @Nonnull PhysicsIdentityIndexResource identity,
+    public static boolean removeRuntimeJoint(@Nonnull Store<PhysicsStore> store,
+        @Nonnull PhysicsRuntimeResource runtime,
         @Nonnull UUID jointUuid,
         @Nonnull Ref<PhysicsStore> jointRef) {
-        Ref<PhysicsStore> resolvedJointRef = cleanupRefForUuid(identity, jointUuid, jointRef);
+        Ref<PhysicsStore> resolvedJointRef = cleanupRefForUuid(store, jointUuid, jointRef);
         BackendJointHandle jointHandle = runtime.getJointHandle(resolvedJointRef);
         BackendSpaceHandle spaceHandle = runtime.getJointSpaceHandle(resolvedJointRef);
         if (jointHandle == null) {
@@ -58,19 +56,19 @@ public final class PhysicsStoreRowCleanup {
         return true;
     }
 
-    public static boolean removeRuntimeBody(@Nonnull PhysicsRuntimeResource runtime,
-        @Nonnull PhysicsIdentityIndexResource identity,
+    public static boolean removeRuntimeBody(@Nonnull Store<PhysicsStore> store,
+        @Nonnull PhysicsRuntimeResource runtime,
         @Nonnull UUID bodyUuid,
         @Nonnull Ref<PhysicsStore> bodyRef) {
-        return removeRuntimeBody(runtime, identity, bodyUuid, bodyRef, null);
+        return removeRuntimeBody(store, runtime, bodyUuid, bodyRef, null);
     }
 
-    public static boolean removeRuntimeBody(@Nonnull PhysicsRuntimeResource runtime,
-        @Nonnull PhysicsIdentityIndexResource identity,
+    public static boolean removeRuntimeBody(@Nonnull Store<PhysicsStore> store,
+        @Nonnull PhysicsRuntimeResource runtime,
         @Nonnull UUID bodyUuid,
         @Nonnull Ref<PhysicsStore> bodyRef,
         @Nullable PhysicsBackendRuntime fallbackRuntime) {
-        Ref<PhysicsStore> resolvedBodyRef = cleanupRefForUuid(identity, bodyUuid, bodyRef);
+        Ref<PhysicsStore> resolvedBodyRef = cleanupRefForUuid(store, bodyUuid, bodyRef);
         BackendBodyHandle bodyHandle = runtime.getBodyHandle(resolvedBodyRef);
         BackendSpaceHandle spaceHandle = runtime.getBodySpaceHandle(resolvedBodyRef);
         if (bodyHandle == null) {
@@ -95,10 +93,10 @@ public final class PhysicsStoreRowCleanup {
     }
 
     @Nonnull
-    private static Ref<PhysicsStore> cleanupRefForUuid(@Nonnull PhysicsIdentityIndexResource identity,
+    private static Ref<PhysicsStore> cleanupRefForUuid(@Nonnull Store<PhysicsStore> store,
         @Nonnull UUID rowUuid,
         @Nonnull Ref<PhysicsStore> suppliedRef) {
-        Ref<PhysicsStore> indexedRef = identity.getByUuid(rowUuid);
+        Ref<PhysicsStore> indexedRef = store.getExternalData().getRefFromUUID(rowUuid);
         if (refMatchesUuid(indexedRef, rowUuid)) {
             return indexedRef;
         }
@@ -146,7 +144,7 @@ public final class PhysicsStoreRowCleanup {
     public static void clearBodyCopiedState(@Nonnull Store<PhysicsStore> store,
         @Nonnull UUID bodyUuid,
         @Nonnull Ref<PhysicsStore> bodyRef) {
-        clearBodyCopiedState(store, List.of(new BodyEntityRemoval(bodyUuid, bodyRef, null)));
+        clearBodyCopiedState(store, List.of(new BodyEntityRemoval(bodyUuid, bodyRef)));
     }
 
     public static void clearBodyCopiedState(@Nonnull Store<PhysicsStore> store,
@@ -166,10 +164,9 @@ public final class PhysicsStoreRowCleanup {
 
     public static void removeBodyEntity(@Nonnull Store<PhysicsStore> store,
         @Nonnull UUID bodyUuid,
-        @Nonnull Ref<PhysicsStore> bodyRef,
-        @Nullable String payloadResourceKey) {
+        @Nonnull Ref<PhysicsStore> bodyRef) {
         clearBodyCopiedState(store, bodyUuid, bodyRef);
-        removeBodyEntityRow(store, bodyUuid, bodyRef, payloadResourceKey);
+        removeBodyEntityRow(store, bodyUuid, bodyRef);
     }
 
     public static void removeBodyEntities(@Nonnull Store<PhysicsStore> store,
@@ -182,32 +179,26 @@ public final class PhysicsStoreRowCleanup {
         for (BodyEntityRemoval removal : removals) {
             removeBodyEntityRow(store,
                 removal.bodyUuid(),
-                removal.bodyRef(),
-                removal.payloadResourceKey());
+                removal.bodyRef());
         }
     }
 
     static void removeBodyEntityRow(@Nonnull Store<PhysicsStore> store,
         @Nonnull UUID bodyUuid,
-        @Nonnull Ref<PhysicsStore> bodyRef,
-        @Nullable String payloadResourceKey) {
-        store.getResource(PhysicsIdentityIndexResource.getResourceType()).removeUuid(bodyUuid,
-            bodyRef);
-        removePayload(store, payloadResourceKey);
+        @Nonnull Ref<PhysicsStore> bodyRef) {
+        PhysicsStoreCleanupHooks.cleanupBodyRowRuntimeResources(store, bodyUuid, bodyRef);
+        store.getExternalData().removeRefForUUID(bodyUuid, bodyRef);
         removeEntityIfValid(store, bodyRef);
     }
 
     public static void removeJointEntity(@Nonnull Store<PhysicsStore> store,
         @Nonnull UUID jointUuid,
         @Nonnull Ref<PhysicsStore> jointRef) {
-        store.getResource(PhysicsIdentityIndexResource.getResourceType()).removeUuid(jointUuid,
-            jointRef);
+        store.getExternalData().removeRefForUUID(jointUuid, jointRef);
         removeEntityIfValid(store, jointRef);
     }
 
     public static void refreshIdentityAndRuntimeRefs(@Nonnull Store<PhysicsStore> store) {
-        PhysicsIdentityIndexResource identity =
-            store.getResource(PhysicsIdentityIndexResource.getResourceType());
         PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
         ConcurrentLinkedQueue<UuidRef> uuidRefs = new ConcurrentLinkedQueue<>();
         store.forEachEntityParallel(UuidComponent.getComponentType(), (index, chunk, _) -> {
@@ -216,23 +207,12 @@ public final class PhysicsStoreRowCleanup {
                 uuidRefs.add(new UuidRef(uuid.getUuid(), chunk.getReferenceTo(index)));
             }
         });
-        // The identity maps are fastutil/Hytale mutable maps; rebuild them on one thread.
-        identity.clearUuidRefs();
+        // The UUID map is mutable store state; rebuild it on one thread.
         store.getExternalData().clearUuidIndex();
         for (UuidRef uuidRef : uuidRefs) {
-            identity.putUuid(uuidRef.uuid(), uuidRef.ref());
             store.getExternalData().putRefForUUID(uuidRef.uuid(), uuidRef.ref());
         }
-        runtime.refreshRowRefs(identity);
-    }
-
-    private static void removePayload(@Nonnull Store<PhysicsStore> store,
-        @Nullable String payloadResourceKey) {
-        if (payloadResourceKey == null || payloadResourceKey.isBlank()) {
-            return;
-        }
-        store.getResource(PhysicsChunkCollisionPayloadResource.getResourceType())
-            .remove(payloadResourceKey);
+        runtime.refreshRowRefs(store.getExternalData());
     }
 
     private static void removeEntityIfValid(@Nonnull Store<PhysicsStore> store,
@@ -245,8 +225,7 @@ public final class PhysicsStoreRowCleanup {
 
     public record BodyEntityRemoval(
         @Nonnull UUID bodyUuid,
-        @Nonnull Ref<PhysicsStore> bodyRef,
-        @Nullable String payloadResourceKey) {
+        @Nonnull Ref<PhysicsStore> bodyRef) {
 
         public BodyEntityRemoval {
             Objects.requireNonNull(bodyUuid, "bodyUuid");

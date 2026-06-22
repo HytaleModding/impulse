@@ -7,7 +7,6 @@ import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.component.query.Query;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsIdentityIndexResource;
 import dev.hytalemodding.impulse.core.plugin.components.UuidComponent;
 import java.util.UUID;
 import javax.annotation.Nonnull;
@@ -46,32 +45,13 @@ public final class PhysicsStoreSystemSupport {
     }
 
     @Nullable
-    static <C extends Component<PhysicsStore>> C component(@Nonnull Store<PhysicsStore> store,
+    public static <C extends Component<PhysicsStore>> C component(
+        @Nonnull Store<PhysicsStore> store,
         @Nullable Ref<PhysicsStore> ref,
         @Nonnull ComponentType<PhysicsStore, C> type) {
         if (ref == null || !ref.isValid()) {
             return null;
         }
         return store.getComponent(ref, type);
-    }
-
-    @Nullable
-    static Ref<PhysicsStore> refForUuid(@Nonnull PhysicsIdentityIndexResource identity,
-        @Nonnull UUID uuid) {
-        Ref<PhysicsStore> ref = identity.getByUuid(uuid);
-        return ref != null && ref.isValid() ? ref : null;
-    }
-
-    @Nullable
-    public static Ref<PhysicsStore> resolvedRef(@Nonnull PhysicsIdentityIndexResource identity,
-        @Nonnull UUID uuid,
-        @Nullable Ref<PhysicsStore> current) {
-        if (isNil(uuid)) {
-            return null;
-        }
-        if (current != null && current.isValid() && uuid.equals(rowUuid(current))) {
-            return current;
-        }
-        return refForUuid(identity, uuid);
     }
 }

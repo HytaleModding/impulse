@@ -552,19 +552,19 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
         registrationTopologyGeneration++;
     }
 
-    public void refreshRowRefs(@Nonnull PhysicsIdentityIndexResource identity) {
-        PhysicsIdentityIndexResource checkedIdentity = Objects.requireNonNull(identity, "identity");
-        refreshSpaceRefs(checkedIdentity);
-        refreshBodyRefs(checkedIdentity);
-        refreshJointRefs(checkedIdentity);
+    public void refreshRowRefs(@Nonnull PhysicsStore physicsStore) {
+        PhysicsStore checkedPhysicsStore = Objects.requireNonNull(physicsStore, "physicsStore");
+        refreshSpaceRefs(checkedPhysicsStore);
+        refreshBodyRefs(checkedPhysicsStore);
+        refreshJointRefs(checkedPhysicsStore);
     }
 
-    private void refreshSpaceRefs(@Nonnull PhysicsIdentityIndexResource identity) {
+    private void refreshSpaceRefs(@Nonnull PhysicsStore physicsStore) {
         spaceRefsByRowIndex.clear();
         spaceHandlesByRowIndex.clear();
         backendIdsBySpaceRowIndex.clear();
         spaceMetadataByKey.replaceAll((key, metadata) -> {
-            Ref<PhysicsStore> spaceRef = identity.getByUuid(metadata.spaceUuid());
+            Ref<PhysicsStore> spaceRef = physicsStore.getRefFromUUID(metadata.spaceUuid());
             if (spaceRef == null) {
                 return metadata;
             }
@@ -576,13 +576,13 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
         });
     }
 
-    private void refreshBodyRefs(@Nonnull PhysicsIdentityIndexResource identity) {
+    private void refreshBodyRefs(@Nonnull PhysicsStore physicsStore) {
         bodyRefsByRowIndex.clear();
         bodyHandlesByRowIndex.clear();
         bodySpaceHandlesByRowIndex.clear();
         backendIdsByBodyRowIndex.clear();
         bodySnapshotMetadataByKey.replaceAll((key, metadata) -> {
-            Ref<PhysicsStore> bodyRef = identity.getByUuid(metadata.bodyUuid());
+            Ref<PhysicsStore> bodyRef = physicsStore.getRefFromUUID(metadata.bodyUuid());
             if (bodyRef == null) {
                 return metadata;
             }
@@ -594,7 +594,7 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
             return new BodySnapshotMetadata(metadata.bodyUuid(), bodyRef, metadata.spaceUuid());
         });
         bodyHitMetadataByKey.replaceAll((_, metadata) -> {
-            Ref<PhysicsStore> bodyRef = identity.getByUuid(metadata.bodyUuid());
+            Ref<PhysicsStore> bodyRef = physicsStore.getRefFromUUID(metadata.bodyUuid());
             if (bodyRef == null) {
                 return metadata;
             }
@@ -605,13 +605,13 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
         });
     }
 
-    private void refreshJointRefs(@Nonnull PhysicsIdentityIndexResource identity) {
+    private void refreshJointRefs(@Nonnull PhysicsStore physicsStore) {
         jointHandlesByRowIndex.clear();
         jointSpaceHandlesByRowIndex.clear();
         jointRefsByRowIndex.clear();
         backendIdsByJointRowIndex.clear();
         jointMetadataByKey.replaceAll((key, metadata) -> {
-            Ref<PhysicsStore> jointRef = identity.getByUuid(metadata.jointUuid());
+            Ref<PhysicsStore> jointRef = physicsStore.getRefFromUUID(metadata.jointUuid());
             if (jointRef == null) {
                 return metadata;
             }

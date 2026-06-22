@@ -11,7 +11,6 @@ import com.hypixel.hytale.component.query.Query;
 import com.hypixel.hytale.component.system.QuerySystem;
 import com.hypixel.hytale.component.system.tick.TickingSystem;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsIdentityIndexResource;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.BiConsumer;
@@ -29,17 +28,13 @@ public final class IdentityIndexSystem extends TickingSystem<PhysicsStore>
 
     @Override
     public void tick(float dt, int systemIndex, @Nonnull Store<PhysicsStore> store) {
-        PhysicsIdentityIndexResource identity = store.getResource(
-            PhysicsIdentityIndexResource.getResourceType());
-        identity.clearUuidRefs();
         store.getExternalData().clearUuidIndex();
         BiConsumer<ArchetypeChunk<PhysicsStore>, CommandBuffer<PhysicsStore>> collector =
-            (chunk, _) -> indexChunk(store, identity, chunk);
+            (chunk, _) -> indexChunk(store, chunk);
         store.forEachChunk(systemIndex, collector);
     }
 
     private static void indexChunk(@Nonnull Store<PhysicsStore> store,
-        @Nonnull PhysicsIdentityIndexResource identity,
         @Nonnull ArchetypeChunk<PhysicsStore> chunk) {
         for (int index = 0; index < chunk.size(); index++) {
             UUID uuid = PhysicsStoreSystemSupport.rowUuid(chunk, index);
@@ -47,7 +42,6 @@ public final class IdentityIndexSystem extends TickingSystem<PhysicsStore>
                 continue;
             }
             Ref<PhysicsStore> ref = chunk.getReferenceTo(index);
-            identity.putUuid(uuid, ref);
             store.getExternalData().putRefForUUID(uuid, ref);
         }
     }

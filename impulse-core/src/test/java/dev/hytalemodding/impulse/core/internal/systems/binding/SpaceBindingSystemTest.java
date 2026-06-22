@@ -19,7 +19,6 @@ import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackendRuntimeProvid
 import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackendRuntimeProvider.FakePhysicsBackendRuntime;
 import dev.hytalemodding.impulse.core.internal.registration.PhysicsComponentTypeRegistry;
 import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsIdentityIndexResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsResourceTypes;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRestoreStatusResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResource;
@@ -59,8 +58,6 @@ class SpaceBindingSystemTest {
                     new SpaceComponent(originalBackendId, new Vector3f(0.0f, -9.81f, 0.0f))),
                 AddReason.SPAWN);
             assertNotNull(spaceRef);
-            store.getResource(PhysicsIdentityIndexResource.getResourceType())
-                .putUuid(spaceUuid, spaceRef);
             store.getExternalData().putRefForUUID(spaceUuid, spaceRef);
             FakePhysicsBackendRuntime backendRuntime = (FakePhysicsBackendRuntime)
                 new FakePhysicsBackendRuntimeProvider(originalBackendId, false, false)
