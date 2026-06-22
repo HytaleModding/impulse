@@ -18,6 +18,7 @@ import dev.hytalemodding.impulse.core.plugin.components.TargetComponent;
 import dev.hytalemodding.impulse.core.plugin.components.UuidComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.VisualMaterializationSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.VisualSyncSettingsComponent;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.components.ChunkCollisionRestoreDependencyComponent;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.components.ChunkCollisionSourceComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.CollisionLodSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.ChunkCollisionSettingsComponent;
@@ -39,6 +40,9 @@ public final class PhysicsComponentTypeRegistry {
     private static ComponentType<PhysicsStore, BodyCommandComponent> bodyCommandComponentType;
     @Nullable
     private static ComponentType<PhysicsStore, ChunkCollisionSourceComponent> chunkCollisionSourceComponentType;
+    @Nullable
+    private static ComponentType<PhysicsStore, ChunkCollisionRestoreDependencyComponent>
+        chunkCollisionRestoreDependencyComponentType;
     @Nullable
     private static ComponentType<PhysicsStore, ChunkCollisionSettingsComponent> chunkCollisionSettingsComponentType;
     @Nullable
@@ -92,6 +96,10 @@ public final class PhysicsComponentTypeRegistry {
             ChunkCollisionSourceComponent.class,
             "ChunkCollisionSource",
             ChunkCollisionSourceComponent.CODEC);
+        chunkCollisionRestoreDependencyComponentType = registry.registerComponent(
+            ChunkCollisionRestoreDependencyComponent.class,
+            "ChunkCollisionRestoreDependency",
+            ChunkCollisionRestoreDependencyComponent.CODEC);
         chunkCollisionSettingsComponentType = registry.registerComponent(
             ChunkCollisionSettingsComponent.class,
             "ChunkCollisionSettings",
@@ -170,6 +178,12 @@ public final class PhysicsComponentTypeRegistry {
     public static ComponentType<PhysicsStore, ChunkCollisionSourceComponent>
     chunkCollisionSourceComponentType() {
         return chunkCollisionSourceComponentType;
+    }
+
+    @Nonnull
+    public static ComponentType<PhysicsStore, ChunkCollisionRestoreDependencyComponent>
+    chunkCollisionRestoreDependencyComponentType() {
+        return chunkCollisionRestoreDependencyComponentType;
     }
 
     @Nonnull

@@ -23,7 +23,7 @@ import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunk
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.profiling.PhysicsChunkProfilingResource;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.profiling.PhysicsChunkProfilingResource.Snapshot;
 import dev.hytalemodding.impulse.core.internal.physics.PhysicsSpaceMutations;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkCollisionMutationQueueResource;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.resources.PhysicsChunkCollisionMutationQueueResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsProfilingResource;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkCollisionPrewarmStats;
 import dev.hytalemodding.impulse.core.plugin.physics.PhysicsSpaces;

@@ -7,11 +7,11 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkLifecycle;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkCollisionStreamingResource;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkStoreTypes;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.components.ChunkCollisionSourceComponent;
-import dev.hytalemodding.impulse.core.internal.physics.PhysicsTopologyMutations;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkSettingsIndexResource;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkSettingsIndexResource.PhysicsChunkSpaceSettings;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkCollisionMutationQueueResource;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.resources.PhysicsChunkCollisionMutationQueueResource;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.resources.PhysicsChunkSettingsIndexResource;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.resources.PhysicsChunkSettingsIndexResource.PhysicsChunkSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.components.SpaceComponent;
 import dev.hytalemodding.impulse.core.plugin.components.UuidComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.ChunkCollisionSettingsComponent;
@@ -265,7 +265,7 @@ public final class PhysicsChunkCollision {
             removed = streaming(world).clearSpace(spaceUuid, stampedQueue(store));
         }
         int directlyRemoved =
-            PhysicsTopologyMutations.clearChunkCollisionRowsForSpace(store, spaceUuid);
+            PhysicsChunkStoreTypes.clearChunkCollisionRowsForSpace(store, spaceUuid);
         return removed != 0 ? removed : directlyRemoved;
     }
 

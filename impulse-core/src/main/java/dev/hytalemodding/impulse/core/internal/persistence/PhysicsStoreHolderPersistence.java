@@ -6,20 +6,26 @@ import com.hypixel.hytale.component.CommandBuffer;
 import com.hypixel.hytale.component.Holder;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
+import com.hypixel.hytale.math.util.ChunkUtil;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import com.hypixel.hytale.server.core.util.BsonUtil;
+import dev.hytalemodding.impulse.api.PhysicsBodyType;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.components.ChunkCollisionRestoreDependencyComponent;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.components.ChunkCollisionSourceComponent;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSnapshotResource;
 import dev.hytalemodding.impulse.core.plugin.components.BodyCommandComponent;
 import dev.hytalemodding.impulse.core.plugin.components.BodyComponent;
 import dev.hytalemodding.impulse.core.plugin.components.ColliderComponent;
 import dev.hytalemodding.impulse.core.plugin.components.CollisionFilterComponent;
+import dev.hytalemodding.impulse.core.plugin.components.DynamicsComponent;
 import dev.hytalemodding.impulse.core.plugin.components.JointComponent;
 import dev.hytalemodding.impulse.core.plugin.components.MaterialComponent;
 import dev.hytalemodding.impulse.core.plugin.components.ShapeComponent;
 import dev.hytalemodding.impulse.core.plugin.components.SpaceComponent;
 import dev.hytalemodding.impulse.core.plugin.components.TargetComponent;
 import dev.hytalemodding.impulse.core.plugin.components.UuidComponent;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkCollisionMode;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.ChunkCollisionSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.snapshots.PhysicsBodySnapshot;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
@@ -33,6 +39,7 @@ import java.util.function.BiConsumer;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.bson.BsonDocument;
+import org.joml.Vector3f;
 
 /**
  * ChunkStore-shaped holder serialization boundary for future PhysicsStore row storage.
@@ -107,6 +114,12 @@ public final class PhysicsStoreHolderPersistence {
         private final List<Row> joints = new ArrayList<>();
         @Nonnull
         private final ObjectOpenHashSet<UUID> persistentBodyUuids = new ObjectOpenHashSet<>();
+        @Nonnull
+        private final Map<UUID, List<ChunkCollisionSourceComponent>> generatedSourcesBySpace =
+            new Object2ObjectOpenHashMap<>();
+        @Nonnull
+        private final Map<UUID, ChunkCollisionSettingsComponent> chunkSettingsBySpace =
+            new Object2ObjectOpenHashMap<>();
 
         private Capture(@Nonnull Store<PhysicsStore> store,
             @Nonnull Map<UUID, PhysicsBodySnapshot> snapshotsByBodyUuid) {
@@ -125,9 +138,21 @@ public final class PhysicsStoreHolderPersistence {
                 Ref<PhysicsStore> ref = chunk.getReferenceTo(index);
                 if (chunk.getComponent(index, SpaceComponent.getComponentType()) != null) {
                     spaces.add(new Row(uuid, ref));
+                    ChunkCollisionSettingsComponent settings = chunk.getComponent(index,
+                        ChunkCollisionSettingsComponent.getComponentType());
+                    if (settings != null) {
+                        chunkSettingsBySpace.put(uuid, settings);
+                    }
                 }
 
                 BodyComponent body = chunk.getComponent(index, BodyComponent.getComponentType());
+                ChunkCollisionSourceComponent source = chunk.getComponent(index,
+                    ChunkCollisionSourceComponent.getComponentType());
+                if (body != null && source != null) {
+                    generatedSourcesBySpace
+                        .computeIfAbsent(body.getSpaceUuid(), _ -> new ArrayList<>())
+                        .add(source);
+                }
                 if (body != null && shouldPersistBody(chunk, index, body)) {
                     bodies.add(new Row(uuid, ref));
                     persistentBodyUuids.add(uuid);
@@ -158,6 +183,7 @@ public final class PhysicsStoreHolderPersistence {
                 Holder<PhysicsStore> holder = store.copySerializableEntity(row.ref());
                 sanitize(holder);
                 patchBodyTarget(row.uuid(), holder);
+                attachChunkCollisionRestoreDependency(holder);
                 holders.add(holder);
             }
             return List.copyOf(holders);
@@ -194,10 +220,76 @@ public final class PhysicsStoreHolderPersistence {
             holder.putComponent(TargetComponent.getComponentType(), target);
         }
 
+        private void attachChunkCollisionRestoreDependency(
+            @Nonnull Holder<PhysicsStore> holder) {
+            BodyComponent body = holder.getComponent(BodyComponent.getComponentType());
+            if (body == null) {
+                return;
+            }
+            DynamicsComponent dynamics = holder.getComponent(DynamicsComponent.getComponentType());
+            if (dynamics == null || dynamics.getBodyType() != PhysicsBodyType.DYNAMIC) {
+                return;
+            }
+            ChunkCollisionSettingsComponent settings = chunkSettingsBySpace.get(body.getSpaceUuid());
+            if (settings == null || settings.getMode() == PhysicsChunkCollisionMode.NONE) {
+                return;
+            }
+            TargetComponent target = holder.getComponent(TargetComponent.getComponentType());
+            if (target == null) {
+                return;
+            }
+            int radius = Math.max(0, settings.getBodyRadius());
+            if (!intersectsGeneratedChunkCollision(body.getSpaceUuid(),
+                target.getPosition(),
+                radius)) {
+                return;
+            }
+            holder.putComponent(ChunkCollisionRestoreDependencyComponent.getComponentType(),
+                new ChunkCollisionRestoreDependencyComponent(body.getSpaceUuid(),
+                    target.getPosition(),
+                    radius,
+                    settings.getMode()));
+        }
+
+        private boolean intersectsGeneratedChunkCollision(@Nonnull UUID spaceUuid,
+            @Nonnull Vector3f center,
+            int radius) {
+            List<ChunkCollisionSourceComponent> sources = generatedSourcesBySpace.get(spaceUuid);
+            if (sources == null || sources.isEmpty()) {
+                return false;
+            }
+            for (ChunkCollisionSourceComponent source : sources) {
+                if (intersectsSource(source, center, radius)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private static boolean intersectsSource(@Nonnull ChunkCollisionSourceComponent source,
+            @Nonnull Vector3f center,
+            int radius) {
+            int minX = (int) Math.floor(center.x) - radius;
+            int maxX = (int) Math.floor(center.x) + radius;
+            int minY = Math.max(0, (int) Math.floor(center.y) - radius);
+            int maxY = Math.min(ChunkUtil.HEIGHT_MINUS_1,
+                (int) Math.floor(center.y) + radius);
+            int minZ = (int) Math.floor(center.z) - radius;
+            int maxZ = (int) Math.floor(center.z) + radius;
+
+            return source.getChunkX() >= ChunkUtil.chunkCoordinate(minX)
+                && source.getChunkX() <= ChunkUtil.chunkCoordinate(maxX)
+                && source.getSectionY() >= ChunkUtil.indexSection(minY)
+                && source.getSectionY() <= ChunkUtil.indexSection(maxY)
+                && source.getChunkZ() >= ChunkUtil.chunkCoordinate(minZ)
+                && source.getChunkZ() <= ChunkUtil.chunkCoordinate(maxZ);
+        }
+
         private static boolean shouldPersistBody(@Nonnull ArchetypeChunk<PhysicsStore> chunk,
             int index,
             @Nonnull BodyComponent body) {
-            return chunk.getComponent(index, ColliderComponent.getComponentType()) != null
+            return chunk.getComponent(index, ChunkCollisionSourceComponent.getComponentType()) == null
+                && chunk.getComponent(index, ColliderComponent.getComponentType()) != null
                 && chunk.getComponent(index, ShapeComponent.getComponentType()) != null
                 && chunk.getComponent(index, MaterialComponent.getComponentType()) != null
                 && chunk.getComponent(index, CollisionFilterComponent.getComponentType()) != null;

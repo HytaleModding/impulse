@@ -9,7 +9,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkMutationCache.TargetRefreshDecision;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.profiling.PhysicsChunkProfilingResource.Snapshot;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.profiling.PhysicsChunkProfilingResource.StreamingTargetDiagnostic;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkCollisionMutationQueueResource;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.resources.PhysicsChunkCollisionMutationQueueResource;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkCollisionBuildStats;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkCollisionPrewarmStats;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkCollisionStats;

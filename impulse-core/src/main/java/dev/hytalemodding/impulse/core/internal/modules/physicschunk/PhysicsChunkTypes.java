@@ -2,9 +2,8 @@ package dev.hytalemodding.impulse.core.internal.modules.physicschunk;
 
 import com.hypixel.hytale.component.ComponentRegistryProxy;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkCollisionStreamingResource;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.profiling.PhysicsChunkProfilingResource;
-import dev.hytalemodding.impulse.core.internal.modules.physicschunk.systems.PhysicsChunkCollisionProducerSystem;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.systems.ChunkCollisionProducerSystem;
 import javax.annotation.Nonnull;
 
 /**
@@ -27,7 +26,7 @@ final class PhysicsChunkTypes {
 
     public static void registerEntityStoreSystems(
         @Nonnull ComponentRegistryProxy<EntityStore> registry) {
-        registry.registerSystem(new PhysicsChunkCollisionProducerSystem());
+        registry.registerSystem(new ChunkCollisionProducerSystem());
     }
 
     public static void clearEntityStoreResourceTypes() {

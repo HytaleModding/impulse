@@ -17,10 +17,9 @@ import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.runtime.BackendRuntimeCodes;
 import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntime;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkStoreTypes;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsIdentityIndexResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRestoreStatusResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResource;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkCollisionPayloadResource;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.resources.PhysicsChunkCollisionPayloadResource;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.ChunkCollisionPayload;
 import dev.hytalemodding.impulse.core.internal.resources.BackendBodyHandle;
 import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
@@ -33,6 +32,7 @@ import dev.hytalemodding.impulse.core.plugin.components.DynamicsComponent;
 import dev.hytalemodding.impulse.core.plugin.components.MaterialComponent;
 import dev.hytalemodding.impulse.core.plugin.components.ShapeComponent;
 import dev.hytalemodding.impulse.core.plugin.components.TargetComponent;
+import dev.hytalemodding.impulse.core.plugin.components.UuidComponent;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.BiConsumer;
@@ -62,17 +62,21 @@ public final class BodyBindingSystem extends TickingSystem<PhysicsStore>
         PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
         PhysicsChunkCollisionPayloadResource chunkCollisionPayloads =
             PhysicsChunkStoreTypes.collisionPayloadsIfPresent(store);
-        PhysicsIdentityIndexResource identity =
-            store.getResource(PhysicsIdentityIndexResource.getResourceType());
         BiConsumer<ArchetypeChunk<PhysicsStore>, CommandBuffer<PhysicsStore>> collector =
-            (chunk, _) -> bindBodies(runtime, chunkCollisionPayloads, identity, restore, chunk);
+            (chunk, commandBuffer) -> bindBodies(store,
+                runtime,
+                chunkCollisionPayloads,
+                restore,
+                commandBuffer,
+                chunk);
         store.forEachChunk(systemIndex, collector);
     }
 
-    private static void bindBodies(@Nonnull PhysicsRuntimeResource runtime,
+    private static void bindBodies(@Nonnull Store<PhysicsStore> store,
+        @Nonnull PhysicsRuntimeResource runtime,
         @Nullable PhysicsChunkCollisionPayloadResource chunkCollisionPayloads,
-        @Nonnull PhysicsIdentityIndexResource identity,
         @Nonnull PhysicsRestoreStatusResource restore,
+        @Nonnull CommandBuffer<PhysicsStore> commandBuffer,
         @Nonnull ArchetypeChunk<PhysicsStore> chunk) {
         for (int index = 0; index < chunk.size(); index++) {
             BodyComponent body = chunk.getComponent(index, BodyComponent.getComponentType());
@@ -88,9 +92,10 @@ public final class BodyBindingSystem extends TickingSystem<PhysicsStore>
                 continue;
             }
             bindBody(runtime,
+                store,
                 chunkCollisionPayloads,
-                identity,
                 restore,
+                commandBuffer,
                 bodyRef,
                 bodyUuid,
                 body,
@@ -104,9 +109,10 @@ public final class BodyBindingSystem extends TickingSystem<PhysicsStore>
     }
 
     private static void bindBody(@Nonnull PhysicsRuntimeResource runtime,
+        @Nonnull Store<PhysicsStore> store,
         @Nullable PhysicsChunkCollisionPayloadResource chunkCollisionPayloads,
-        @Nonnull PhysicsIdentityIndexResource identity,
         @Nonnull PhysicsRestoreStatusResource restore,
+        @Nonnull CommandBuffer<PhysicsStore> commandBuffer,
         @Nonnull Ref<PhysicsStore> bodyRef,
         @Nonnull UUID bodyUuid,
         @Nonnull BodyComponent body,
@@ -116,7 +122,7 @@ public final class BodyBindingSystem extends TickingSystem<PhysicsStore>
         @Nullable ShapeComponent shape,
         @Nullable MaterialComponent material,
         @Nullable CollisionFilterComponent filter) {
-        Ref<PhysicsStore> spaceRef = resolveSpaceRef(identity, body);
+        Ref<PhysicsStore> spaceRef = resolveSpaceRef(store, body);
         BackendSpaceHandle spaceHandle = spaceRef != null ? runtime.getSpaceHandle(spaceRef) : null;
         if (spaceHandle == null) {
             restore.recordSoftSkip("Body references unbound space: " + bodyUuid);
@@ -134,6 +140,14 @@ public final class BodyBindingSystem extends TickingSystem<PhysicsStore>
         }
         if (collider == null || shape == null || material == null || filter == null) {
             restore.recordSoftSkip("Body aggregate is missing collider data: " + bodyUuid);
+            return;
+        }
+        if (PhysicsChunkStoreTypes.shouldDeferChunkCollisionRestore(store,
+            commandBuffer,
+            bodyRef,
+            body,
+            dynamics,
+            restore)) {
             return;
         }
         DynamicsComponent bodyDynamics = dynamics != null ? dynamics : new DynamicsComponent();
@@ -291,11 +305,18 @@ public final class BodyBindingSystem extends TickingSystem<PhysicsStore>
     }
 
     @Nullable
-    private static Ref<PhysicsStore> resolveSpaceRef(@Nonnull PhysicsIdentityIndexResource identity,
+    private static Ref<PhysicsStore> resolveSpaceRef(@Nonnull Store<PhysicsStore> store,
         @Nonnull BodyComponent body) {
-        Ref<PhysicsStore> spaceRef = PhysicsStoreSystemSupport.resolvedRef(identity,
-            body.getSpaceUuid(),
-            body.getSpaceRef());
+        Ref<PhysicsStore> spaceRef = body.getSpaceRef();
+        UuidComponent uuid = PhysicsStoreSystemSupport.component(store,
+            spaceRef,
+            UuidComponent.getComponentType());
+        if (uuid == null || !body.getSpaceUuid().equals(uuid.getUuid())) {
+            spaceRef = store.getExternalData().getRefFromUUID(body.getSpaceUuid());
+        }
+        if (spaceRef != null && (spaceRef.getStore() != store || !spaceRef.isValid())) {
+            spaceRef = null;
+        }
         body.setSpaceRef(spaceRef);
         return spaceRef;
     }

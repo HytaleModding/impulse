@@ -160,14 +160,6 @@ public final class PhysicsDiagnostics {
     }
 
     @Nonnull
-    public static CompletionStage<List<SpaceSummary>> spaceSummariesAsync(
-        @Nonnull Store<PhysicsStore> store) {
-        return PhysicsThreading.enqueueReadOnWorldThread(store,
-            "queue PhysicsStore space summaries read",
-            PhysicsDiagnostics::spaceSummaries);
-    }
-
-    @Nonnull
     public static List<SpaceSummary> spaceSummaries(@Nonnull Store<PhysicsStore> store,
         @Nonnull Ref<PhysicsStore> spaceRef) {
         PhysicsThreading.requireBackendIdle(store, "read live PhysicsStore backend state");

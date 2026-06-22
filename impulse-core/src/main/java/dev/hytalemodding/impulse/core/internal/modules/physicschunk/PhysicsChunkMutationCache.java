@@ -11,7 +11,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.profiling.PhysicsChunkProfilingResource.MissingSectionReason;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.profiling.PhysicsChunkProfilingResource.Snapshot;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.profiling.PhysicsChunkProfilingResource.StreamingTargetDiagnostic;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkCollisionMutationQueueResource;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.resources.PhysicsChunkCollisionMutationQueueResource;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2LongMap;
@@ -733,8 +733,8 @@ public final class PhysicsChunkMutationCache {
 
     private static int sleepingBodyStreamingInterval(int ttlTicks) {
         int ttlBound = Math.max(1, ttlTicks / 4);
-        return Math.max(ACTIVE_BODY_STREAMING_INTERVAL_TICKS,
-            Math.min(SLEEPING_BODY_STREAMING_INTERVAL_TICKS, ttlBound));
+        return Math.clamp(ttlBound, ACTIVE_BODY_STREAMING_INTERVAL_TICKS,
+            SLEEPING_BODY_STREAMING_INTERVAL_TICKS);
     }
 
     @Nullable

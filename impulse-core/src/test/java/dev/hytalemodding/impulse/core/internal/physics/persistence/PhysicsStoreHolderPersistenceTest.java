@@ -28,12 +28,12 @@ import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackendRuntimeProvider;
 import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackendRuntimeProvider.FakePhysicsBackendRuntime;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkStoreTypes;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.components.ChunkCollisionRestoreDependencyComponent;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.components.ChunkCollisionSourceComponent;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.components.ChunkCollisionSourceComponent.PartKind;
 import dev.hytalemodding.impulse.core.internal.registration.PhysicsComponentTypeRegistry;
 import dev.hytalemodding.impulse.core.internal.registration.PhysicsStoreRegistration;
 import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsIdentityIndexResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsResourceTypes;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRestoreStatusResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResource;
@@ -54,6 +54,8 @@ import dev.hytalemodding.impulse.core.plugin.components.ShapeComponent;
 import dev.hytalemodding.impulse.core.plugin.components.SpaceComponent;
 import dev.hytalemodding.impulse.core.plugin.components.TargetComponent;
 import dev.hytalemodding.impulse.core.plugin.components.UuidComponent;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkCollisionMode;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.ChunkCollisionSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.physics.PhysicsEntities;
 import dev.hytalemodding.impulse.core.plugin.snapshots.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.core.plugin.snapshots.PhysicsSnapshotFrame;
@@ -68,11 +70,8 @@ import java.util.function.BiConsumer;
 import javax.annotation.Nonnull;
 import org.bson.BsonArray;
 import org.bson.BsonBinary;
-import org.bson.BsonBinarySubType;
 import org.bson.BsonDocument;
-import org.bson.BsonDouble;
 import org.bson.BsonInt32;
-import org.bson.BsonString;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 import org.junit.jupiter.api.Test;
@@ -85,7 +84,6 @@ class PhysicsStoreHolderPersistenceTest {
     private static final UUID BODY_B_UUID = uuid(3);
     private static final UUID GENERATED_BODY_UUID = uuid(4);
     private static final UUID JOINT_UUID = uuid(5);
-    private static final UUID LEGACY_SPACE_UUID = uuid(6);
     private static final BackendId HOLDER_BACKEND_ID = new BackendId("test:holder-persistence");
 
     @TempDir
@@ -133,9 +131,7 @@ class PhysicsStoreHolderPersistenceTest {
             assertNotNull(bodyA);
             assertNotNull(holder(decoded, BODY_B_UUID));
             assertNotNull(holder(decoded, JOINT_UUID));
-            Holder<PhysicsStore> generatedBody = holder(decoded, GENERATED_BODY_UUID);
-            assertNotNull(generatedBody);
-            assertNull(generatedBody.getComponent(ChunkCollisionSourceComponent.getComponentType()));
+            assertNull(holder(decoded, GENERATED_BODY_UUID));
 
             assertNull(bodyA.getComponent(BodyCommandComponent.getComponentType()));
             BodyComponent body = bodyA.getComponent(BodyComponent.getComponentType());
@@ -154,35 +150,48 @@ class PhysicsStoreHolderPersistenceTest {
     }
 
     @Test
-    void holderHydrationIgnoresLegacyDtoFileWhenHolderStorageExists() {
-        StoreFixture source = store("holder-save-source", tempDir.resolve("save"));
+    void holderCaptureAddsChunkCollisionRestoreDependencyToDynamicBodiesNearGeneratedRows() {
+        StoreFixture fixture = store("holder-capture-restore-context",
+            tempDir.resolve("capture-restore-context"));
         try {
-            Ref<PhysicsStore> spaceRef = addSpace(source.store(), SPACE_UUID);
-            addBody(source.store(),
-                BODY_A_UUID,
+            Ref<PhysicsStore> spaceRef = addSpace(fixture.store(), SPACE_UUID);
+            fixture.store().putComponent(spaceRef,
+                ChunkCollisionSettingsComponent.getComponentType(),
+                new ChunkCollisionSettingsComponent(PhysicsChunkCollisionMode.STREAMING,
+                    false,
+                    8,
+                    4,
+                    100));
+            addBody(fixture.store(), BODY_A_UUID, spaceRef, null);
+            addBody(fixture.store(),
+                GENERATED_BODY_UUID,
                 spaceRef,
-                null);
-            PhysicsStoreHolderStorage.save(source.store()).join();
+                new ChunkCollisionSourceComponent("chunk:0:0:0",
+                    0,
+                    0,
+                    0,
+                    "chunk-collision/0/0/0",
+                    PartKind.BOX,
+                    0));
+
+            List<Holder<PhysicsStore>> decoded = PhysicsStoreHolderPersistence
+                .capturePersistentHolderBlobs(fixture.store())
+                .stream()
+                .map(blob -> PhysicsStoreHolderPersistence.decodeHolder(
+                    fixture.store().getRegistry(),
+                    blob))
+                .toList();
+
+            assertNull(holder(decoded, GENERATED_BODY_UUID));
+            ChunkCollisionRestoreDependencyComponent dependency = holder(decoded, BODY_A_UUID)
+                .getComponent(ChunkCollisionRestoreDependencyComponent.getComponentType());
+            assertNotNull(dependency);
+            assertEquals(SPACE_UUID, dependency.getSpaceUuid());
+            assertEquals(new Vector3f(1.0f, 2.0f, 3.0f), dependency.getCenter());
+            assertEquals(4, dependency.getRadius());
+            assertEquals(PhysicsChunkCollisionMode.STREAMING, dependency.getModeAtSave());
         } finally {
-            source.close();
-        }
-
-        StoreFixture target = store("holder-save-target", tempDir.resolve("save"));
-        try {
-            writeLegacyDtoFile(target.store());
-
-            new PersistenceHydrationSystem().tick(0.0f, 0, target.store());
-
-            PhysicsRestoreStatusResource restore = target.store().getResource(
-                PhysicsRestoreStatusResource.getResourceType());
-            assertTrue(restore.isHydrated());
-            assertFalse(restore.isFailed());
-            List<UUID> rowUuids = rowUuids(target.store());
-            assertTrue(rowUuids.contains(SPACE_UUID));
-            assertTrue(rowUuids.contains(BODY_A_UUID));
-            assertFalse(rowUuids.contains(LEGACY_SPACE_UUID));
-        } finally {
-            target.close();
+            fixture.close();
         }
     }
 
@@ -218,26 +227,6 @@ class PhysicsStoreHolderPersistenceTest {
             assertTrue(Files.exists(savePath.resolve("physicsstore")));
             assertFalse(Files.exists(savePath.resolve("resources")
                 .resolve("PhysicsStoreHolders.bson")));
-        } finally {
-            fixture.close();
-        }
-    }
-
-    @Test
-    void hydrationIgnoresLegacyDtoWhenHolderStorageIsMissing() {
-        StoreFixture fixture = store("legacy-fallback", tempDir.resolve("legacy"));
-        try {
-            writeLegacyDtoFile(fixture.store());
-
-            new PersistenceHydrationSystem().tick(0.0f, 0, fixture.store());
-
-            PhysicsRestoreStatusResource restore = fixture.store().getResource(
-                PhysicsRestoreStatusResource.getResourceType());
-            assertTrue(restore.isHydrated());
-            assertFalse(restore.isFailed());
-            List<UUID> rowUuids = rowUuids(fixture.store());
-            assertFalse(rowUuids.contains(LEGACY_SPACE_UUID));
-            assertFalse(rowUuids.contains(SPACE_UUID));
         } finally {
             fixture.close();
         }
@@ -335,9 +324,8 @@ class PhysicsStoreHolderPersistenceTest {
             assertTrue(rowUuids.contains(BODY_A_UUID));
             assertTrue(rowUuids.contains(BODY_B_UUID));
 
-            Ref<PhysicsStore> spaceRef = target.store()
-                .getResource(PhysicsIdentityIndexResource.getResourceType())
-                .getByUuid(SPACE_UUID);
+            Ref<PhysicsStore> spaceRef = target.store().getExternalData().getRefFromUUID(
+                SPACE_UUID);
             assertNotNull(spaceRef);
             PhysicsRuntimeResource runtime = target.store().getResource(
                 PhysicsRuntimeResource.getResourceType());
@@ -532,50 +520,6 @@ class PhysicsStoreHolderPersistenceTest {
                     new Vector3f(0.4f, 0.5f, 0.6f),
                     0.0f,
                     true))));
-    }
-
-    private static void writeLegacyDtoFile(@Nonnull Store<PhysicsStore> store) {
-        Path file = store.getExternalData()
-            .getWorld()
-            .getSavePath()
-            .resolve("resources")
-            .resolve("PersistentPhysicsStore.json");
-        BsonDocument space = new BsonDocument()
-            .append("SpaceUuid", uuidBinary(LEGACY_SPACE_UUID))
-            .append("BackendId", new BsonString("test:legacy-only-fallback"))
-            .append("Gravity", vector(0.0f, -9.81f, 0.0f));
-        BsonDocument document = new BsonDocument()
-            .append("SchemaVersion", new BsonInt32(2))
-            .append("Spaces", new BsonArray(List.of(space)));
-        try {
-            Files.createDirectories(file.getParent());
-            Files.write(file, BsonUtil.writeToBytes(document));
-        } catch (IOException exception) {
-            throw new AssertionError("Failed to write legacy DTO fixture", exception);
-        }
-    }
-
-    @Nonnull
-    private static BsonBinary uuidBinary(@Nonnull UUID uuid) {
-        byte[] bytes = new byte[16];
-        writeLongBigEndian(bytes, 0, uuid.getMostSignificantBits());
-        writeLongBigEndian(bytes, 8, uuid.getLeastSignificantBits());
-        return new BsonBinary(BsonBinarySubType.UUID_STANDARD, bytes);
-    }
-
-    private static void writeLongBigEndian(@Nonnull byte[] bytes, int offset, long value) {
-        for (int index = 7; index >= 0; index--) {
-            bytes[offset + index] = (byte) value;
-            value >>>= 8;
-        }
-    }
-
-    @Nonnull
-    private static BsonDocument vector(float x, float y, float z) {
-        return new BsonDocument()
-            .append("X", new BsonDouble(x))
-            .append("Y", new BsonDouble(y))
-            .append("Z", new BsonDouble(z));
     }
 
     private static void writeHolderStorage(@Nonnull Store<PhysicsStore> store,
