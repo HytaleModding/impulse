@@ -1,6 +1,7 @@
 import org.gradle.api.GradleException
 import org.gradle.api.file.FileCollection
 import org.gradle.api.file.DuplicatesStrategy
+import org.gradle.api.tasks.PathSensitivity
 import org.gradle.jvm.tasks.Jar
 
 plugins {
@@ -32,7 +33,9 @@ val nativeResourcePath = "native/$nativeResourceOs/$nativeResourceArch"
 val nativeLibraryName = nativeLibraryNameFor(nativeResourceOs)
 val nativeSourceDirectory = layout.projectDirectory.dir("src/main/cpp")
 val nativeCmakeFile = nativeSourceDirectory.file("CMakeLists.txt")
-val nativeSourceFile = nativeSourceDirectory.file("impulse_jolt.cpp")
+val nativeSourceFiles = nativeSourceDirectory.asFileTree.matching {
+    include("**/*.cpp", "**/*.h")
+}
 val cmakeBuildDirectory = layout.buildDirectory.dir("cmake/jolt")
 val nativeOutputDirectory = layout.buildDirectory.dir("native/jolt")
 val nativeOutputFile = nativeOutputDirectory.map { directory -> directory.file(nativeLibraryName) }
@@ -152,7 +155,9 @@ val configureJoltNative by tasks.registering(Exec::class) {
     onlyIf { buildNative.get() }
 
     inputs.file(nativeCmakeFile)
-    inputs.file(nativeSourceFile)
+    inputs.files(nativeSourceFiles)
+        .withPropertyName("nativeSourceFiles")
+        .withPathSensitivity(PathSensitivity.RELATIVE)
     inputs.property("joltPhysicsGitTag", joltPhysicsGitTag)
     inputs.property("joltCmake", cmakeExecutable)
     inputs.property("joltCmakeGenerator", cmakeGenerator)
@@ -189,7 +194,9 @@ val compileJoltNative by tasks.registering(Exec::class) {
     onlyIf { buildNative.get() }
 
     inputs.file(nativeCmakeFile)
-    inputs.file(nativeSourceFile)
+    inputs.files(nativeSourceFiles)
+        .withPropertyName("nativeSourceFiles")
+        .withPathSensitivity(PathSensitivity.RELATIVE)
     inputs.property("joltPhysicsGitTag", joltPhysicsGitTag)
     inputs.property("joltCmake", cmakeExecutable)
     inputs.property("joltCmakeGenerator", cmakeGenerator)

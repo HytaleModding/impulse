@@ -55,8 +55,23 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(JoltPhysics)
 
-add_library(impulse_jolt SHARED impulse_jolt.cpp)
-target_include_directories(impulse_jolt PRIVATE "${JoltPhysics_SOURCE_DIR}/..")
+add_library(impulse_jolt SHARED)
+target_sources(impulse_jolt PRIVATE
+    abi/impulse_jolt_body_api.cpp
+    abi/impulse_jolt_joint_api.cpp
+    abi/impulse_jolt_query_api.cpp
+    abi/impulse_jolt_space_api.cpp
+    internal/impulse_jolt_joints.cpp
+    internal/impulse_jolt_query.cpp
+    internal/impulse_jolt_registry.cpp
+    internal/impulse_jolt_shapes.cpp
+    internal/impulse_jolt_snapshot.cpp
+    internal/impulse_jolt_space.cpp
+)
+target_include_directories(impulse_jolt PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}"
+    "${JoltPhysics_SOURCE_DIR}/.."
+)
 target_link_libraries(impulse_jolt PRIVATE Jolt)
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     set(IMPULSE_JOLT_EXPORT_SCRIPT "${CMAKE_CURRENT_BINARY_DIR}/impulse_jolt_exports.map")
