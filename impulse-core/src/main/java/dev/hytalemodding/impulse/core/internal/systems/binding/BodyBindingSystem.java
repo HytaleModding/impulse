@@ -157,6 +157,7 @@ public final class BodyBindingSystem extends TickingSystem<PhysicsStore>
         PhysicsBodyType bodyType = bodyDynamics.getBodyType();
         float mass = bodyType == PhysicsBodyType.DYNAMIC ? bodyDynamics.getMass() : 0.0f;
         long bodyId = Long.MIN_VALUE;
+        boolean bodyCreatedWithInitialState = false;
         try {
             if (shape.getShapeType() == ShapeType.VOXELS) {
                 if (bodyType != PhysicsBodyType.STATIC) {
@@ -176,7 +177,7 @@ public final class BodyBindingSystem extends TickingSystem<PhysicsStore>
                     return;
                 }
             } else {
-                bodyId = backendRuntime.createBody(spaceHandle.value(),
+                bodyId = backendRuntime.createBodyWithInitialState(spaceHandle.value(),
                     BackendRuntimeCodes.shapeTypeCode(shape.getShapeType()),
                     shape.getHalfExtentX(),
                     shape.getHalfExtentY(),
@@ -193,23 +194,20 @@ public final class BodyBindingSystem extends TickingSystem<PhysicsStore>
                     rotation.x,
                     rotation.y,
                     rotation.z,
-                    rotation.w);
-                backendRuntime.setBodyDamping(spaceHandle.value(),
-                    bodyId,
+                    rotation.w,
                     bodyDynamics.getLinearDamping(),
-                    bodyDynamics.getAngularDamping());
-                backendRuntime.setBodyFriction(spaceHandle.value(), bodyId, material.getFriction());
-                backendRuntime.setBodyRestitution(spaceHandle.value(),
-                    bodyId,
-                    material.getRestitution());
-                backendRuntime.setBodyCollisionFilter(spaceHandle.value(),
-                    bodyId,
+                    bodyDynamics.getAngularDamping(),
+                    material.getFriction(),
+                    material.getRestitution(),
                     filter.getCollisionGroup(),
-                    filter.getCollisionMask());
-                backendRuntime.setBodySensor(spaceHandle.value(), bodyId, collider.isSensor());
+                    filter.getCollisionMask(),
+                    collider.isSensor(),
+                    bodyDynamics.isContinuousCollisionEnabled());
+                bodyCreatedWithInitialState = true;
             }
             BackendBodyHandle bodyHandle = new BackendBodyHandle(bodyId);
-            if (bodyDynamics.isContinuousCollisionEnabled()
+            if (!bodyCreatedWithInitialState
+                && bodyDynamics.isContinuousCollisionEnabled()
                 && backendRuntime.supportsContinuousCollision(spaceHandle.value())) {
                 backendRuntime.setBodyContinuousCollision(spaceHandle.value(), bodyId, true);
             }

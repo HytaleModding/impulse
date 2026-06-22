@@ -44,6 +44,70 @@ public interface PhysicsBackendRuntime extends AutoCloseable {
         float rotationZ,
         float rotationW);
 
+    default long createBodyWithInitialState(int spaceId,
+        int shapeTypeCode,
+        float halfExtentX,
+        float halfExtentY,
+        float halfExtentZ,
+        float radius,
+        float halfHeight,
+        int axisCode,
+        float groundY,
+        float mass,
+        int bodyTypeCode,
+        float positionX,
+        float positionY,
+        float positionZ,
+        float rotationX,
+        float rotationY,
+        float rotationZ,
+        float rotationW,
+        float linearDamping,
+        float angularDamping,
+        float friction,
+        float restitution,
+        int collisionGroup,
+        int collisionMask,
+        boolean sensor,
+        boolean continuousCollisionEnabled) {
+        long bodyId = createBody(spaceId,
+            shapeTypeCode,
+            halfExtentX,
+            halfExtentY,
+            halfExtentZ,
+            radius,
+            halfHeight,
+            axisCode,
+            groundY,
+            mass,
+            bodyTypeCode,
+            positionX,
+            positionY,
+            positionZ,
+            rotationX,
+            rotationY,
+            rotationZ,
+            rotationW);
+        try {
+            setBodyDamping(spaceId, bodyId, linearDamping, angularDamping);
+            setBodyFriction(spaceId, bodyId, friction);
+            setBodyRestitution(spaceId, bodyId, restitution);
+            setBodyCollisionFilter(spaceId, bodyId, collisionGroup, collisionMask);
+            setBodySensor(spaceId, bodyId, sensor);
+            if (continuousCollisionEnabled && supportsContinuousCollision(spaceId)) {
+                setBodyContinuousCollision(spaceId, bodyId, true);
+            }
+            return bodyId;
+        } catch (RuntimeException exception) {
+            try {
+                removeBody(spaceId, bodyId);
+            } catch (RuntimeException rollbackFailure) {
+                exception.addSuppressed(rollbackFailure);
+            }
+            throw exception;
+        }
+    }
+
     boolean supportsVoxelTerrain(int spaceId);
 
     long createVoxelTerrain(int spaceId,

@@ -158,6 +158,56 @@ class RapierBackendRuntimeProviderTest {
         }
     }
 
+    @Test
+    void configuredBodyCreationSeedsInitialBodyState() {
+        RapierBackendRuntimeProvider provider = new RapierBackendRuntimeProvider();
+        provider.init();
+        PhysicsBackendRuntime runtime = provider.createRuntime();
+        int spaceId = runtime.createSpace(new SpaceId(76));
+        try {
+            long bodyId = runtime.createBodyWithInitialState(spaceId,
+                BackendRuntimeCodes.shapeTypeCode(ShapeType.BOX),
+                0.5f,
+                0.5f,
+                0.5f,
+                -1.0f,
+                -1.0f,
+                BackendRuntimeCodes.AXIS_Y,
+                0.0f,
+                1.0f,
+                BackendRuntimeCodes.bodyTypeCode(PhysicsBodyType.DYNAMIC),
+                1.0f,
+                2.0f,
+                3.0f,
+                0.0f,
+                0.0f,
+                0.0f,
+                1.0f,
+                0.2f,
+                0.3f,
+                0.65f,
+                0.15f,
+                2,
+                3,
+                true,
+                true);
+            CapturedSnapshot snapshot = new CapturedSnapshot();
+
+            assertTrue(runtime.bodySnapshot(spaceId, bodyId, snapshot));
+
+            assertEquals(0.2f, snapshot.linearDamping);
+            assertEquals(0.3f, snapshot.angularDamping);
+            assertEquals(0.65f, snapshot.friction);
+            assertEquals(0.15f, snapshot.restitution);
+            assertEquals(2, snapshot.collisionGroup);
+            assertEquals(3, snapshot.collisionMask);
+            assertTrue(snapshot.sensor);
+            assertTrue(snapshot.continuousCollisionEnabled);
+        } finally {
+            runtime.destroySpace(spaceId);
+        }
+    }
+
     private static void assertGravityEquals(float[] expected,
         PhysicsBackendRuntime runtime,
         int spaceId) {
@@ -381,6 +431,14 @@ class RapierBackendRuntimeProviderTest {
         private float positionX;
         private float positionY;
         private float positionZ;
+        private boolean sensor;
+        private float friction;
+        private float restitution;
+        private float linearDamping;
+        private float angularDamping;
+        private int collisionGroup;
+        private int collisionMask;
+        private boolean continuousCollisionEnabled;
 
         @Override
         public void accept(long bodyId,
@@ -423,6 +481,14 @@ class RapierBackendRuntimeProviderTest {
             this.positionX = positionX;
             this.positionY = positionY;
             this.positionZ = positionZ;
+            this.sensor = sensor;
+            this.friction = friction;
+            this.restitution = restitution;
+            this.linearDamping = linearDamping;
+            this.angularDamping = angularDamping;
+            this.collisionGroup = collisionGroup;
+            this.collisionMask = collisionMask;
+            this.continuousCollisionEnabled = continuousCollisionEnabled;
         }
     }
 }

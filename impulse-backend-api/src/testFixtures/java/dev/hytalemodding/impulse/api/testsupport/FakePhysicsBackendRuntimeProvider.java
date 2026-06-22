@@ -102,6 +102,13 @@ public final class FakePhysicsBackendRuntimeProvider implements PhysicsBackendRu
         private final FailureController failures;
         private long nextBodyId = 1L;
         private long nextJointId = 1L;
+        private int createBodyWithInitialStateCalls;
+        private int setBodyDampingCalls;
+        private int setBodyFrictionCalls;
+        private int setBodyRestitutionCalls;
+        private int setBodyCollisionFilterCalls;
+        private int setBodySensorCalls;
+        private int setBodyContinuousCollisionCalls;
 
         private FakePhysicsBackendRuntime(boolean continuousCollision,
             boolean voxelTerrain,
@@ -189,6 +196,64 @@ public final class FakePhysicsBackendRuntimeProvider implements PhysicsBackendRu
                     axisCode,
                     mass,
                     false));
+            return bodyId;
+        }
+
+        @Override
+        public long createBodyWithInitialState(int spaceId,
+            int shapeTypeCode,
+            float halfExtentX,
+            float halfExtentY,
+            float halfExtentZ,
+            float radius,
+            float halfHeight,
+            int axisCode,
+            float groundY,
+            float mass,
+            int bodyTypeCode,
+            float positionX,
+            float positionY,
+            float positionZ,
+            float rotationX,
+            float rotationY,
+            float rotationZ,
+            float rotationW,
+            float linearDamping,
+            float angularDamping,
+            float friction,
+            float restitution,
+            int collisionGroup,
+            int collisionMask,
+            boolean sensor,
+            boolean continuousCollisionEnabled) {
+            createBodyWithInitialStateCalls++;
+            long bodyId = createBody(spaceId,
+                shapeTypeCode,
+                halfExtentX,
+                halfExtentY,
+                halfExtentZ,
+                radius,
+                halfHeight,
+                axisCode,
+                groundY,
+                mass,
+                bodyTypeCode,
+                positionX,
+                positionY,
+                positionZ,
+                rotationX,
+                rotationY,
+                rotationZ,
+                rotationW);
+            BodyState body = requireBody(requireSpace(spaceId), bodyId);
+            body.linearDamping = linearDamping;
+            body.angularDamping = angularDamping;
+            body.friction = friction;
+            body.restitution = restitution;
+            body.collisionGroup = collisionGroup;
+            body.collisionMask = collisionMask;
+            body.sensor = sensor;
+            body.continuousCollision = continuousCollisionEnabled && supportsContinuousCollision(spaceId);
             return bodyId;
         }
 
@@ -350,6 +415,7 @@ public final class FakePhysicsBackendRuntimeProvider implements PhysicsBackendRu
 
         @Override
         public void setBodyDamping(int spaceId, long bodyId, float linearDamping, float angularDamping) {
+            setBodyDampingCalls++;
             BodyState body = requireBody(requireSpace(spaceId), bodyId);
             body.linearDamping = linearDamping;
             body.angularDamping = angularDamping;
@@ -357,6 +423,7 @@ public final class FakePhysicsBackendRuntimeProvider implements PhysicsBackendRu
 
         @Override
         public void setBodyFriction(int spaceId, long bodyId, float friction) {
+            setBodyFrictionCalls++;
             failures.maybeFailBodyFriction();
             requireBody(requireSpace(spaceId), bodyId).friction = friction;
         }
@@ -365,8 +432,17 @@ public final class FakePhysicsBackendRuntimeProvider implements PhysicsBackendRu
             return requireBody(requireSpace(spaceId), bodyId).friction;
         }
 
+        public float bodyLinearDamping(int spaceId, long bodyId) {
+            return requireBody(requireSpace(spaceId), bodyId).linearDamping;
+        }
+
+        public float bodyAngularDamping(int spaceId, long bodyId) {
+            return requireBody(requireSpace(spaceId), bodyId).angularDamping;
+        }
+
         @Override
         public void setBodyRestitution(int spaceId, long bodyId, float restitution) {
+            setBodyRestitutionCalls++;
             requireBody(requireSpace(spaceId), bodyId).restitution = restitution;
         }
 
@@ -376,6 +452,7 @@ public final class FakePhysicsBackendRuntimeProvider implements PhysicsBackendRu
 
         @Override
         public void setBodyCollisionFilter(int spaceId, long bodyId, int group, int mask) {
+            setBodyCollisionFilterCalls++;
             BodyState body = requireBody(requireSpace(spaceId), bodyId);
             body.collisionGroup = group;
             body.collisionMask = mask;
@@ -391,11 +468,17 @@ public final class FakePhysicsBackendRuntimeProvider implements PhysicsBackendRu
 
         @Override
         public void setBodySensor(int spaceId, long bodyId, boolean sensor) {
+            setBodySensorCalls++;
             requireBody(requireSpace(spaceId), bodyId).sensor = sensor;
+        }
+
+        public boolean bodySensor(int spaceId, long bodyId) {
+            return requireBody(requireSpace(spaceId), bodyId).sensor;
         }
 
         @Override
         public void setBodyContinuousCollision(int spaceId, long bodyId, boolean enabled) {
+            setBodyContinuousCollisionCalls++;
             requireBody(requireSpace(spaceId), bodyId).continuousCollision = enabled;
         }
 
@@ -600,6 +683,34 @@ public final class FakePhysicsBackendRuntimeProvider implements PhysicsBackendRu
 
         public boolean hasSpace(int spaceId) {
             return spaces.containsKey(spaceId);
+        }
+
+        public int createBodyWithInitialStateCalls() {
+            return createBodyWithInitialStateCalls;
+        }
+
+        public int setBodyDampingCalls() {
+            return setBodyDampingCalls;
+        }
+
+        public int setBodyFrictionCalls() {
+            return setBodyFrictionCalls;
+        }
+
+        public int setBodyRestitutionCalls() {
+            return setBodyRestitutionCalls;
+        }
+
+        public int setBodyCollisionFilterCalls() {
+            return setBodyCollisionFilterCalls;
+        }
+
+        public int setBodySensorCalls() {
+            return setBodySensorCalls;
+        }
+
+        public int setBodyContinuousCollisionCalls() {
+            return setBodyContinuousCollisionCalls;
         }
 
         private static void emitSnapshot(long bodyId,

@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.hypixel.hytale.component.AddReason;
 import com.hypixel.hytale.component.ComponentRegistry;
@@ -98,6 +99,73 @@ class BodyBindingSystemTest {
             assertNotNull(bodyHandle);
             FakePhysicsBackendRuntime backendRuntime = provider.createdRuntimes().get(0);
             assertEquals(1, backendRuntime.bodyCount(spaceHandle.value()));
+        } finally {
+            if (!store.isShutdown()) {
+                registry.removeStore(store);
+            }
+            registry.shutdown();
+            PhysicsChunkStoreTypes.clearPhysicsStoreResourceTypes();
+        }
+    }
+
+    @Test
+    void nonVoxelBodyBindingSeedsInitialPropertiesWithoutSeparateMutationCalls() {
+        PhysicsChunkStoreTypes.clearPhysicsStoreResourceTypes();
+        FakePhysicsBackendRuntimeProvider provider =
+            new FakePhysicsBackendRuntimeProvider(BACKEND_ID, true, false);
+        Impulse.registerRuntimeProvider(provider);
+        ComponentRegistry<PhysicsStore> registry = new ComponentRegistry<>();
+        ComponentRegistryProxy<PhysicsStore> proxy =
+            new ComponentRegistryProxy<>(new ArrayList<>(), registry);
+        PhysicsComponentTypeRegistry.registerComponentTypes(proxy);
+        PhysicsResourceTypes.registerResourceTypes(proxy);
+        proxy.registerSystem(new PersistenceHydrationSystem());
+        proxy.registerSystem(new IdentityIndexSystem());
+        proxy.registerSystem(new SpaceBindingSystem());
+        proxy.registerSystem(new SpaceSettingsApplicationSystem());
+        proxy.registerSystem(new BodyBindingSystem());
+        Store<PhysicsStore> store = registry.addStore(
+            new PhysicsStore(TestInstanceFactory.world("body-binding-configured-create-test")),
+            EmptyResourceStorage.get());
+        try {
+            PhysicsRestoreStatusResource restore = store.getResource(
+                PhysicsRestoreStatusResource.getResourceType());
+            restore.markComplete();
+            restore.markHydrated();
+            UUID spaceUuid = uuid(1);
+            Ref<PhysicsStore> spaceRef = addSpace(store, spaceUuid);
+            Ref<PhysicsStore> bodyRef = addConfiguredBody(store, uuid(2), spaceUuid, spaceRef);
+
+            store.tick(0.0f);
+
+            assertFalse(restore.isFailed(), restore.getFailureMessage());
+            PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
+            BackendSpaceHandle spaceHandle = runtime.getSpaceHandle(spaceRef);
+            BackendBodyHandle bodyHandle = runtime.getBodyHandle(bodyRef);
+            assertNotNull(spaceHandle);
+            assertNotNull(bodyHandle);
+            FakePhysicsBackendRuntime backendRuntime = provider.createdRuntimes().get(0);
+            assertEquals(1, backendRuntime.createBodyWithInitialStateCalls());
+            assertEquals(0, backendRuntime.setBodyDampingCalls());
+            assertEquals(0, backendRuntime.setBodyFrictionCalls());
+            assertEquals(0, backendRuntime.setBodyRestitutionCalls());
+            assertEquals(0, backendRuntime.setBodyCollisionFilterCalls());
+            assertEquals(0, backendRuntime.setBodySensorCalls());
+            assertEquals(0, backendRuntime.setBodyContinuousCollisionCalls());
+            assertEquals(0.2f,
+                backendRuntime.bodyLinearDamping(spaceHandle.value(), bodyHandle.value()));
+            assertEquals(0.3f,
+                backendRuntime.bodyAngularDamping(spaceHandle.value(), bodyHandle.value()));
+            assertEquals(0.72f, backendRuntime.bodyFriction(spaceHandle.value(), bodyHandle.value()));
+            assertEquals(0.18f,
+                backendRuntime.bodyRestitution(spaceHandle.value(), bodyHandle.value()));
+            assertEquals(PhysicsCollisionFilters.TERRAIN,
+                backendRuntime.bodyCollisionGroup(spaceHandle.value(), bodyHandle.value()));
+            assertEquals(PhysicsCollisionFilters.DYNAMIC_BODY,
+                backendRuntime.bodyCollisionMask(spaceHandle.value(), bodyHandle.value()));
+            assertTrue(backendRuntime.bodySensor(spaceHandle.value(), bodyHandle.value()));
+            assertTrue(backendRuntime.isBodyContinuousCollisionEnabled(spaceHandle.value(),
+                bodyHandle.value()));
         } finally {
             if (!store.isShutdown()) {
                 registry.removeStore(store);
@@ -276,6 +344,37 @@ class BodyBindingSystemTest {
                 new MaterialComponent(0.6f, 0.1f),
                 new CollisionFilterComponent(PhysicsCollisionFilters.DYNAMIC_BODY,
                     PhysicsCollisionFilters.ALL)),
+            AddReason.SPAWN);
+        assertNotNull(bodyRef);
+        return bodyRef;
+    }
+
+    private static Ref<PhysicsStore> addConfiguredBody(Store<PhysicsStore> store,
+        UUID bodyUuid,
+        UUID spaceUuid,
+        Ref<PhysicsStore> spaceRef) {
+        BodyComponent body = new BodyComponent(spaceUuid);
+        body.setSpaceRef(spaceRef);
+        TargetComponent target = new TargetComponent();
+        target.setActive(true);
+        Ref<PhysicsStore> bodyRef = store.addEntity(PhysicsEntities.bodyHolder(store,
+                bodyUuid,
+                body,
+                new DynamicsComponent(PhysicsBodyType.DYNAMIC, 2.0f, 0.2f, 0.3f, true),
+                target,
+                new ColliderComponent(new Vector3f(), new Quaternionf(), true),
+                new ShapeComponent(ShapeType.BOX,
+                    0.5f,
+                    0.5f,
+                    0.5f,
+                    0.0f,
+                    0.0f,
+                    PhysicsAxis.Y,
+                    0.0f,
+                    ""),
+                new MaterialComponent(0.72f, 0.18f),
+                new CollisionFilterComponent(PhysicsCollisionFilters.TERRAIN,
+                    PhysicsCollisionFilters.DYNAMIC_BODY)),
             AddReason.SPAWN);
         assertNotNull(bodyRef);
         return bodyRef;

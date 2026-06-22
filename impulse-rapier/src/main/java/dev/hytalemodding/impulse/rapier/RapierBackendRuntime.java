@@ -31,6 +31,9 @@ final class RapierBackendRuntime implements PhysicsBackendRuntime {
 
     private static final Cleaner CLEANER = Cleaner.create();
     private static final float DEFAULT_DYNAMIC_MASS = 1.0f;
+    private static final float DEFAULT_BODY_FRICTION = 0.5f;
+    private static final int DEFAULT_BODY_COLLISION_GROUP = 1;
+    private static final int DEFAULT_BODY_COLLISION_MASK = 1;
     private static final int DEFAULT_SOLVER_ITERATIONS = 4;
     private static final int DEFAULT_INTERNAL_PGS_ITERATIONS = 1;
     private static final int DEFAULT_STABILIZATION_ITERATIONS = 1;
@@ -137,6 +140,115 @@ final class RapierBackendRuntime implements PhysicsBackendRuntime {
         float rotationY,
         float rotationZ,
         float rotationW) {
+        return createBodyInternal(spaceId,
+            shapeTypeCode,
+            halfExtentX,
+            halfExtentY,
+            halfExtentZ,
+            radius,
+            halfHeight,
+            axisCode,
+            groundY,
+            mass,
+            bodyTypeCode,
+            positionX,
+            positionY,
+            positionZ,
+            rotationX,
+            rotationY,
+            rotationZ,
+            rotationW,
+            0.0f,
+            0.0f,
+            DEFAULT_BODY_FRICTION,
+            0.0f,
+            DEFAULT_BODY_COLLISION_GROUP,
+            DEFAULT_BODY_COLLISION_MASK,
+            false,
+            false);
+    }
+
+    @Override
+    public long createBodyWithInitialState(int spaceId,
+        int shapeTypeCode,
+        float halfExtentX,
+        float halfExtentY,
+        float halfExtentZ,
+        float radius,
+        float halfHeight,
+        int axisCode,
+        float groundY,
+        float mass,
+        int bodyTypeCode,
+        float positionX,
+        float positionY,
+        float positionZ,
+        float rotationX,
+        float rotationY,
+        float rotationZ,
+        float rotationW,
+        float linearDamping,
+        float angularDamping,
+        float friction,
+        float restitution,
+        int collisionGroup,
+        int collisionMask,
+        boolean sensor,
+        boolean continuousCollisionEnabled) {
+        return createBodyInternal(spaceId,
+            shapeTypeCode,
+            halfExtentX,
+            halfExtentY,
+            halfExtentZ,
+            radius,
+            halfHeight,
+            axisCode,
+            groundY,
+            mass,
+            bodyTypeCode,
+            positionX,
+            positionY,
+            positionZ,
+            rotationX,
+            rotationY,
+            rotationZ,
+            rotationW,
+            linearDamping,
+            angularDamping,
+            friction,
+            restitution,
+            collisionGroup,
+            collisionMask,
+            sensor,
+            continuousCollisionEnabled);
+    }
+
+    private long createBodyInternal(int spaceId,
+        int shapeTypeCode,
+        float halfExtentX,
+        float halfExtentY,
+        float halfExtentZ,
+        float radius,
+        float halfHeight,
+        int axisCode,
+        float groundY,
+        float mass,
+        int bodyTypeCode,
+        float positionX,
+        float positionY,
+        float positionZ,
+        float rotationX,
+        float rotationY,
+        float rotationZ,
+        float rotationW,
+        float linearDamping,
+        float angularDamping,
+        float friction,
+        float restitution,
+        int collisionGroup,
+        int collisionMask,
+        boolean sensor,
+        boolean continuousCollisionEnabled) {
         SpaceState state = requireSpace(spaceId);
         ShapeType shapeType = BackendRuntimeCodes.shapeType(shapeTypeCode);
         if (shapeType == ShapeType.VOXELS || shapeType == ShapeType.UNKNOWN) {
@@ -164,6 +276,14 @@ final class RapierBackendRuntime implements PhysicsBackendRuntime {
             rotationY,
             rotationZ,
             rotationW);
+        body.linearDamping = linearDamping;
+        body.angularDamping = angularDamping;
+        body.friction = friction;
+        body.restitution = restitution;
+        body.collisionGroup = collisionGroup;
+        body.collisionMask = collisionMask;
+        body.sensor = sensor;
+        body.continuousCollisionEnabled = continuousCollisionEnabled;
         long handle = RapierNative.addBodyNative(state.nativeSpaceHandle,
             shapeType.ordinal(),
             body.halfExtentX,
@@ -1177,12 +1297,12 @@ final class RapierBackendRuntime implements PhysicsBackendRuntime {
         private boolean sleeping;
         private boolean sensor;
         private float mass;
-        private float friction = 0.5f;
+        private float friction = DEFAULT_BODY_FRICTION;
         private float restitution;
         private float linearDamping;
         private float angularDamping;
-        private int collisionGroup = 1;
-        private int collisionMask = 1;
+        private int collisionGroup = DEFAULT_BODY_COLLISION_GROUP;
+        private int collisionMask = DEFAULT_BODY_COLLISION_MASK;
         private boolean continuousCollisionEnabled;
 
         private BodyState(long bodyId,
