@@ -8,10 +8,9 @@ import com.hypixel.hytale.server.core.plugin.PluginBase;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.early.PhysicsStoreHooks;
-import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkStoreTypes;
 import dev.hytalemodding.impulse.core.internal.persistence.PhysicsStoreHolderStorage;
+import dev.hytalemodding.impulse.core.internal.physics.PhysicsStoreCleanupHooks;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsEventResource;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsIdentityIndexResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsProfilingResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsResourceTypes;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResource;
@@ -24,14 +23,14 @@ import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldSettingsRes
 import dev.hytalemodding.impulse.core.internal.systems.binding.BodyBindingSystem;
 import dev.hytalemodding.impulse.core.internal.systems.BodyCommandApplicationSystem;
 import dev.hytalemodding.impulse.core.internal.systems.binding.ColliderBindingSystem;
-import dev.hytalemodding.impulse.core.internal.systems.CompletedStepPublicationSystem;
+import dev.hytalemodding.impulse.core.internal.systems.publication.CompletedStepPublicationSystem;
 import dev.hytalemodding.impulse.core.internal.systems.IdentityIndexSystem;
 import dev.hytalemodding.impulse.core.internal.systems.binding.JointBindingSystem;
 import dev.hytalemodding.impulse.core.internal.systems.PersistenceHydrationSystem;
 import dev.hytalemodding.impulse.core.internal.systems.PhysicsStoreQueuedReadSystem;
 import dev.hytalemodding.impulse.core.internal.systems.binding.SpaceBindingSystem;
 import dev.hytalemodding.impulse.core.internal.systems.SpaceSettingsApplicationSystem;
-import dev.hytalemodding.impulse.core.internal.systems.StepSubmissionSystem;
+import dev.hytalemodding.impulse.core.internal.systems.step.StepSubmissionSystem;
 import dev.hytalemodding.impulse.core.internal.systems.StaleBodyRemovalSystem;
 import dev.hytalemodding.impulse.core.internal.systems.binding.TargetBindingSystem;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource;
@@ -102,11 +101,9 @@ public final class PhysicsStoreRegistration {
                 PhysicsRuntimeResource.getResourceType(),
                 PhysicsRuntimeResource::destroyBackendBindings));
         failure = runShutdownCleanup(failure,
-            () -> PhysicsChunkStoreTypes.clearPhysicsStoreRuntimeResources(store));
+            () -> PhysicsStoreCleanupHooks.clearFullStoreRuntimeResources(store));
         failure = runShutdownCleanup(failure,
-            () -> cleanupResource(store,
-                PhysicsIdentityIndexResource.getResourceType(),
-                PhysicsIdentityIndexResource::clear));
+            () -> store.getExternalData().clearUuidIndex());
         failure = runShutdownCleanup(failure,
             () -> cleanupResource(store,
                 PhysicsSpaceCompatibilityIndexResource.getResourceType(),

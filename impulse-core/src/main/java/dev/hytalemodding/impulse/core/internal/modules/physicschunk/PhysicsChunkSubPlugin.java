@@ -30,6 +30,7 @@ public final class PhysicsChunkSubPlugin extends JavaPlugin {
         PhysicsChunkTypes.registerEntityStoreResourceTypes(entityRegistry);
         PhysicsChunkTypes.registerEntityStoreSystems(entityRegistry);
         PhysicsChunkStoreTypes.registerPhysicsStoreResourceTypes(physicsRegistry);
+        PhysicsChunkStoreTypes.registerPhysicsStoreCleanupHooks();
         PhysicsChunkStoreTypes.registerSpaceBindingSystems(physicsRegistry);
         PhysicsChunkStoreTypes.registerPreBodyBindingSystems(physicsRegistry);
         PhysicsChunkStoreTypes.registerPostBodyBindingSystems(physicsRegistry);
@@ -42,6 +43,7 @@ public final class PhysicsChunkSubPlugin extends JavaPlugin {
     protected void shutdown() {
         PhysicsChunkLifecycle.disable();
         PhysicsChunkCommandSet.unregister();
+        PhysicsChunkStoreTypes.clearPhysicsStoreCleanupHooks();
         PhysicsChunkTypes.clearEntityStoreResourceTypes();
         PhysicsChunkStoreTypes.clearPhysicsStoreResourceTypes();
     }

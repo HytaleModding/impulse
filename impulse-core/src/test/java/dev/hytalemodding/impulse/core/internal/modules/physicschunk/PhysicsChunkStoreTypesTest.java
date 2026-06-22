@@ -8,10 +8,11 @@ import com.hypixel.hytale.component.EmptyResourceStorage;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.core.internal.registration.PhysicsComponentTypeRegistry;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkCollisionMutationQueueResource;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkCollisionPayloadResource;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkComponentSyncResource;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkSettingsIndexResource;
+import dev.hytalemodding.impulse.core.internal.registration.PhysicsStoreRegistration;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.resources.PhysicsChunkCollisionMutationQueueResource;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.resources.PhysicsChunkCollisionPayloadResource;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.resources.PhysicsChunkComponentSyncResource;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.resources.PhysicsChunkSettingsIndexResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsResourceTypes;
 import dev.hytalemodding.impulse.core.internal.testsupport.TestInstanceFactory;
 import java.util.ArrayList;
@@ -38,6 +39,25 @@ class PhysicsChunkStoreTypesTest {
         } finally {
             PhysicsChunkStoreTypes.clearPhysicsStoreResourceTypes();
             registry.removeStore(store);
+        }
+    }
+
+    @Test
+    void physicsChunkSystemsRegisterInPluginSetupOrder() {
+        ComponentRegistry<PhysicsStore> registry = new ComponentRegistry<>();
+        ComponentRegistryProxy<PhysicsStore> proxy =
+            new ComponentRegistryProxy<>(new ArrayList<>(), registry);
+        try {
+            PhysicsComponentTypeRegistry.registerComponentTypes(proxy);
+            PhysicsChunkStoreTypes.registerPhysicsStoreResourceTypes(proxy);
+            PhysicsStoreRegistration.register(proxy);
+            PhysicsChunkStoreTypes.registerSpaceBindingSystems(proxy);
+
+            assertDoesNotThrow(() -> PhysicsChunkStoreTypes.registerPreBodyBindingSystems(proxy));
+            assertDoesNotThrow(() -> PhysicsChunkStoreTypes.registerPostBodyBindingSystems(proxy));
+        } finally {
+            PhysicsChunkStoreTypes.clearPhysicsStoreResourceTypes();
+            registry.shutdown();
         }
     }
 
