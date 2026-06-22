@@ -193,6 +193,7 @@ public final class ExamplePhysicsUtils {
             created.bodyUuid(),
             created.blockType(),
             new Vector3d(created.positionX(), created.positionY(), created.positionZ()),
+            created.visualOriginOffsetY(),
             created.controllable());
     }
 
@@ -220,6 +221,7 @@ public final class ExamplePhysicsUtils {
         @Nonnull UUID physicsBodyUuid,
         @Nullable String blockType,
         @Nonnull Vector3d visualPosition,
+        float visualOriginOffsetY,
         boolean controllable) {
         Holder<EntityStore> holder = attachedPhysicsBlockEntityHolder(time,
             bodyRef,
@@ -228,7 +230,7 @@ public final class ExamplePhysicsUtils {
             visualPosition,
             new Vector3f(),
             new Quaternionf(),
-            Float.NaN,
+            visualOriginOffsetY,
             controllable);
         return store.addEntity(holder, AddReason.SPAWN);
     }
@@ -327,7 +329,27 @@ public final class ExamplePhysicsUtils {
                                    float positionX,
                                    float positionY,
                                    float positionZ,
-                                   boolean controllable) {
+                                   boolean controllable,
+                                   float visualOriginOffsetY) {
+
+        public CreatedBlockBody(@Nonnull UUID bodyUuid,
+            @Nonnull Ref<PhysicsStore> bodyRef,
+            @Nonnull SpaceId spaceId,
+            @Nullable String blockType,
+            float positionX,
+            float positionY,
+            float positionZ,
+            boolean controllable) {
+            this(bodyUuid,
+                bodyRef,
+                spaceId,
+                blockType,
+                positionX,
+                positionY,
+                positionZ,
+                controllable,
+                Float.NaN);
+        }
 
         public CreatedBlockBody {
             Objects.requireNonNull(bodyUuid, "bodyUuid");

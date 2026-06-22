@@ -106,13 +106,12 @@ final class PhysicsStoreExampleCommands {
             }
             return PhysicsAsync.acceptOnWorldThread(world,
                 raycastAsync(store, ref, spaceRef),
-                hit -> applyImpulse(ctx, store, ref, world, hit));
+                hit -> applyImpulse(ctx, store, ref, hit));
         }
 
         private void applyImpulse(@Nonnull CommandContext ctx,
             @Nonnull Store<EntityStore> store,
             @Nonnull Ref<EntityStore> ref,
-            @Nonnull World world,
             @Nullable RaycastHitView hit) {
             if (hit == null || hit.bodyRef() == null || !hit.bodyRef().isValid()) {
                 ctx.sender().sendMessage(Message.raw("No rigid body in view."));
@@ -121,7 +120,8 @@ final class PhysicsStoreExampleCommands {
 
             int strength = ExamplePhysicsUtils.optionalInt(ctx, strengthArg, 8, 1, 64);
             Vector3d impulse = new Vector3d(TargetUtil.getLook(ref, store)
-                .getDirection()).mul(strength);
+                .getDirection())
+                .mul(strength);
             Ref<PhysicsStore> bodyRef = hit.bodyRef();
             Store<PhysicsStore> physicsStore = bodyRef.getStore();
             PhysicsBodies.appendCommand(physicsStore,

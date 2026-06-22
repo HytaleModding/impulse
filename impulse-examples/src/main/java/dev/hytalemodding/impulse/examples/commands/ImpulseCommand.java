@@ -12,6 +12,7 @@ public class ImpulseCommand extends AbstractCommandCollection {
         addSubCommand(new MaterialsCommand());
         addSubCommand(new ForcesCommand());
         addSubCommand(new JointsCommand());
+        addSubCommand(new DirectionalPendulumsCommand());
         addSubCommand(new RaycastCommand());
         addSubCommand(new PhysicsStoreExampleCommands.BumperCommand());
         addSubCommand(new PhysicsStoreExampleCommands.PlatformCommand());
