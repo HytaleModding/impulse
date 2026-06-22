@@ -669,7 +669,7 @@ final class PanamaJoltNativeLibrary implements JoltNativeLibrary {
                 maxHits,
                 nativeBodyHandles,
                 nativeHits);
-            int boundedCount = Math.min(Math.max(count, 0), maxHits);
+            int boundedCount = Math.clamp(count, 0, maxHits);
             readLongs(nativeBodyHandles, bodyHandles, boundedCount);
             readFloats(nativeHits,
                 hits,
@@ -700,7 +700,7 @@ final class PanamaJoltNativeLibrary implements JoltNativeLibrary {
                 maxContacts,
                 nativeBodyHandles,
                 nativeContacts);
-            int boundedCount = Math.min(Math.max(count, 0), maxContacts);
+            int boundedCount = Math.clamp(count, 0, maxContacts);
             readLongs(nativeBodyHandles,
                 bodyHandles,
                 boundedCount * JoltNativeLibrary.CONTACT_BODY_HANDLE_COUNT);

@@ -747,7 +747,7 @@ final class JoltBackendRuntime implements PhysicsBackendRuntime {
             bodyHandles,
             contacts);
         int emitted = 0;
-        int boundedContacts = Math.min(Math.max(nativeContacts, 0), maxContacts);
+        int boundedContacts = Math.clamp(nativeContacts, 0, maxContacts);
         for (int index = 0; index < boundedContacts; index++) {
             int bodyOffset = index * JoltNativeLibrary.CONTACT_BODY_HANDLE_COUNT;
             Long bodyAId = space.bodyIdsByHandle.get(bodyHandles[bodyOffset]);
