@@ -57,9 +57,6 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
 
     private static final float TRANSFORM_POSITION_EPSILON = 0.000001f;
     private static final float TRANSFORM_ROTATION_EPSILON = 0.000001f;
-    private static final float LOW_SPEED_POSITION_MOTION_THRESHOLD = 0.125f;
-    private static final float LOW_SPEED_ROTATION_MOTION_THRESHOLD =
-        (float) Math.toRadians(1.0);
 
     @Nonnull
     private final ComponentType<EntityStore, BodyAttachmentComponent> attachmentType;
@@ -271,17 +268,11 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
         if (!syncState.isInitializedFor(snapshot.bodyUuid())) {
             syncState.clear();
         }
-        PhysicsBodyRuntimeState.BodySyncState.SnapshotMotion snapshotMotion =
-            syncState.recordSnapshotObservation(scratch.position, scratch.visualRotation);
-        boolean lowSpeed = snapshotMotion.observed()
-            && snapshotMotion.positionDistance() < LOW_SPEED_POSITION_MOTION_THRESHOLD
-            && snapshotMotion.rotationRadians() < LOW_SPEED_ROTATION_MOTION_THRESHOLD;
         PhysicsSyncPolicy.SyncDecision decision = PhysicsSyncPolicy.resolveSyncDecision(syncState,
             settings,
             scratch.visualPosition,
             scratch.visualRotation,
             snapshot.sleeping(),
-            lowSpeed,
             kinematic,
             rangeTier);
         if (!shouldWriteTransform(decision)) {

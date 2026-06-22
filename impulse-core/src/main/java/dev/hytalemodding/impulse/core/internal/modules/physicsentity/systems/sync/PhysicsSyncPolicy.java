@@ -15,15 +15,10 @@ import org.joml.Vector3f;
  */
 public final class PhysicsSyncPolicy {
 
-    // Near visuals sync after roughly one thirty-second of a block of movement.
+    // Near sleeping visuals still sync if the backend pose changes while asleep.
     private static final float POSITION_SYNC_THRESHOLD = 1.0f / 32.0f;
     private static final float POSITION_SYNC_THRESHOLD_SQUARED =
         POSITION_SYNC_THRESHOLD * POSITION_SYNC_THRESHOLD;
-
-    // Low-speed visuals use a wider deadzone for tiny awake-body solver jitter.
-    private static final float LOW_SPEED_POSITION_SYNC_THRESHOLD = 1.0f / 8.0f;
-    private static final float LOW_SPEED_POSITION_SYNC_THRESHOLD_SQUARED =
-        LOW_SPEED_POSITION_SYNC_THRESHOLD * LOW_SPEED_POSITION_SYNC_THRESHOLD;
 
     // Mid-range visuals are outside the full-sync radius but still within visual range.
     private static final float MID_RANGE_POSITION_SYNC_THRESHOLD = 0.5f;
@@ -37,8 +32,6 @@ public final class PhysicsSyncPolicy {
      */
     private static final float ROTATION_SYNC_DOT_THRESHOLD =
         (float) Math.cos(Math.toRadians(1.0));
-    private static final float LOW_SPEED_ROTATION_SYNC_DOT_THRESHOLD =
-        (float) Math.cos(Math.toRadians(3.0));
     private static final float MID_RANGE_ROTATION_SYNC_DOT_THRESHOLD =
         (float) Math.cos(Math.toRadians(8.0));
 
@@ -52,7 +45,6 @@ public final class PhysicsSyncPolicy {
 
     // Keepalive updates bound how long an awake visual can stay below sync thresholds.
     private static final float ACTIVE_KEEPALIVE_SECONDS = 0.25f;
-    private static final float LOW_SPEED_KEEPALIVE_SECONDS = 1.25f;
     private static final float MID_RANGE_KEEPALIVE_SECONDS = 2.5f;
     private static final float SECONDS_PER_TICK = 0.05f;
 
@@ -106,7 +98,6 @@ public final class PhysicsSyncPolicy {
         @Nonnull Vector3f position,
         @Nonnull Quaternionf rotation,
         boolean sleeping,
-        boolean lowSpeed,
         boolean kinematic,
         @Nonnull SyncRangeTier rangeTier) {
         if (!syncState.isInitialized()) {
@@ -139,17 +130,19 @@ public final class PhysicsSyncPolicy {
             keepaliveSeconds = MID_RANGE_KEEPALIVE_SECONDS;
             minimumIntervalTicks = visualSyncSettings.getVisualMidSyncIntervalTicks();
         } else {
-            positionThresholdSquared = lowSpeed && !kinematic
-                ? LOW_SPEED_POSITION_SYNC_THRESHOLD_SQUARED : POSITION_SYNC_THRESHOLD_SQUARED;
-            rotationDotThreshold = lowSpeed && !kinematic
-                ? LOW_SPEED_ROTATION_SYNC_DOT_THRESHOLD : ROTATION_SYNC_DOT_THRESHOLD;
-            keepaliveSeconds = lowSpeed && !kinematic
-                ? LOW_SPEED_KEEPALIVE_SECONDS : ACTIVE_KEEPALIVE_SECONDS;
+            positionThresholdSquared = POSITION_SYNC_THRESHOLD_SQUARED;
+            rotationDotThreshold = ROTATION_SYNC_DOT_THRESHOLD;
+            keepaliveSeconds = ACTIVE_KEEPALIVE_SECONDS;
         }
 
         if (minimumIntervalTicks > 1
             && syncState.getSecondsSinceSync() < intervalSeconds(minimumIntervalTicks)) {
             return SyncDecision.SKIP_VISUAL_RANGE;
+        }
+
+        if (!sleeping && rangeTier == SyncRangeTier.NEAR) {
+            // Smooth near awake visuals prefer cadence; sleep and range tiers own throttling.
+            return SyncDecision.THRESHOLD;
         }
 
         if (position.distanceSquared(syncState.getLastSyncedPosition()) >= positionThresholdSquared
@@ -165,8 +158,7 @@ public final class PhysicsSyncPolicy {
         if (rangeTier == SyncRangeTier.MID) {
             return SyncDecision.SKIP_VISUAL_RANGE;
         }
-        return lowSpeed && !kinematic ? SyncDecision.SKIP_VISUAL_DEADZONE
-            : SyncDecision.SKIP_THRESHOLD;
+        return SyncDecision.SKIP_THRESHOLD;
     }
 
     private static boolean rotationChangedEnough(@Nonnull Quaternionf current,

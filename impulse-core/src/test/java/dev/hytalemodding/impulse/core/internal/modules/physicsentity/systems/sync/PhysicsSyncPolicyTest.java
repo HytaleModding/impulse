@@ -24,7 +24,6 @@ class PhysicsSyncPolicyTest {
                 new Quaternionf(),
                 false,
                 false,
-                false,
                 PhysicsSyncPolicy.SyncRangeTier.NEAR));
     }
 
@@ -38,7 +37,6 @@ class PhysicsSyncPolicyTest {
                 new Vector3f(),
                 new Quaternionf(),
                 true,
-                false,
                 false,
                 PhysicsSyncPolicy.SyncRangeTier.NEAR));
     }
@@ -54,38 +52,34 @@ class PhysicsSyncPolicyTest {
                 new Quaternionf(),
                 false,
                 false,
-                false,
                 PhysicsSyncPolicy.SyncRangeTier.FAR));
     }
 
     @Test
-    void lowSpeedNearBodiesUseVisualDeadzoneBeforeKeepalive() {
+    void lowSpeedNearBodiesUseNormalNearThreshold() {
         PhysicsBodyRuntimeState.BodySyncState syncState = initializedState(false);
         syncState.recordSkip(1.0f);
 
-        assertEquals(PhysicsSyncPolicy.SyncDecision.SKIP_VISUAL_DEADZONE,
+        assertEquals(PhysicsSyncPolicy.SyncDecision.THRESHOLD,
             PhysicsSyncPolicy.resolveSyncDecision(syncState,
                 new PhysicsVisualSyncSettings(),
                 new Vector3f(0.05f, 0.0f, 0.0f),
                 new Quaternionf(),
                 false,
                 true,
-                false,
                 PhysicsSyncPolicy.SyncRangeTier.NEAR));
     }
 
     @Test
-    void lowSpeedNearBodiesTriggerKeepaliveAtLongerInterval() {
+    void activeNearBodiesSyncEveryTickBelowThreshold() {
         PhysicsBodyRuntimeState.BodySyncState syncState = initializedState(false);
-        syncState.recordSkip(1.25f);
 
-        assertEquals(PhysicsSyncPolicy.SyncDecision.KEEPALIVE,
+        assertEquals(PhysicsSyncPolicy.SyncDecision.THRESHOLD,
             PhysicsSyncPolicy.resolveSyncDecision(syncState,
                 new PhysicsVisualSyncSettings(),
-                new Vector3f(0.05f, 0.0f, 0.0f),
+                new Vector3f(0.001f, 0.0f, 0.0f),
                 new Quaternionf(),
                 false,
-                true,
                 false,
                 PhysicsSyncPolicy.SyncRangeTier.NEAR));
     }
@@ -102,7 +96,6 @@ class PhysicsSyncPolicyTest {
                 new Quaternionf(),
                 false,
                 false,
-                false,
                 PhysicsSyncPolicy.SyncRangeTier.MID));
 
         syncState.recordSkip(0.1f);
@@ -111,7 +104,6 @@ class PhysicsSyncPolicyTest {
                 new PhysicsVisualSyncSettings(),
                 new Vector3f(0.2f, 0.0f, 0.0f),
                 new Quaternionf(),
-                false,
                 false,
                 false,
                 PhysicsSyncPolicy.SyncRangeTier.MID));
@@ -131,7 +123,6 @@ class PhysicsSyncPolicyTest {
                 new Quaternionf(),
                 false,
                 false,
-                false,
                 PhysicsSyncPolicy.SyncRangeTier.MID));
 
         syncState.recordSkip(0.05f);
@@ -140,7 +131,6 @@ class PhysicsSyncPolicyTest {
                 settings,
                 new Vector3f(1.0f, 0.0f, 0.0f),
                 new Quaternionf(),
-                false,
                 false,
                 false,
                 PhysicsSyncPolicy.SyncRangeTier.MID));
@@ -161,7 +151,6 @@ class PhysicsSyncPolicyTest {
                 new Quaternionf(),
                 false,
                 false,
-                false,
                 PhysicsSyncPolicy.SyncRangeTier.FAR));
 
         syncState.recordSkip(0.05f);
@@ -170,7 +159,6 @@ class PhysicsSyncPolicyTest {
                 settings,
                 new Vector3f(),
                 new Quaternionf(),
-                false,
                 false,
                 false,
                 PhysicsSyncPolicy.SyncRangeTier.FAR));
@@ -187,7 +175,6 @@ class PhysicsSyncPolicyTest {
                 new Quaternionf(),
                 false,
                 true,
-                true,
                 PhysicsSyncPolicy.SyncRangeTier.NEAR));
     }
 
@@ -201,7 +188,6 @@ class PhysicsSyncPolicyTest {
                 new PhysicsVisualSyncSettings(),
                 new Vector3f(),
                 rotated,
-                false,
                 false,
                 false,
                 PhysicsSyncPolicy.SyncRangeTier.NEAR));
@@ -232,7 +218,6 @@ class PhysicsSyncPolicyTest {
                 new Vector3f(),
                 new Quaternionf(),
                 true,
-                false,
                 false,
                 PhysicsSyncPolicy.SyncRangeTier.NEAR));
     }
