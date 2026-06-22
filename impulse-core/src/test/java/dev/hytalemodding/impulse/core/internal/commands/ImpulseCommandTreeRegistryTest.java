@@ -18,8 +18,13 @@ class ImpulseCommandTreeRegistryTest {
         ImpulseCommand root = ImpulseCommandTreeRegistry.createRootCommandForTests();
 
         assertFalse(root.getSubCommands().containsKey("physicschunk"));
+        assertFalse(debug(root).getSubCommands().containsKey("physicschunk"));
         assertFalse(settings(root).getSubCommands().containsKey("collision-lod"));
         assertFalse(settings(root).getSubCommands().containsKey("visual"));
+    }
+
+    private static AbstractCommand debug(ImpulseCommand root) {
+        return root.getSubCommands().get("debug");
     }
 
     private static AbstractCommand settings(ImpulseCommand root) {

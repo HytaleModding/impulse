@@ -1,4 +1,4 @@
-package dev.hytalemodding.impulse.core.internal.commands;
+package dev.hytalemodding.impulse.core.internal.commands.space;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;

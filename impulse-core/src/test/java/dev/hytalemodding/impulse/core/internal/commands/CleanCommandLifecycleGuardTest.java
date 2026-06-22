@@ -15,7 +15,6 @@ import dev.hytalemodding.impulse.core.internal.modules.physicschunk.components.C
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.internal.registration.PhysicsComponentTypeRegistry;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsIdentityIndexResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsResourceTypes;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSnapshotResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceCompatibilityIndexResource;
@@ -82,7 +81,7 @@ class CleanCommandLifecycleGuardTest {
         Ref<PhysicsStore> ref = store.addEntity(PhysicsEntities.entityHolder(store,
                 bodyUuid),
             AddReason.SPAWN);
-        store.getResource(PhysicsIdentityIndexResource.getResourceType()).putUuid(bodyUuid,
+        store.getExternalData().putRefForUUID(bodyUuid,
             ref);
         if (generatedChunkCollisionBody) {
             store.putComponent(ref,

@@ -39,8 +39,7 @@ public class MaxStepDtSettingCommand extends AbstractAsyncPlayerCommand {
         Store<PhysicsStore> physicsStore = PhysicsThreading.store(world);
         if (!dtArg.provided(ctx)) {
             ctx.sender().sendMessage(Message.raw("Impulse max step dt: "
-                + PhysicsWorlds.settings(physicsStore).getMaxStepDt()
-                + " (used by adaptive step modes)"));
+                + PhysicsWorlds.settings(physicsStore).getMaxStepDt()));
             return CompletableFuture.completedFuture(null);
         }
 

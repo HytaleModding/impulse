@@ -1,4 +1,4 @@
-package dev.hytalemodding.impulse.core.internal.commands;
+package dev.hytalemodding.impulse.core.internal.commands.space;
 
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
@@ -8,7 +8,6 @@ import com.hypixel.hytale.server.core.command.system.arguments.system.OptionalAr
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.SpaceId;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsIdentityIndexResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceCompatibilityIndexResource;
 import dev.hytalemodding.impulse.core.plugin.physics.PhysicsThreading;
 import java.util.Comparator;
@@ -43,7 +42,7 @@ public final class SpaceSelection {
 
         UUID spaceUuid = compatibility.getSpaceUuid(spaceId);
         Ref<PhysicsStore> spaceRef = spaceUuid != null
-            ? store.getResource(PhysicsIdentityIndexResource.getResourceType()).getByUuid(spaceUuid)
+            ? store.getExternalData().getRefFromUUID(spaceUuid)
             : null;
         if (spaceRef == null || spaceRef.getStore() != store || !spaceRef.isValid()) {
             context.sendMessage(Message.raw("PhysicsStore space id=" + spaceId.value()

@@ -1,4 +1,4 @@
-package dev.hytalemodding.impulse.core.internal.commands;
+package dev.hytalemodding.impulse.core.internal.commands.space;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -20,7 +20,6 @@ import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunk
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.components.ChunkCollisionSourceComponent;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.components.ChunkCollisionSourceComponent.PartKind;
 import dev.hytalemodding.impulse.core.internal.registration.PhysicsComponentTypeRegistry;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsIdentityIndexResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsResourceTypes;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSnapshotResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceCompatibilityIndexResource;
@@ -168,8 +167,7 @@ class SpaceCommandDeleteTest {
         @Nonnull Ref<PhysicsStore> spaceRef) {
         store.getResource(PhysicsSpaceCompatibilityIndexResource.getResourceType())
             .putSpace(spaceId, spaceUuid);
-        store.getResource(PhysicsIdentityIndexResource.getResourceType())
-            .putUuid(spaceUuid, spaceRef);
+        store.getExternalData().putRefForUUID(spaceUuid, spaceRef);
     }
 
     @Nonnull
@@ -227,8 +225,7 @@ class SpaceCommandDeleteTest {
                 "test-payload",
                 PartKind.BOX,
                 0));
-        store.getResource(PhysicsIdentityIndexResource.getResourceType())
-            .putUuid(bodyUuid, ref);
+        store.getExternalData().putRefForUUID(bodyUuid, ref);
         return ref;
     }
 

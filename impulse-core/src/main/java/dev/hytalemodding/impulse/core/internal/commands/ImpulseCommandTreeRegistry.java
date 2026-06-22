@@ -22,6 +22,8 @@ public final class ImpulseCommandTreeRegistry {
     private static final HytaleLogger LOGGER = HytaleLogger.get("Impulse");
     private static final Map<String, Supplier<? extends AbstractCommand>> ROOT_COMMANDS =
         new LinkedHashMap<>();
+    private static final Map<String, Supplier<? extends AbstractCommand>> DEBUG_COMMANDS =
+        new LinkedHashMap<>();
     private static final Map<String, Supplier<? extends AbstractCommand>> SETTINGS_COMMANDS =
         new LinkedHashMap<>();
 
@@ -73,6 +75,21 @@ public final class ImpulseCommandTreeRegistry {
         }
     }
 
+    public static synchronized void registerDebugSubCommand(@Nonnull String id,
+        @Nonnull Supplier<? extends AbstractCommand> supplier) {
+        if (DEBUG_COMMANDS.containsKey(id)) {
+            return;
+        }
+        DEBUG_COMMANDS.put(id, Objects.requireNonNull(supplier, "supplier"));
+        rebuildIfRegistered();
+    }
+
+    public static synchronized void unregisterDebugSubCommand(@Nonnull String id) {
+        if (DEBUG_COMMANDS.remove(id) != null) {
+            rebuildIfRegistered();
+        }
+    }
+
     public static synchronized void registerSettingsSubCommand(@Nonnull String id,
         @Nonnull Supplier<? extends AbstractCommand> supplier) {
         if (SETTINGS_COMMANDS.containsKey(id)) {
@@ -109,6 +126,7 @@ public final class ImpulseCommandTreeRegistry {
         commandRegistration = null;
         commandRegistry = null;
         ROOT_COMMANDS.clear();
+        DEBUG_COMMANDS.clear();
         SETTINGS_COMMANDS.clear();
     }
 
@@ -148,11 +166,15 @@ public final class ImpulseCommandTreeRegistry {
 
     @Nonnull
     private static ImpulseCommand createRootCommand() {
+        List<AbstractCommand> debugCommands = new ArrayList<>(DEBUG_COMMANDS.size());
+        for (Supplier<? extends AbstractCommand> supplier : DEBUG_COMMANDS.values()) {
+            debugCommands.add(supplier.get());
+        }
         List<AbstractCommand> settingsCommands = new ArrayList<>(SETTINGS_COMMANDS.size());
         for (Supplier<? extends AbstractCommand> supplier : SETTINGS_COMMANDS.values()) {
             settingsCommands.add(supplier.get());
         }
-        ImpulseCommand command = new ImpulseCommand(settingsCommands);
+        ImpulseCommand command = new ImpulseCommand(debugCommands, settingsCommands);
         for (Supplier<? extends AbstractCommand> supplier : ROOT_COMMANDS.values()) {
             command.registerRootCommand(supplier.get());
         }

@@ -10,7 +10,7 @@ import com.hypixel.hytale.server.core.command.system.basecommands.AbstractAsyncW
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.SpaceId;
-import dev.hytalemodding.impulse.core.internal.commands.SpaceSelection;
+import dev.hytalemodding.impulse.core.internal.commands.space.SpaceSelection;
 import dev.hytalemodding.impulse.core.plugin.physics.PhysicsDiagnostics;
 import dev.hytalemodding.impulse.core.plugin.physics.PhysicsAsync;
 import dev.hytalemodding.impulse.core.plugin.physics.PhysicsSpaces;

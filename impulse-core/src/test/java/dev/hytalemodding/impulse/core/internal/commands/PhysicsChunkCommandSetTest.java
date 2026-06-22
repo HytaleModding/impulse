@@ -25,6 +25,7 @@ class PhysicsChunkCommandSetTest {
         assertTrue(root.getSubCommands().containsKey("physicschunk"));
         assertTrue(physicsChunk.getSubCommands().containsKey("settings"));
         assertTrue(physicsChunk.getSubCommands().containsKey("perf"));
+        assertTrue(debug(root).getSubCommands().containsKey("physicschunk"));
         assertTrue(settings(root).getSubCommands().containsKey("collision-lod"));
     }
 
@@ -35,13 +36,19 @@ class PhysicsChunkCommandSetTest {
 
         ImpulseCommand registered = ImpulseCommandTreeRegistry.createRootCommandForTests();
         assertTrue(registered.getSubCommands().containsKey("physicschunk"));
+        assertTrue(debug(registered).getSubCommands().containsKey("physicschunk"));
         assertTrue(settings(registered).getSubCommands().containsKey("collision-lod"));
 
         PhysicsChunkCommandSet.unregister();
 
         ImpulseCommand removed = ImpulseCommandTreeRegistry.createRootCommandForTests();
         assertFalse(removed.getSubCommands().containsKey("physicschunk"));
+        assertFalse(debug(removed).getSubCommands().containsKey("physicschunk"));
         assertFalse(settings(removed).getSubCommands().containsKey("collision-lod"));
+    }
+
+    private static AbstractCommand debug(ImpulseCommand root) {
+        return root.getSubCommands().get("debug");
     }
 
     private static AbstractCommand settings(ImpulseCommand root) {

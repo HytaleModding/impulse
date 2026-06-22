@@ -9,7 +9,7 @@ import com.hypixel.hytale.server.core.command.system.basecommands.AbstractAsyncP
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsDebugResource;
+import dev.hytalemodding.impulse.core.internal.modules.physicsentity.resources.PhysicsDebugOverlayResource;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
 
@@ -26,8 +26,9 @@ public class DebugToggleCommand extends AbstractAsyncPlayerCommand {
         @Nonnull Ref<EntityStore> ref,
         @Nonnull PlayerRef playerRef,
         @Nonnull World world) {
-        assert PhysicsDebugResource.getResourceType() != null;
-        PhysicsDebugResource debug = store.getResource(PhysicsDebugResource.getResourceType());
+        assert PhysicsDebugOverlayResource.getResourceType() != null;
+        PhysicsDebugOverlayResource debug =
+            store.getResource(PhysicsDebugOverlayResource.getResourceType());
         boolean enabled;
         if (debug.removeSubscriber(playerRef.getUuid())) {
             enabled = false;

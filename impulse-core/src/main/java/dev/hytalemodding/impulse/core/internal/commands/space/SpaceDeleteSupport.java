@@ -1,11 +1,10 @@
-package dev.hytalemodding.impulse.core.internal.commands;
+package dev.hytalemodding.impulse.core.internal.commands.space;
 
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.SpaceId;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsIdentityIndexResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceCompatibilityIndexResource;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkCollision;
 import dev.hytalemodding.impulse.core.plugin.physics.PhysicsBodies;
@@ -42,8 +41,7 @@ final class SpaceDeleteSupport {
 
         UUID spaceUuid = compatibility.getSpaceUuid(spaceId);
         Ref<PhysicsStore> spaceRef = spaceUuid != null
-            ? physicsStore.getResource(PhysicsIdentityIndexResource.getResourceType())
-                .getByUuid(spaceUuid)
+            ? physicsStore.getExternalData().getRefFromUUID(spaceUuid)
             : null;
         if (spaceRef == null || spaceRef.getStore() != physicsStore || !spaceRef.isValid()) {
             return DeleteResult.unbound(rawSpaceId);

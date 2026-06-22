@@ -1,11 +1,15 @@
 package dev.hytalemodding.impulse.core.internal.commands.debug;
 
+import com.hypixel.hytale.server.core.command.system.AbstractCommand;
 import com.hypixel.hytale.server.core.command.system.basecommands.AbstractCommandCollection;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsDebugResource;
+import dev.hytalemodding.impulse.core.internal.physics.resources.PhysicsDebugResource;
+import java.util.Collection;
+import java.util.List;
+import javax.annotation.Nonnull;
 
 public class DebugCommand extends AbstractCommandCollection {
 
-    public DebugCommand() {
+    public DebugCommand(@Nonnull Collection<? extends AbstractCommand> moduleCommands) {
         super("debug", "Impulse debug rendering commands");
         addSubCommand(new DebugToggleCommand());
         addSubCommand(new DebugFlagCommand("shapes", "shape",
@@ -20,8 +24,8 @@ public class DebugCommand extends AbstractCommandCollection {
         addSubCommand(new DebugFlagCommand("joints", "joint",
             PhysicsDebugResource::isDebugJointsEnabled,
             PhysicsDebugResource::setDebugJointsEnabled));
-        addSubCommand(new DebugFlagCommand("physicschunk", "PhysicsChunk collision",
-            PhysicsDebugResource::isDebugPhysicsChunkCollisionEnabled,
-            PhysicsDebugResource::setDebugPhysicsChunkCollisionEnabled));
+        for (AbstractCommand command : moduleCommands) {
+            addSubCommand(command);
+        }
     }
 }
