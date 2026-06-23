@@ -17,10 +17,6 @@ dependencyResolutionManagement {
         maven {
             url = uri("impulse-core/build/generated-sources-m2")
         }
-        // Crucible Maven repository.
-        maven {
-            url = uri("https://gitlab.com/api/v4/projects/82033924/packages/maven")
-        }
     }
 }
 

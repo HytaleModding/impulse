@@ -74,8 +74,12 @@ public final class PhysicsStoreRowCleanup {
         if (bodyHandle == null) {
             if (refMatchesUuid(resolvedBodyRef, bodyUuid)) {
                 runtime.removeBodyHandle(resolvedBodyRef);
+                return false;
             }
-            return false;
+            if (resolvedBodyRef.getStore() == store && resolvedBodyRef.isValid()) {
+                return false;
+            }
+            return runtime.removeBackendBody(bodyUuid, fallbackRuntime);
         }
         BackendId backendId = runtime.getBodyBackendId(resolvedBodyRef);
         if (!bodyBindingMatchesUuid(runtime, bodyUuid, backendId, spaceHandle, bodyHandle)) {

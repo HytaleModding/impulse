@@ -194,10 +194,13 @@ Impulse has a dedicated headless/serverless test lane that does not boot the Hyt
 ./gradlew headlessTest
 ```
 
-Crucible in-game tests are also provided. Run them in game with:
+For runtime/server behavior, use focused module tests first and then reproduce manually with the
+Hytale runtime when the bug depends on plugin loading, live worlds, or command behavior:
 
-```
-/crucible run
+```bash
+./gradlew :impulse-core:test
+./gradlew :impulse-rapier:test
+./gradlew runAllMods
 ```
 
 ## Native Binary Notice

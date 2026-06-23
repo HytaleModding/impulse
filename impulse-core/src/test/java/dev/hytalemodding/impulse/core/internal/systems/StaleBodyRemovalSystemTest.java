@@ -10,6 +10,7 @@ import com.hypixel.hytale.component.ComponentRegistry;
 import com.hypixel.hytale.component.ComponentRegistryProxy;
 import com.hypixel.hytale.component.EmptyResourceStorage;
 import com.hypixel.hytale.component.Ref;
+import com.hypixel.hytale.component.RemoveReason;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import com.hypixel.hytale.server.core.util.thread.TickingThread;
@@ -115,6 +116,48 @@ class StaleBodyRemovalSystemTest {
             assertEquals(new SpaceId(42), PhysicsBodies.spaceId(store, retainedUuid));
             assertFalse(firstStaleRef.isValid());
             assertFalse(secondStaleRef.isValid());
+        } finally {
+            registry.removeStore(store);
+            registry.shutdown();
+        }
+    }
+
+    @Test
+    void tickRemovesBackendBodyAfterAuthoritativeBodyEntityIsRemoved() {
+        ComponentRegistry<PhysicsStore> registry = new ComponentRegistry<>();
+        ComponentRegistryProxy<PhysicsStore> proxy =
+            new ComponentRegistryProxy<>(new ArrayList<>(), registry);
+        PhysicsComponentTypeRegistry.registerComponentTypes(proxy);
+        PhysicsResourceTypes.registerResourceTypes(proxy);
+        Store<PhysicsStore> store = registry.addStore(
+            new PhysicsStore(TestInstanceFactory.world("stale-body-removal-entity-row")),
+            EmptyResourceStorage.get());
+        try {
+            markCurrentThreadAsWorldThread(store);
+            UUID spaceUuid = uuid(11);
+            UUID bodyUuid = uuid(12);
+            BoundSpace space = addBoundSpace(store,
+                spaceUuid,
+                new BackendId("test:stale-body-row-removal"));
+            Ref<PhysicsStore> bodyRef = addBody(store, spaceUuid, space.ref(), bodyUuid);
+            bindBody(store, space, bodyUuid, bodyRef, 0.0f);
+            publishCopiedState(store, spaceUuid, bodyUuid, bodyRef);
+
+            store.removeEntity(bodyRef, store.getRegistry().newHolder(), RemoveReason.REMOVE);
+            new StaleBodyRemovalSystem().tick(0.0f, 0, store);
+
+            PhysicsRuntimeResource runtime = store.getResource(
+                PhysicsRuntimeResource.getResourceType());
+            PhysicsSnapshotResource snapshots =
+                store.getResource(PhysicsSnapshotResource.getResourceType());
+            assertFalse(store.getResource(PhysicsRestoreStatusResource.getResourceType())
+                .isFailed());
+            assertNull(store.getExternalData().getRefFromUUID(bodyUuid));
+            assertNull(runtime.getBodyHandle(bodyRef));
+            assertEquals(0, space.runtime().bodyCount(space.handle().value()));
+            assertNull(snapshots.getBody(bodyUuid));
+            assertNull(PhysicsBodies.spaceId(store, bodyUuid));
+            assertFalse(bodyRef.isValid());
         } finally {
             registry.removeStore(store);
             registry.shutdown();
@@ -230,6 +273,16 @@ class StaleBodyRemovalSystemTest {
                 List.of(snapshot(firstBodyRef, firstBodyUuid, spaceUuid),
                     snapshot(secondBodyRef, secondBodyUuid, spaceUuid),
                     snapshot(retainedBodyRef, retainedBodyUuid, spaceUuid))));
+    }
+
+    private static void publishCopiedState(@Nonnull Store<PhysicsStore> store,
+        @Nonnull UUID spaceUuid,
+        @Nonnull UUID bodyUuid,
+        @Nonnull Ref<PhysicsStore> bodyRef) {
+        store.getResource(PhysicsSnapshotResource.getResourceType())
+            .publish(new PhysicsSnapshotFrame(1L,
+                0.05f,
+                List.of(snapshot(bodyRef, bodyUuid, spaceUuid))));
     }
 
     @Nonnull

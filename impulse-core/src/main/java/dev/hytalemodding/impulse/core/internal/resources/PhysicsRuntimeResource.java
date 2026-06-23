@@ -251,6 +251,31 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
         markRegistrationTopologyChanged();
     }
 
+    public boolean removeBackendBody(@Nonnull UUID bodyUuid,
+        @Nullable PhysicsBackendRuntime fallbackRuntime) {
+        BackendBodyKey bodyKey = bodySnapshotKeysByUuid.get(
+            Objects.requireNonNull(bodyUuid, "bodyUuid"));
+        if (bodyKey == null) {
+            return false;
+        }
+        BodySnapshotMetadata metadata = bodySnapshotMetadataByKey.get(bodyKey);
+        if (metadata == null || !bodyUuid.equals(metadata.bodyUuid())) {
+            return false;
+        }
+        PhysicsBackendRuntime runtime = runtimeForBackendId(bodyKey.backendId());
+        if (runtime == null) {
+            runtime = fallbackRuntime;
+        }
+        if (runtime != null) {
+            runtime.removeBody(bodyKey.spaceHandle(), bodyKey.bodyHandle());
+        }
+        removePendingBodyOperations(metadata.bodyRef());
+        removeBodyHandleFromSpaceIndex(bodyKey);
+        removeBodyMetadata(bodyKey);
+        markRegistrationTopologyChanged();
+        return true;
+    }
+
     @Nonnull
     public List<Ref<PhysicsStore>> bodyRefsForSpaceHandle(@Nonnull BackendId backendId,
         @Nonnull BackendSpaceHandle spaceHandle) {

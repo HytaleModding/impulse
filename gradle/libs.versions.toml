@@ -1,6 +1,5 @@
 [versions]
 libbulletjme = "23.0.0"
-crucible = "1.0.0"
 hytale-gradle = "1.0.41"
 lombok = "1.18.38"
 joml = "1.10.5"
@@ -12,7 +11,6 @@ objenesis = "3.4"
 libbulletjme = { module = "com.github.stephengold:Libbulletjme-Linux64", version.ref = "libbulletjme" }
 # TODO: Linux and others...
 libbulletjme-native = { module = "com.github.stephengold:Libbulletjme-Linux64", version.ref = "libbulletjme" }
-crucible = { module = "com.ionforgelabs:crucible", version.ref = "crucible" }
 lombok = { module = "org.projectlombok:lombok", version.ref = "lombok" }
 joml = { module = "org.joml:joml", version.ref = "joml" }
 jsr305 = { module = "com.google.code.findbugs:jsr305", version.ref = "jsr305" }

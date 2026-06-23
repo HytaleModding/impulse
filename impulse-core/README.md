@@ -46,34 +46,8 @@ the exported profile includes Hytale world/store tick threads and PhysicsStore c
 Avoid contact debug rendering during benchmark captures; it calls backend contact enumeration and
 will distort the hot path.
 
-## Crucible tests
+## Runtime validation
 
-Install the patched Crucible runtime jar:
-
-```bash
-./scripts/ci/install-crucible-runtime.sh
-```
-
-Run the smoke-tagged runtime suite:
-
-```bash
-JAVA_TOOL_OPTIONS="-Dcrucible.autorun=true -Dcrucible.tags=smoke" \
-  ./gradlew runAllMods
-```
-
-Run the live-tagged runtime suite:
-
-```bash
-JAVA_TOOL_OPTIONS="-Dcrucible.autorun=true -Dcrucible.tags=live" \
-  ./gradlew runAllMods
-```
-
-Run the detached full-collision streaming benchmark scenario:
-
-```bash
-JAVA_TOOL_OPTIONS="-Dcrucible.autorun=true -Dcrucible.tags=benchmark" \
-  ./gradlew runAllMods
-```
-
-Crucible selects `impulse:rapier` when it is installed. Override that only for backend-specific
-debugging with `-Dimpulse.crucible.backend=<id>`.
+Use ordinary Gradle tests for backend physics, PhysicsStore topology, settings round trips, and
+module lifecycle predicates. When a failure depends on live Hytale server behavior, reproduce it
+with `./gradlew runAllMods` and document the world setup and commands used.

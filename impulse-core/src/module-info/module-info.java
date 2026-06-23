@@ -2,7 +2,6 @@ module dev.hytalemodding.impulse.core {
     requires transitive impulse.api;
     requires transitive org.joml;
     requires static jsr305;
-    requires static crucible;
 
     exports dev.hytalemodding.impulse.core.plugin.codec;
     exports dev.hytalemodding.impulse.core.plugin.components;

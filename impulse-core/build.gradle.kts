@@ -4,12 +4,6 @@ plugins {
 
 version = rootProject.version
 
-repositories {
-    maven {
-        url = uri("https://gitlab.com/api/v4/projects/82033924/packages/maven")
-    }
-}
-
 val coreModuleName = "dev.hytalemodding.impulse.core"
 // These parent dependencies are shared by the core plugin and inherited by bundled subplugins.
 val impulseManifestDependencies = listOf(
@@ -27,12 +21,10 @@ val moduleInfoModulePath by configurations.creating {
 dependencies {
     implementation(project(":impulse-backend-api"))
     compileOnly(project(":impulse-early-plugin"))
-    compileOnly(libs.crucible)
     compileOnly(libs.lombok)
 
     moduleInfoModulePath(libs.joml)
     moduleInfoModulePath(libs.jsr305)
-    moduleInfoModulePath(libs.crucible)
 
     annotationProcessor(libs.lombok)
 
@@ -102,7 +94,6 @@ hytaleTools {
     modDescription = property("mod_description") as String
     manifestServerVersion = property("hytale_version") as String
     manifestDependencies = impulseManifestDependencies
-    manifestOptionalDependencies = "com.ionforgelabs:crucible=*"
 
     subPlugin (
         "ImpulseControl",
