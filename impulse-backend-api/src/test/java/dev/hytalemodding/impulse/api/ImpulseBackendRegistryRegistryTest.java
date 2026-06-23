@@ -21,7 +21,7 @@ import java.util.stream.IntStream;
 import javax.annotation.Nonnull;
 import org.junit.jupiter.api.Test;
 
-class ImpulseRegistryTest {
+class ImpulseBackendRegistryRegistryTest {
 
     private static final AtomicInteger ID_COUNTER = new AtomicInteger();
     private static final int CONCURRENT_RUNTIME_CREATIONS = 4;
@@ -29,7 +29,7 @@ class ImpulseRegistryTest {
     @Test
     void throwsWhenRequestingUnknownRuntimeProvider() {
         IllegalStateException exception = assertThrows(IllegalStateException.class,
-            () -> Impulse.getRuntimeProvider(new BackendId(uniqueId())));
+            () -> ImpulseBackendRegistry.getRuntimeProvider(new BackendId(uniqueId())));
 
         assertTrue(exception.getMessage().startsWith("No backend runtime provider registered with id:"));
     }
@@ -37,15 +37,15 @@ class ImpulseRegistryTest {
     @Test
     void registersRuntimeProvidersInitializesOnceAndCreatesRuntime() {
         CountingRuntimeProvider provider = new CountingRuntimeProvider(new BackendId(uniqueId()));
-        Impulse.registerRuntimeProvider(provider);
+        ImpulseBackendRegistry.registerRuntimeProvider(provider);
 
-        PhysicsBackendRuntime firstRuntime = Impulse.createRuntime(provider.getId());
-        PhysicsBackendRuntime secondRuntime = Impulse.createRuntime(provider.getId());
+        PhysicsBackendRuntime firstRuntime = ImpulseBackendRegistry.createRuntime(provider.getId());
+        PhysicsBackendRuntime secondRuntime = ImpulseBackendRegistry.createRuntime(provider.getId());
 
-        assertSame(provider, Impulse.getRuntimeProvider(provider.getId()));
+        assertSame(provider, ImpulseBackendRegistry.getRuntimeProvider(provider.getId()));
         assertEquals(1, provider.initCount());
         assertEquals(2, provider.createRuntimeCount());
-        assertTrue(Impulse.getRuntimeProviders().contains(provider));
+        assertTrue(ImpulseBackendRegistry.getRuntimeProviders().contains(provider));
         assertTrue(provider.createdRuntimes().contains(firstRuntime));
         assertTrue(provider.createdRuntimes().contains(secondRuntime));
     }
@@ -56,21 +56,21 @@ class ImpulseRegistryTest {
         CountingRuntimeProvider first = new CountingRuntimeProvider(backendId);
         CountingRuntimeProvider second = new CountingRuntimeProvider(backendId);
 
-        Impulse.registerRuntimeProvider(first);
-        Impulse.createRuntime(backendId);
-        Impulse.registerRuntimeProvider(second);
-        Impulse.createRuntime(backendId);
+        ImpulseBackendRegistry.registerRuntimeProvider(first);
+        ImpulseBackendRegistry.createRuntime(backendId);
+        ImpulseBackendRegistry.registerRuntimeProvider(second);
+        ImpulseBackendRegistry.createRuntime(backendId);
 
         assertEquals(1, first.initCount());
         assertEquals(1, second.initCount());
         assertEquals(1, second.createRuntimeCount());
-        assertSame(second, Impulse.getRuntimeProvider(backendId));
+        assertSame(second, ImpulseBackendRegistry.getRuntimeProvider(backendId));
     }
 
     @Test
     void createsRuntimesConcurrentlyThroughRegistry() throws Exception {
         CountingRuntimeProvider provider = new CountingRuntimeProvider(new BackendId(uniqueId()));
-        Impulse.registerRuntimeProvider(provider);
+        ImpulseBackendRegistry.registerRuntimeProvider(provider);
 
         ExecutorService executor = Executors.newFixedThreadPool(CONCURRENT_RUNTIME_CREATIONS);
         CountDownLatch ready = new CountDownLatch(CONCURRENT_RUNTIME_CREATIONS);
@@ -82,7 +82,7 @@ class ImpulseRegistryTest {
                 .mapToObj(ignored -> executor.submit(() -> {
                     ready.countDown();
                     assertTrue(start.await(5, TimeUnit.SECONDS));
-                    return Impulse.createRuntime(provider.getId());
+                    return ImpulseBackendRegistry.createRuntime(provider.getId());
                 }))
                 .toList();
 

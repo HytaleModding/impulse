@@ -5,7 +5,7 @@ import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.command.system.arguments.system.OptionalArg;
 import com.hypixel.hytale.server.core.command.system.basecommands.AbstractCommandCollection;
 import dev.hytalemodding.impulse.api.BackendId;
-import dev.hytalemodding.impulse.api.Impulse;
+import dev.hytalemodding.impulse.api.ImpulseBackendRegistry;
 import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntimeProvider;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkCollisionMode;
@@ -66,7 +66,7 @@ public class SpaceCommand extends AbstractCommandCollection {
     @Nonnull
     private static String availableBackendIds() {
         List<String> backendIds = new ArrayList<>();
-        for (PhysicsBackendRuntimeProvider provider : Impulse.getRuntimeProviders()) {
+        for (PhysicsBackendRuntimeProvider provider : ImpulseBackendRegistry.getRuntimeProviders()) {
             backendIds.add(provider.getId().value());
         }
         backendIds.sort(String::compareTo);

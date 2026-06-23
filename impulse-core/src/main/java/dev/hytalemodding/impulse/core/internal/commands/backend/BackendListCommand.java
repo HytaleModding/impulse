@@ -8,7 +8,7 @@ import com.hypixel.hytale.server.core.command.system.basecommands.AbstractAsyncP
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.api.Impulse;
+import dev.hytalemodding.impulse.api.ImpulseBackendRegistry;
 import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntimeProvider;
 import java.util.ArrayList;
 import java.util.List;
@@ -29,7 +29,7 @@ public class BackendListCommand extends AbstractAsyncPlayerCommand {
         @Nonnull PlayerRef playerRef,
         @Nonnull World world) {
         List<String> backendIds = new ArrayList<>();
-        for (PhysicsBackendRuntimeProvider provider : Impulse.getRuntimeProviders()) {
+        for (PhysicsBackendRuntimeProvider provider : ImpulseBackendRegistry.getRuntimeProviders()) {
             backendIds.add(provider.getId().value());
         }
         backendIds.sort(String::compareTo);

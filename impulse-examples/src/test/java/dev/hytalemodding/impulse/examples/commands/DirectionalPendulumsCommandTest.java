@@ -15,7 +15,7 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import com.hypixel.hytale.server.core.util.thread.TickingThread;
 import dev.hytalemodding.impulse.api.BackendId;
-import dev.hytalemodding.impulse.api.Impulse;
+import dev.hytalemodding.impulse.api.ImpulseBackendRegistry;
 import dev.hytalemodding.impulse.api.PhysicsCollisionFilters;
 import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackendRuntimeProvider;
 import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackendRuntimeProvider.FakePhysicsBackendRuntime;
@@ -299,7 +299,7 @@ class DirectionalPendulumsCommandTest {
     void storeTickAppliesDirectionalSpaceGravitiesWithoutChangingThem() {
         FakePhysicsBackendRuntimeProvider provider =
             new FakePhysicsBackendRuntimeProvider(BINDING_BACKEND_ID, false, false);
-        Impulse.registerRuntimeProvider(provider);
+        ImpulseBackendRegistry.registerRuntimeProvider(provider);
         ComponentRegistry<PhysicsStore> registry = new ComponentRegistry<>();
         ComponentRegistryProxy<PhysicsStore> proxy =
             new ComponentRegistryProxy<>(new ArrayList<>(), registry);

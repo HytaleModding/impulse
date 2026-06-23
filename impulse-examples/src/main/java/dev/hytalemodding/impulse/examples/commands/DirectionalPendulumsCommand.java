@@ -15,11 +15,7 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import com.hypixel.hytale.server.core.util.EventTitleUtil;
-import dev.hytalemodding.impulse.api.BackendId;
-import dev.hytalemodding.impulse.api.Impulse;
-import dev.hytalemodding.impulse.api.PhysicsBodyType;
-import dev.hytalemodding.impulse.api.PhysicsCollisionFilters;
-import dev.hytalemodding.impulse.api.SpaceId;
+import dev.hytalemodding.impulse.api.*;
 import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntimeProvider;
 import dev.hytalemodding.impulse.core.plugin.components.JointComponent;
 import dev.hytalemodding.impulse.core.plugin.components.JointType;
@@ -527,7 +523,7 @@ public final class DirectionalPendulumsCommand extends AbstractAsyncPlayerComman
 
     private static boolean backendRegistered(@Nonnull BackendId backendId) {
         try {
-            Impulse.getRuntimeProvider(backendId);
+            ImpulseBackendRegistry.getRuntimeProvider(backendId);
             return true;
         } catch (RuntimeException exception) {
             return false;
@@ -537,7 +533,7 @@ public final class DirectionalPendulumsCommand extends AbstractAsyncPlayerComman
     @Nonnull
     private static String availableBackendIds() {
         List<String> backendIds = new ArrayList<>();
-        for (PhysicsBackendRuntimeProvider provider : Impulse.getRuntimeProviders()) {
+        for (PhysicsBackendRuntimeProvider provider : ImpulseBackendRegistry.getRuntimeProviders()) {
             backendIds.add(provider.getId().value());
         }
         backendIds.sort(String::compareTo);

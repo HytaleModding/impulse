@@ -20,7 +20,7 @@ import java.util.List;
 import javax.annotation.Nonnull;
 import org.junit.jupiter.api.Test;
 
-class ImpulseSubPluginRegistrationTest {
+class ImpulseBackendRegistrySubPluginRegistrationTest {
 
     @Test
     void generatedManifestSubPluginsSupportHytalePendingLoadInheritance() throws IOException {
@@ -119,7 +119,7 @@ class ImpulseSubPluginRegistrationTest {
     }
 
     private static PluginManifest decodeGeneratedManifest() throws IOException {
-        InputStream stream = ImpulseSubPluginRegistrationTest.class
+        InputStream stream = ImpulseBackendRegistrySubPluginRegistrationTest.class
             .getClassLoader()
             .getResourceAsStream("manifest.json");
         assertNotNull(stream);

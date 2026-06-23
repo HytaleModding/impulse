@@ -6,7 +6,7 @@ import com.hypixel.hytale.server.core.command.system.AbstractCommand;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
-class ImpulseCommandTreeRegistryTest {
+class ImpulseBackendRegistryCommandTreeRegistryTest {
 
     @AfterEach
     void resetRegistry() {

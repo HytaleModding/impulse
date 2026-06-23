@@ -19,7 +19,7 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import com.hypixel.hytale.server.core.util.BsonUtil;
 import dev.hytalemodding.impulse.api.BackendId;
-import dev.hytalemodding.impulse.api.Impulse;
+import dev.hytalemodding.impulse.api.ImpulseBackendRegistry;
 import dev.hytalemodding.impulse.api.PhysicsAxis;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.PhysicsCollisionFilters;
@@ -286,7 +286,7 @@ class PhysicsStoreHolderPersistenceTest {
     void registeredStoreReloadBindsSavedBodiesOnce() {
         FakePhysicsBackendRuntimeProvider provider =
             new FakePhysicsBackendRuntimeProvider(HOLDER_BACKEND_ID, false, false);
-        Impulse.registerRuntimeProvider(provider);
+        ImpulseBackendRegistry.registerRuntimeProvider(provider);
         Path savePath = tempDir.resolve("registered-reload");
 
         StoreFixture source = registeredStore("registered-reload-source", savePath);
@@ -358,7 +358,7 @@ class PhysicsStoreHolderPersistenceTest {
     void holderHydrationClosesStaleUntrackedBackendRuntimeBeforeRebinding() {
         FakePhysicsBackendRuntimeProvider provider =
             new FakePhysicsBackendRuntimeProvider(HOLDER_BACKEND_ID, false, false);
-        Impulse.registerRuntimeProvider(provider);
+        ImpulseBackendRegistry.registerRuntimeProvider(provider);
         Path savePath = tempDir.resolve("stale-backend-runtime");
         SpaceId compatibilitySpaceId = new SpaceId(2);
 

@@ -1,18 +1,15 @@
 package dev.hytalemodding.impulse.core;
 
 import com.hypixel.hytale.component.ComponentRegistryProxy;
-import com.hypixel.hytale.common.plugin.PluginIdentifier;
 import com.hypixel.hytale.logger.HytaleLogger;
-import com.hypixel.hytale.server.core.HytaleServer;
 import com.hypixel.hytale.server.core.Options;
 import com.hypixel.hytale.server.core.command.system.CommandRegistry;
 import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import com.hypixel.hytale.server.core.plugin.JavaPluginInit;
-import com.hypixel.hytale.server.core.plugin.PluginBase;
 import com.hypixel.hytale.server.core.plugin.PluginManager;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.BackendId;
-import dev.hytalemodding.impulse.api.Impulse;
+import dev.hytalemodding.impulse.api.ImpulseBackendRegistry;
 import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntimeProvider;
 import dev.hytalemodding.impulse.core.internal.commands.ImpulseCommandTreeRegistry;
 import dev.hytalemodding.impulse.core.internal.modules.ImpulseSubPluginRegistration;
@@ -52,6 +49,7 @@ public final class ImpulsePlugin extends JavaPlugin {
     @Override
     protected void setup() {
         PhysicsStoreEarlyPluginProbe.requireAvailable();
+
         ComponentRegistryProxy<PhysicsStore> physicsStoreRegistry =
             PhysicsStoreRegistration.physicsStoreRegistry(this);
         PhysicsComponentTypeRegistry.registerComponentTypes(physicsStoreRegistry);
@@ -63,58 +61,26 @@ public final class ImpulsePlugin extends JavaPlugin {
     }
 
     @Override
-    protected void start() {
-        registerCrucibleSuites();
-    }
-
-    @Override
     protected void shutdown() {
         ImpulseCommandTreeRegistry.unregister();
-    }
-
-    /**
-     * Registers optional Crucible suites after Crucible has loaded.
-     * Core owns these suites because they validate Impulse API and ECS behavior,
-     * not example command behavior.
-     */
-    private void registerCrucibleSuites() {
-        try {
-            PluginManager pluginManager = HytaleServer.get().getPluginManager();
-            PluginBase cruciblePlugin = pluginManager.getPlugin(
-                new PluginIdentifier("com.ionforgelabs", "crucible"));
-            if (cruciblePlugin == null) {
-                return;
-            }
-            ClassLoader crucibleLoader = ((JavaPlugin) cruciblePlugin).getClassLoader();
-            Class<?> suitesClass = Class.forName(
-                "dev.hytalemodding.impulse.core.internal.crucible.ImpulseCrucibleSuites",
-                true,
-                crucibleLoader);
-            suitesClass.getMethod("register", ClassLoader.class).invoke(null, crucibleLoader);
-        } catch (ClassNotFoundException e) {
-            // Crucible is not installed.
-        } catch (ReflectiveOperationException e) {
-            LOGGER.at(Level.WARNING)
-                .log("Failed to register Impulse Crucible suites: %s", e.getMessage());
-        }
     }
 
     private void discoverBackends() {
         for (PhysicsBackendRuntimeProvider provider : BackendDiscovery.discoverRuntimeProviders(
             backendSearchRoots(),
             getClassLoader())) {
-            Impulse.registerRuntimeProvider(provider);
+            ImpulseBackendRegistry.registerRuntimeProvider(provider);
         }
 
-        for (PhysicsBackendRuntimeProvider provider : Impulse.getRuntimeProviders()) {
+        for (PhysicsBackendRuntimeProvider provider : ImpulseBackendRegistry.getRuntimeProviders()) {
             LOGGER.at(Level.INFO).log("Registered physics backend runtime %s", provider.getId());
         }
 
-        if (Impulse.getRuntimeProviders().isEmpty()) {
+        if (ImpulseBackendRegistry.getRuntimeProviders().isEmpty()) {
             throw new IllegalStateException("No physics backends discovered");
         }
 
-        defaultBackendId = selectDefaultRuntimeProviderId(Impulse.getRuntimeProviders());
+        defaultBackendId = selectDefaultRuntimeProviderId(ImpulseBackendRegistry.getRuntimeProviders());
         if (defaultBackendId != null) {
             LOGGER.at(Level.INFO).log("Using default physics backend %s", defaultBackendId);
             return;
@@ -146,7 +112,7 @@ public final class ImpulsePlugin extends JavaPlugin {
     @Nonnull
     private String getAvailableBackendIds() {
         StringBuilder ids = new StringBuilder();
-        for (PhysicsBackendRuntimeProvider backend : Impulse.getRuntimeProviders()) {
+        for (PhysicsBackendRuntimeProvider backend : ImpulseBackendRegistry.getRuntimeProviders()) {
             if (!ids.isEmpty()) {
                 ids.append(", ");
             }

@@ -10,7 +10,7 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.BackendId;
-import dev.hytalemodding.impulse.api.Impulse;
+import dev.hytalemodding.impulse.api.ImpulseBackendRegistry;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkCollisionMode;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.settings.PhysicsChunkCollisionSettings;
@@ -54,7 +54,7 @@ public class SpaceCreateCommand extends AbstractWorldCommand {
 
         Store<PhysicsStore> physicsStore = PhysicsThreading.store(world);
         try {
-            Impulse.getRuntimeProvider(backendId);
+            ImpulseBackendRegistry.getRuntimeProvider(backendId);
             SpaceId spaceId = PhysicsSpaces.create(physicsStore, backendId);
             PhysicsChunkCollisionSettings chunkCollisionSettings =
                 new PhysicsChunkCollisionSettings();

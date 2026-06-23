@@ -12,7 +12,7 @@ import com.hypixel.hytale.component.system.QuerySystem;
 import com.hypixel.hytale.component.system.tick.TickingSystem;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.BackendId;
-import dev.hytalemodding.impulse.api.Impulse;
+import dev.hytalemodding.impulse.api.ImpulseBackendRegistry;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntime;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRestoreStatusResource;
@@ -129,7 +129,7 @@ public final class SpaceBindingSystem extends TickingSystem<PhysicsStore>
         PhysicsBackendRuntime backendRuntime = runtime.getRuntime(backendId);
         if (backendRuntime == null) {
             try {
-                backendRuntime = Impulse.createRuntime(backendId);
+                backendRuntime = ImpulseBackendRegistry.createRuntime(backendId);
             } catch (RuntimeException exception) {
                 restore.markFailed("PhysicsStore space " + spaceUuid
                     + " references unavailable backend id " + backendId.value());

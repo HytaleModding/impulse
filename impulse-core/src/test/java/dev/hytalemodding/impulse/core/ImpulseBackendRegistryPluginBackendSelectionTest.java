@@ -23,7 +23,7 @@ import javax.tools.ToolProvider;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-class ImpulsePluginBackendSelectionTest {
+class ImpulseBackendRegistryPluginBackendSelectionTest {
 
     private static final String RUNTIME_PROVIDER_SERVICE =
         "META-INF/services/dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntimeProvider";

@@ -12,7 +12,7 @@ import dev.hytalemodding.impulse.core.plugin.modules.control.ImpulseControllable
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
-class ImpulseControllableComponentRegistrationTest {
+class ImpulseBackendRegistryControllableComponentRegistrationTest {
 
     @AfterEach
     void clearRegistration() {

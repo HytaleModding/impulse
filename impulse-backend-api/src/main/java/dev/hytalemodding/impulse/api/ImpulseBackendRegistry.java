@@ -16,7 +16,7 @@ import javax.annotation.Nonnull;
 /**
  * Entry point and backend registry for Impulse.
  */
-public final class Impulse {
+public final class ImpulseBackendRegistry {
 
     private static final Logger LOGGER = Logger.getLogger("Impulse");
 
@@ -29,7 +29,7 @@ public final class Impulse {
 
     private static final Set<BackendId> INITIALIZED_BACKENDS = new HashSet<>();
 
-    private Impulse() {
+    private ImpulseBackendRegistry() {
     }
 
     /**

@@ -14,12 +14,7 @@ import com.hypixel.hytale.component.EmptyResourceStorage;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
-import dev.hytalemodding.impulse.api.BackendId;
-import dev.hytalemodding.impulse.api.Impulse;
-import dev.hytalemodding.impulse.api.PhysicsAxis;
-import dev.hytalemodding.impulse.api.PhysicsBodyType;
-import dev.hytalemodding.impulse.api.PhysicsCollisionFilters;
-import dev.hytalemodding.impulse.api.ShapeType;
+import dev.hytalemodding.impulse.api.*;
 import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackendRuntimeProvider;
 import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackendRuntimeProvider.FakePhysicsBackendRuntime;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkLifecycle;
@@ -66,7 +61,7 @@ class BodyBindingSystemTest {
         PhysicsChunkStoreTypes.clearPhysicsStoreResourceTypes();
         FakePhysicsBackendRuntimeProvider provider =
             new FakePhysicsBackendRuntimeProvider(BACKEND_ID, false, false);
-        Impulse.registerRuntimeProvider(provider);
+        ImpulseBackendRegistry.registerRuntimeProvider(provider);
         ComponentRegistry<PhysicsStore> registry = new ComponentRegistry<>();
         ComponentRegistryProxy<PhysicsStore> proxy =
             new ComponentRegistryProxy<>(new ArrayList<>(), registry);
@@ -113,7 +108,7 @@ class BodyBindingSystemTest {
         PhysicsChunkStoreTypes.clearPhysicsStoreResourceTypes();
         FakePhysicsBackendRuntimeProvider provider =
             new FakePhysicsBackendRuntimeProvider(BACKEND_ID, true, false);
-        Impulse.registerRuntimeProvider(provider);
+        ImpulseBackendRegistry.registerRuntimeProvider(provider);
         ComponentRegistry<PhysicsStore> registry = new ComponentRegistry<>();
         ComponentRegistryProxy<PhysicsStore> proxy =
             new ComponentRegistryProxy<>(new ArrayList<>(), registry);
@@ -180,7 +175,7 @@ class BodyBindingSystemTest {
         PhysicsChunkLifecycle.enable();
         FakePhysicsBackendRuntimeProvider provider =
             new FakePhysicsBackendRuntimeProvider(BACKEND_ID, false, false);
-        Impulse.registerRuntimeProvider(provider);
+        ImpulseBackendRegistry.registerRuntimeProvider(provider);
         ComponentRegistry<PhysicsStore> registry = new ComponentRegistry<>();
         ComponentRegistryProxy<PhysicsStore> proxy =
             new ComponentRegistryProxy<>(new ArrayList<>(), registry);
@@ -247,7 +242,7 @@ class BodyBindingSystemTest {
         PhysicsChunkLifecycle.enable();
         FakePhysicsBackendRuntimeProvider provider =
             new FakePhysicsBackendRuntimeProvider(BACKEND_ID, false, false);
-        Impulse.registerRuntimeProvider(provider);
+        ImpulseBackendRegistry.registerRuntimeProvider(provider);
         ComponentRegistry<PhysicsStore> registry = new ComponentRegistry<>();
         ComponentRegistryProxy<PhysicsStore> proxy =
             new ComponentRegistryProxy<>(new ArrayList<>(), registry);
