@@ -32,9 +32,11 @@ class ImpulseBackendRegistrySubPluginRegistrationTest {
         for (PluginManifest subPlugin : prepared) {
             assertTrue(subPlugin.getDependencies().containsKey(parentId));
         }
-        assertMissingSubPlugin(parent, "ImpulseControl");
-        assertSubPluginDoesNotLoadBefore(parent, "ImpulsePhysicsEntity", "ImpulseControl");
+        assertSubPluginLoadsBefore(parent, "ImpulsePhysicsEntity", "ImpulseControl");
         assertSubPluginLoadsBefore(parent, "ImpulsePhysicsEntity", "ImpulsePhysicsChunk");
+        assertSubPluginMain(parent,
+            "ImpulseControl",
+            "dev.hytalemodding.impulse.builtin.control.ImpulseControlPlugin");
         assertSubPluginMain(parent,
             "ImpulsePhysicsEntity",
             "dev.hytalemodding.impulse.core.internal.modules.physicsentity.PhysicsEntityModule");

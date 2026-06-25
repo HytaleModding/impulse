@@ -18,11 +18,11 @@ val coreOnlyWorkspace = providers.gradleProperty("impulse.coreOnlyWorkspace")
     .map(String::toBoolean)
     .orElse(false)
 val coreModProjects = listOf(":impulse-core")
-val builtinModProjects = listOf(":impulse-builtins:control")
+val shadowedBuiltinProjects = listOf(":impulse-builtins:control")
 val workspaceModProjects = if (coreOnlyWorkspace.get()) {
     coreModProjects
 } else {
-    listOf(":impulse-examples") + builtinModProjects + coreModProjects
+    listOf(":impulse-examples") + coreModProjects
 }
 
 hytaleWorkspace {
@@ -177,6 +177,10 @@ gradle.projectsEvaluated {
             val sourceSets = project(path).extensions.getByType<SourceSetContainer>()
             sourceSets.named("main").get().runtimeClasspath
         }.toMutableList()
+        shadowedBuiltinProjects.forEach { path ->
+            val sourceSets = project(path).extensions.getByType<SourceSetContainer>()
+            toolRuntimeClasspaths.add(sourceSets.named("main").get().runtimeClasspath)
+        }
         if (physicsStoreEarlyPluginEnabled.get()) {
             val sourceSets = project(":impulse-early-plugin")
                 .extensions.getByType<SourceSetContainer>()

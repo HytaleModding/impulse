@@ -1,49 +1,54 @@
+import org.gradle.api.tasks.Delete
+import org.gradle.api.tasks.SourceSetContainer
+import org.gradle.api.tasks.compile.JavaCompile
 import org.gradle.api.tasks.testing.Test
 
 plugins {
-    id("com.azuredoom.hytale-tools")
+    id("java-library")
 }
 
 version = rootProject.version
 
+evaluationDependsOn(":impulse-core")
+
+val coreMain = project(":impulse-core")
+    .extensions
+    .getByType<SourceSetContainer>()
+    .named("main")
+    .get()
+
 dependencies {
-    implementation(project(":impulse-backends:api"))
-    compileOnly(project(":impulse-core"))
+    api(project(":impulse-backends:api"))
+    compileOnly(coreMain.output)
+    compileOnly(files(coreMain.compileClasspath))
     compileOnly(project(":impulse-early-plugin"))
     testImplementation(project(":impulse-core"))
     testImplementation(project(":impulse-early-plugin"))
     testImplementation(testFixtures(project(":impulse-backends:api")))
     testImplementation(libs.objenesis)
     testRuntimeOnly(project(":impulse-early-plugin"))
-    testCompileOnly("com.hypixel.hytale:Server:${property("hytale_version") as String}")
-    testRuntimeOnly("com.hypixel.hytale:Server:${property("hytale_version") as String}")
+    testCompileOnly(files(coreMain.compileClasspath))
+    testRuntimeOnly(files(coreMain.compileClasspath))
     compileOnly(libs.lombok)
     annotationProcessor(libs.lombok)
 }
 
-tasks.compileJava {
-    dependsOn(tasks.named("downloadAssetsZip"))
+tasks.named<JavaCompile>("compileJava") {
+    dependsOn(":impulse-core:compileJava")
 }
 
 tasks.withType<Test>().configureEach {
     jvmArgs("-Djava.util.logging.manager=com.hypixel.hytale.logger.backend.HytaleLogManager")
 }
 
-val downloadAssetsZip = tasks.named("downloadAssetsZip")
-
-project(":impulse-core").tasks.named("compileJava") {
-    mustRunAfter(downloadAssetsZip)
+val removeStandaloneManifest by tasks.registering(Delete::class) {
+    delete(layout.buildDirectory.file("resources/main/manifest.json"))
 }
 
-hytaleTools {
-    modId = property("mod_name") as String + "Control"
-    mainClass = "dev.hytalemodding.impulse.builtin.control.ImpulseControlPlugin"
-    modCredits = property("mod_credits") as String
-    modUrl = property("mod_website") as String
-    modDescription = "Official kinematic-control builtin for Impulse"
-    manifestServerVersion = property("hytale_version") as String
-    manifestDependencies = listOf(
-        "HytaleModding:Impulse=*",
-        "HytaleModding:ImpulsePhysicsEntity=*"
-    ).joinToString(",")
+tasks.named("processResources") {
+    dependsOn(removeStandaloneManifest)
+}
+
+tasks.named<org.gradle.jvm.tasks.Jar>("jar") {
+    exclude("manifest.json")
 }

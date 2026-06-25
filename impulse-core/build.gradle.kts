@@ -40,6 +40,7 @@ dependencies {
 }
 
 val impulseApiJar = project(":impulse-backends:api").tasks.named<org.gradle.jvm.tasks.Jar>("jar")
+val controlBuiltinProject = project(":impulse-builtins:control")
 
 tasks.named<JavaCompile>("compileJava") {
     doFirst {
@@ -79,8 +80,13 @@ tasks.named("classes") {
 
 tasks.named<org.gradle.jvm.tasks.Jar>("jar") {
     dependsOn(compileCoreModuleInfo)
+    dependsOn(":impulse-builtins:control:classes")
     from(compileCoreModuleInfo.flatMap { it.destinationDirectory }) {
         include("module-info.class")
+    }
+    from(controlBuiltinProject.layout.buildDirectory.dir("classes/java/main"))
+    from(controlBuiltinProject.layout.buildDirectory.dir("resources/main")) {
+        exclude("manifest.json")
     }
 }
 
@@ -100,6 +106,13 @@ hytaleTools {
     subPlugin (
         "ImpulsePhysicsEntity",
         "dev.hytalemodding.impulse.core.internal.modules.physicsentity.PhysicsEntityModule",
+        false, /* disabledByDefault */
+        false  /* includeAssetPack */
+    )
+
+    subPlugin (
+        "ImpulseControl",
+        "dev.hytalemodding.impulse.builtin.control.ImpulseControlPlugin",
         false, /* disabledByDefault */
         false  /* includeAssetPack */
     )
@@ -135,6 +148,7 @@ tasks.named("updatePluginManifest") {
 
         subPlugins.firstOrNull { it["Name"] == "ImpulsePhysicsEntity" }
             ?.mergeLoadBefore(mapOf(
+                "HytaleModding:ImpulseControl" to "*",
                 "HytaleModding:ImpulsePhysicsChunk" to "*"
             ))
 
