@@ -7,13 +7,13 @@ Impulse is a physics framework for Hytale that connects Hytale ECS worlds to plu
 Impulse codebase is divided as follows:
 
 - **impulse-core** - Hytale ECS integration and backend communication.
-- **impulse-api** - backend-agnostic API layer and contracts.
-- **impulse-native-loader** - legacy loader for PhysicsBackend
+- **impulse-backends/api** - backend-agnostic API layer and contracts.
+- **impulse-backends/native-loader** - native library loader for backend provider jars.
 - **impulse-examples** - example plugins to understand the framework usage.
   
 Official physics backend implementations:
-- **impulse-bullet** - Libbulletjme backend implementation.
-- **impulse-rapier** - Rapier backend with a small Rust/JNI native shim.
+- **impulse-backends/rapier** - Rapier backend with a small Rust/JNI native shim.
+- **impulse-backends/jolt** - Jolt backend with a C++/Panama native shim.
 
 ### Architecture
 
@@ -27,13 +27,12 @@ flowchart TB
     subgraph Examples["impulse-examples / plugin usage"]
         direction TB
 
-        Intents["Split ECS body components\nidentity / shape / dynamics / material / collision"]
-        ECSSystem["Body reconciliation systems"]
-        Direct["Direct command calls"]
-        Commands["command recipes / copied queries"]
+        Rows["PhysicsStore rows\nspaces / bodies / joints / terrain"]
+        Commands["row-local body commands + targets"]
+        Reads["copied snapshots / diagnostics / raycasts"]
 
-        Intents --> ECSSystem --> Commands
-        Direct --> Commands
+        Rows --> Commands
+        Commands --> Reads
     end
 
     subgraph CoreWorld["impulse-core: per-world runtime"]
@@ -41,43 +40,36 @@ flowchart TB
 
         Plugin["Plugin API package"]
 
-        Modules["Internal modules\n- Hytale modules substitution (WIP)\n- World collision module\n- Control session module"]
+        Modules["Builtin subplugins\n- PhysicsEntity integration\n- PhysicsChunk terrain\n- Control sessions"]
 
-        Requests["physics command batches + query requests"]
-        Ordering["mutations + step request ordering"]
-        LaneBuild["owner-lane work units\ncomputed per world"]
+        StoreSystems["PhysicsStore systems + resources"]
+        Ordering["row mutation + backend step ordering"]
+        StoreTick["store tick lane\nper world"]
 
-        Plugin --> Requests
-        Modules --> Requests
-        Requests --> Ordering
-        Ordering --> LaneBuild
+        Plugin --> StoreSystems
+        Modules --> StoreSystems
+        StoreSystems --> Ordering
+        Ordering --> StoreTick
     end
 
-    subgraph OwnerQueues["owner-lane queues"]
+    subgraph StoreTicks["PhysicsStore ticks"]
         direction LR
 
-        QueueA["World A\nowner-lane queue"]
-        QueueB["World B\nowner-lane queue"]
-        QueueN["World N\nowner-lane queue"]
+        TickA["World A\nstore tick"]
+        TickB["World B\nstore tick"]
+        TickN["World N\nstore tick"]
     end
 
-    subgraph SharedCore["impulse-core: shared execution layer"]
+    subgraph SharedCore["impulse-core: backend dispatch"]
         direction TB
 
-        Scheduler["thread pool scheduler\nselects ready owner lanes"]
-        Workers["worker threads\nexecute owner lanes"]
-        Dispatch["backend dispatch"]
-
-        Scheduler --> Workers --> Dispatch
+        Dispatch["serialized backend calls"]
     end
 
-    subgraph API["impulse-api"]
+    subgraph API["impulse-backends/api"]
         direction TB
 
-        Current["PhysicsBackend"]
-        WIP["Runtime / Provider"]
-
-        Current ~~~ WIP
+        Runtime["PhysicsBackendRuntime"]
     end
 
     subgraph Backends["backends"]
@@ -85,7 +77,7 @@ flowchart TB
 
         Java["Java engines"]
         Native["native engines"]
-        Bridge["impulse-native-bridge\nFFM (WIP) or JNI"]
+        Bridge["native loader\nFFM or JNI"]
         Active["active backend instances\nper physics space"]
 
         Native --> Bridge
@@ -100,24 +92,22 @@ flowchart TB
         Router["snapshot + event publication"]
     end
 
-    Worlds --> Intents
-    Worlds --> Direct
+    Worlds --> Rows
+    Worlds --> Reads
 
-    Commands ----> Plugin
+    Reads ----> Plugin
 
-    LaneBuild --> QueueA
-    LaneBuild --> QueueB
-    LaneBuild --> QueueN
+    StoreTick --> TickA
+    StoreTick --> TickB
+    StoreTick --> TickN
 
-    QueueA ----> Scheduler
-    QueueB ----> Scheduler
-    QueueN ----> Scheduler
+    TickA ----> Dispatch
+    TickB ----> Dispatch
+    TickN ----> Dispatch
 
-    Dispatch ----> Current
-    Dispatch -.-> WIP
+    Dispatch ----> Runtime
 
-    Current ----> Active
-    WIP -.-> Active
+    Runtime ----> Active
 
     Active ----> Step
     Step --> Router
@@ -176,7 +166,8 @@ You can start a debug server with all the example mods and backend jars by runni
 
 ### Backend Provider Jars
 
-Backend jars are Java service-provider jars. Impulse discovers `PhysicsBackend` providers from jars anywhere under the configured Hytale `mods` directories.
+Backend jars are Java service-provider jars. Impulse discovers `PhysicsBackendRuntimeProvider`
+services from jars anywhere under the configured Hytale `mods` directories.
 
 When multiple backend jars are installed, create spaces with an explicit backend:
 
@@ -184,10 +175,10 @@ When multiple backend jars are installed, create spaces with an explicit backend
 /impulse space create --backend=impulse:rapier
 ```
 
-The Rapier backend needs a Rust toolchain to build its native library. If `cargo` is available, `:impulse-rapier:processResources` builds and packages the current build platform native library automatically. You can also force native compilation with:
+The Rapier backend needs a Rust toolchain to build its native library. If `cargo` is available, `:impulse-backends:rapier:processResources` builds and packages the current build platform native library automatically. You can also force native compilation with:
 
 ```bash
-./gradlew :impulse-rapier:build -PbuildRapierNative=true
+./gradlew :impulse-backends:rapier:build -PbuildRapierNative=true
 ```
 
 It also supports SIMD optimizations that can be enabled using:
@@ -204,10 +195,13 @@ Impulse has a dedicated headless/serverless test lane that does not boot the Hyt
 ./gradlew headlessTest
 ```
 
-Crucible in-game tests are also provided. Run them in game with:
+For runtime/server behavior, use focused module tests first and then reproduce manually with the
+Hytale runtime when the bug depends on plugin loading, live worlds, or command behavior:
 
-```
-/crucible run
+```bash
+./gradlew :impulse-core:test
+./gradlew :impulse-backends:rapier:test
+./gradlew runAllMods
 ```
 
 ## Native Binary Notice
@@ -215,7 +209,7 @@ Crucible in-game tests are also provided. Run them in game with:
 Backend provider artifacts may include third-party native binaries so Impulse can load the
 backend at runtime. These artifacts are convenience packages for Impulse plugins; they are not
 the official upstream distribution channel for those native libraries. Download standalone
-Bullet/Libbulletjme or Rapier binaries from their upstream projects instead.
+Rapier binaries from their upstream project instead.
 
 ## Code style
 

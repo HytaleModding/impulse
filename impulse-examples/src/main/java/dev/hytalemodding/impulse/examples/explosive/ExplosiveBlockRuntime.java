@@ -3,6 +3,7 @@ package dev.hytalemodding.impulse.examples.explosive;
 import com.hypixel.hytale.component.AddReason;
 import com.hypixel.hytale.component.ComponentAccessor;
 import com.hypixel.hytale.component.Holder;
+import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.math.util.ChunkUtil;
 import com.hypixel.hytale.math.vector.Rotation3f;
@@ -16,20 +17,27 @@ import com.hypixel.hytale.server.core.entity.ExplosionUtils;
 import com.hypixel.hytale.server.core.modules.entity.damage.Damage;
 import com.hypixel.hytale.server.core.modules.time.TimeResource;
 import com.hypixel.hytale.server.core.universe.world.World;
+import com.hypixel.hytale.server.core.universe.world.chunk.BlockChunk;
 import com.hypixel.hytale.server.core.universe.world.chunk.WorldChunk;
+import com.hypixel.hytale.server.core.universe.world.chunk.section.BlockSection;
+import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.SpaceId;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
-import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
-import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
-import dev.hytalemodding.impulse.examples.commands.ExamplePhysicsUtils;
-import dev.hytalemodding.impulse.examples.commands.ExamplePhysicsUtils.PendingBlockBody;
+import dev.hytalemodding.impulse.core.plugin.components.BodyCommandComponent;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkCollision;
+import dev.hytalemodding.impulse.core.plugin.physics.PhysicsShapeSpec;
+import dev.hytalemodding.impulse.core.plugin.physics.RigidBodySpawnSettings;
+import dev.hytalemodding.impulse.core.plugin.physics.PhysicsThreading;
+import dev.hytalemodding.impulse.examples.utils.ExamplePhysicsUtils;
+import dev.hytalemodding.impulse.examples.utils.ExamplePhysicsUtils.CreatedBlockBody;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.function.Consumer;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -70,11 +78,9 @@ public final class ExplosiveBlockRuntime {
         ExplosiveBlockComponent settingsCopy = settings.clone();
         world.execute(() -> {
             TimeResource time = store.getResource(TimeResource.getResourceType());
-            PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
             explode(store,
                 world,
                 time,
-                resource,
                 spaceId,
                 centerCopy,
                 settingsCopy);
@@ -85,15 +91,14 @@ public final class ExplosiveBlockRuntime {
     private static ExplosionResult explode(@Nonnull Store<EntityStore> store,
         @Nonnull World world,
         @Nonnull TimeResource time,
-        @Nonnull PhysicsWorldResource resource,
         @Nonnull SpaceId spaceId,
         @Nonnull Vector3d center,
         @Nonnull ExplosiveBlockComponent settings) {
         return explode(store,
+            store,
             holder -> store.addEntity(holder, AddReason.SPAWN),
             world,
             time,
-            resource,
             spaceId,
             center,
             settings);
@@ -101,13 +106,20 @@ public final class ExplosiveBlockRuntime {
 
     @Nonnull
     private static ExplosionResult explode(@Nonnull ComponentAccessor<EntityStore> entityAccessor,
+        @Nonnull Store<EntityStore> store,
         @Nonnull Consumer<Holder<EntityStore>> fragmentSpawner,
         @Nonnull World world,
         @Nonnull TimeResource time,
-        @Nonnull PhysicsWorldResource resource,
         @Nonnull SpaceId spaceId,
         @Nonnull Vector3d center,
         @Nonnull ExplosiveBlockComponent settings) {
+        Ref<PhysicsStore> spaceRef = ExamplePhysicsUtils.resolveSpaceRef(world,
+            spaceId);
+        if (spaceRef == null) {
+            throw new IllegalStateException("Cannot spawn explosive fragments because PhysicsStore "
+                + "space id=" + spaceId.value() + " is not bound");
+        }
+
         ExplosionUtils.performExplosion(DAMAGE_SOURCE,
             new Vector3d(center),
             new Rotation3f(),
@@ -125,43 +137,57 @@ public final class ExplosiveBlockRuntime {
         }
 
         List<FragmentGroup> groups = groupFragments(fragments, center, settings.getRadius());
-        resource.refreshWorldCollisionAround(world,
-            spaceId,
+        Store<PhysicsStore> physicsStore = PhysicsThreading.store(world);
+        PhysicsChunkCollision.refreshAround(world,
+            physicsStore,
+            spaceRef,
             center,
             Math.max(8, settings.getRadius() + 4));
-        resource.ensureWorldCollisionAround(world,
-            spaceId,
+        PhysicsChunkCollision.ensureAround(world,
+            physicsStore,
+            spaceRef,
             groupCenters(groups),
             Math.max(8, maxGroupCollisionRadius(groups) + 4),
             Math.max(0L, world.getTick()));
 
-        List<PendingBlockBody> pending = new ArrayList<>(groups.size());
         Vector3f centerF = toVector3f(center);
-        ExamplePhysicsUtils.requireApplied(resource.submitCommands(
-            Math.max(0L, world.getTick()),
-            groups.size() * 2,
-            commands -> {
-                for (int i = 0; i < groups.size(); i++) {
-                    FragmentGroup group = groups.get(i);
-                    PendingBlockBody body = ExamplePhysicsUtils.recordBlockBodySpawnAtBodyCenter(commands,
-                        spaceId,
-                        group.center(),
-                        group.blockType(),
-                        group.shape(),
-                        group.mass(),
-                        FRAGMENT_SETTINGS);
-                    pending.add(body);
-                    Vector3f impulse = ExplosiveBlockPolicy.outwardImpulse(centerF,
-                        toVector3f(group.center()),
-                        settings.getImpulseStrength(),
-                        settings.getVerticalLift())
-                        .mul(group.mass());
-                    commands.applyBodyImpulse(body.bodyKey(), impulse.x, impulse.y, impulse.z);
-                }
-            }), "spawn explosive block fragments");
+        List<CreatedBlockBody> created = new ArrayList<>(groups.size());
+        for (FragmentGroup group : groups) {
+            UUID bodyUuid = UUID.randomUUID();
+            Vector3d groupCenter = group.center();
+            Vector3f impulse = ExplosiveBlockPolicy.outwardImpulse(centerF,
+                toVector3f(groupCenter),
+                settings.getImpulseStrength(),
+                settings.getVerticalLift())
+                .mul(group.mass());
+            var bodyRef = ExamplePhysicsUtils.addPhysicsStoreBody(world,
+                ExamplePhysicsUtils.bodyEntity(spaceRef,
+                    bodyUuid,
+                    toVector3f(groupCenter),
+                    group.shape(),
+                    group.mass(),
+                    FRAGMENT_SETTINGS,
+                    null),
+                BodyCommandComponent.vector(BodyCommandComponent.Kind.IMPULSE,
+                    impulse.x,
+                    impulse.y,
+                    impulse.z,
+                    false,
+                    0.0f,
+                    0.0f,
+                    0.0f));
+            created.add(new CreatedBlockBody(bodyUuid,
+                bodyRef,
+                spaceId,
+                group.blockType(),
+                (float) groupCenter.x,
+                (float) groupCenter.y,
+                (float) groupCenter.z,
+                group.mass() > 0.0f));
+        }
 
         for (int i = 0; i < groups.size(); i++) {
-            spawnGroupVisuals(time, fragmentSpawner, groups.get(i), pending.get(i));
+            spawnGroupVisuals(time, fragmentSpawner, groups.get(i), created.get(i));
         }
         return new ExplosionResult(groups.size());
     }
@@ -169,13 +195,13 @@ public final class ExplosiveBlockRuntime {
     private static void spawnGroupVisuals(@Nonnull TimeResource time,
         @Nonnull Consumer<Holder<EntityStore>> fragmentSpawner,
         @Nonnull FragmentGroup group,
-        @Nonnull PendingBlockBody body) {
+        @Nonnull CreatedBlockBody body) {
         boolean controllableAssigned = false;
         for (FragmentVisual visual : group.visualBlocks()) {
             boolean controllable = body.controllable() && !controllableAssigned;
-            Holder<EntityStore> holder = ExamplePhysicsUtils.attachedBlockEntityHolder(time,
-                body.bodyKey(),
-                body.spaceId(),
+            Holder<EntityStore> holder = ExamplePhysicsUtils.attachedPhysicsBlockEntityHolder(time,
+                body.bodyRef(),
+                body.bodyUuid(),
                 visual.blockType(),
                 visual.position(),
                 visual.localPositionOffset(),
@@ -221,7 +247,6 @@ public final class ExplosiveBlockRuntime {
     }
 
     @Nullable
-    @SuppressWarnings({"deprecation", "removal"})
     private static FragmentBlock removeFragmentCandidate(@Nonnull World world,
         int x,
         int y,
@@ -230,10 +255,15 @@ public final class ExplosiveBlockRuntime {
         if (chunk == null) {
             return null;
         }
+        BlockChunk blockChunk = loadedBlockChunk(world, x, z);
+        if (blockChunk == null) {
+            return null;
+        }
+        BlockSection blockSection = loadedBlockSection(world, x, y, z);
         int localX = chunkBlockCoordinate(x);
         int localZ = chunkBlockCoordinate(z);
-        int blockId = chunk.getBlock(localX, y, localZ);
-        int rotation = chunk.getRotation(localX, y, localZ).index();
+        int blockId = blockChunk.getBlock(localX, y, localZ);
+        int rotation = blockRotationIndex(blockSection, localX, y, localZ);
         var blockTypeStore = BlockType.getAssetStore();
         if (blockTypeStore == null) {
             return null;
@@ -436,7 +466,56 @@ public final class ExplosiveBlockRuntime {
 
     @Nullable
     private static WorldChunk loadedChunk(@Nonnull World world, int x, int z) {
-        return world.getChunkIfLoaded(ChunkUtil.indexChunkFromBlock(x, z));
+        Ref<ChunkStore> chunkRef = loadedChunkRef(world, x, z);
+        if (chunkRef == null) {
+            return null;
+        }
+        Store<ChunkStore> store = world.getChunkStore().getStore();
+        return store.getComponentConcurrent(chunkRef, WorldChunk.getComponentType());
+    }
+
+    @Nullable
+    private static BlockChunk loadedBlockChunk(@Nonnull World world, int x, int z) {
+        Ref<ChunkStore> chunkRef = loadedChunkRef(world, x, z);
+        if (chunkRef == null) {
+            return null;
+        }
+        Store<ChunkStore> store = world.getChunkStore().getStore();
+        return store.getComponentConcurrent(chunkRef, BlockChunk.getComponentType());
+    }
+
+    @Nullable
+    private static BlockSection loadedBlockSection(@Nonnull World world, int x, int y, int z) {
+        if (y < ChunkUtil.MIN_Y || y > ChunkUtil.HEIGHT_MINUS_1) {
+            return null;
+        }
+        ChunkStore chunkStore = world.getChunkStore();
+        Ref<ChunkStore> sectionRef = chunkStore.getChunkSectionReference(
+            ChunkUtil.chunkCoordinate(x),
+            ChunkUtil.indexSection(y),
+            ChunkUtil.chunkCoordinate(z));
+        if (sectionRef == null || !sectionRef.isValid()) {
+            return null;
+        }
+        Store<ChunkStore> store = chunkStore.getStore();
+        return store.getComponentConcurrent(sectionRef, BlockSection.getComponentType());
+    }
+
+    @Nullable
+    private static Ref<ChunkStore> loadedChunkRef(@Nonnull World world, int x, int z) {
+        Ref<ChunkStore> chunkRef = world.getChunkStore()
+            .getChunkReference(ChunkUtil.indexChunkFromBlock(x, z));
+        return chunkRef != null && chunkRef.isValid() ? chunkRef : null;
+    }
+
+    private static int blockRotationIndex(@Nullable BlockSection section,
+        int localX,
+        int y,
+        int localZ) {
+        if (section == null) {
+            return 0;
+        }
+        return section.getRotationIndex(localX, y, localZ);
     }
 
     @Nonnull
@@ -772,6 +851,7 @@ public final class ExplosiveBlockRuntime {
                     1.0f,
                     null,
                     null,
+                    false,
                     false)
             };
             soundEventId = EXPLOSION_SOUND_EVENT_ID;

@@ -1,7 +1,5 @@
 package dev.hytalemodding.impulse.core.internal.systems.debug;
 
-import dev.hytalemodding.impulse.api.PhysicsContact;
-import dev.hytalemodding.impulse.api.PhysicsSpace;
 import java.util.ArrayList;
 import java.util.List;
 import javax.annotation.Nonnull;
@@ -15,7 +13,7 @@ final class PhysicsContactDebugCapture {
 
     @Nonnull
     static List<PhysicsDebugRenderer.ContactDebugPrimitive> collectVisibleContactPrimitives(
-        @Nonnull PhysicsSpace space,
+        @Nonnull List<ContactDebugSource> contacts,
         @Nonnull Vector3d center,
         double radius,
         int maxContacts) {
@@ -24,7 +22,7 @@ final class PhysicsContactDebugCapture {
         }
         List<PhysicsDebugRenderer.ContactDebugPrimitive> primitives = new ArrayList<>();
         double radiusSquared = radius * radius;
-        for (PhysicsContact contact : space.getContacts()) {
+        for (ContactDebugSource contact : contacts) {
             Vector3f pointOnB = contact.pointOnB();
             Vector3d point = new Vector3d(pointOnB.x, pointOnB.y, pointOnB.z);
             if (point.distanceSquared(center) <= radiusSquared) {
@@ -37,5 +35,8 @@ final class PhysicsContactDebugCapture {
             }
         }
         return List.copyOf(primitives);
+    }
+
+    record ContactDebugSource(@Nonnull Vector3f pointOnB, @Nonnull Vector3f normalOnB) {
     }
 }

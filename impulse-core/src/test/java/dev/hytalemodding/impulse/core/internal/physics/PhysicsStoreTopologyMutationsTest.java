@@ -1,0 +1,467 @@
+package dev.hytalemodding.impulse.core.internal.physics;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import com.hypixel.hytale.component.AddReason;
+import com.hypixel.hytale.component.ComponentRegistry;
+import com.hypixel.hytale.component.ComponentRegistryProxy;
+import com.hypixel.hytale.component.EmptyResourceStorage;
+import com.hypixel.hytale.component.Ref;
+import com.hypixel.hytale.component.Store;
+import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
+import com.hypixel.hytale.server.core.util.thread.TickingThread;
+import dev.hytalemodding.impulse.api.BackendId;
+import dev.hytalemodding.impulse.api.PhysicsAxis;
+import dev.hytalemodding.impulse.api.PhysicsBodyType;
+import dev.hytalemodding.impulse.api.ShapeType;
+import dev.hytalemodding.impulse.api.SpaceId;
+import dev.hytalemodding.impulse.api.runtime.BackendJointType;
+import dev.hytalemodding.impulse.api.runtime.BackendRuntimeCodes;
+import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntime;
+import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackendRuntimeProvider;
+import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackendRuntimeProvider.FakePhysicsBackendRuntime;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkStoreTypes;
+import dev.hytalemodding.impulse.core.internal.PhysicsComponentTypeRegistry;
+import dev.hytalemodding.impulse.core.internal.resources.BackendBodyHandle;
+import dev.hytalemodding.impulse.core.internal.resources.BackendJointHandle;
+import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsResourceTypes;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsRestoreStatusResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsSnapshotResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceCompatibilityIndexResource;
+import dev.hytalemodding.impulse.core.internal.testsupport.TestInstanceFactory;
+import dev.hytalemodding.impulse.core.plugin.components.BodyComponent;
+import dev.hytalemodding.impulse.core.plugin.components.ColliderComponent;
+import dev.hytalemodding.impulse.core.plugin.components.CollisionFilterComponent;
+import dev.hytalemodding.impulse.core.plugin.components.DynamicsComponent;
+import dev.hytalemodding.impulse.core.plugin.components.JointComponent;
+import dev.hytalemodding.impulse.core.plugin.components.MaterialComponent;
+import dev.hytalemodding.impulse.core.plugin.components.ShapeComponent;
+import dev.hytalemodding.impulse.core.plugin.components.SpaceComponent;
+import dev.hytalemodding.impulse.core.plugin.physics.PhysicsEntities;
+import dev.hytalemodding.impulse.core.plugin.physics.PhysicsBodies;
+import dev.hytalemodding.impulse.core.plugin.physics.PhysicsJointEntities;
+import dev.hytalemodding.impulse.core.plugin.components.JointType;
+import dev.hytalemodding.impulse.core.plugin.snapshots.PhysicsBodySnapshot;
+import dev.hytalemodding.impulse.core.plugin.snapshots.PhysicsSnapshotFrame;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+import javax.annotation.Nonnull;
+import org.joml.Quaternionf;
+import org.joml.Vector3f;
+import org.junit.jupiter.api.Test;
+
+class PhysicsStoreTopologyMutationsTest {
+
+    @Test
+    void addSpaceIndexesRefInPhysicsStoreUuidMap() {
+        ComponentRegistry<PhysicsStore> registry = new ComponentRegistry<>();
+        ComponentRegistryProxy<PhysicsStore> proxy =
+            new ComponentRegistryProxy<>(new ArrayList<>(), registry);
+        PhysicsComponentTypeRegistry.registerComponentTypes(proxy);
+        PhysicsResourceTypes.registerResourceTypes(proxy);
+        Store<PhysicsStore> store = registry.addStore(
+            new PhysicsStore(TestInstanceFactory.world("topology-add-space-uuid-map-test")),
+            EmptyResourceStorage.get());
+        try {
+            markCurrentThreadAsWorldThread(store);
+            UUID spaceUuid = uuid(100);
+            Ref<PhysicsStore> spaceRef = PhysicsSpaceMutations.addSpace(store,
+                spaceUuid,
+                new SpaceId(100),
+                new BackendId("test:topology-add-space-uuid-map"));
+
+            assertSame(spaceRef, store.getExternalData().getRefFromUUID(spaceUuid));
+        } finally {
+            registry.removeStore(store);
+            registry.shutdown();
+        }
+    }
+
+    @Test
+    void destroyBodyRemovesDependentJointRowAndRuntimeHandles() {
+        ComponentRegistry<PhysicsStore> registry = new ComponentRegistry<>();
+        ComponentRegistryProxy<PhysicsStore> proxy =
+            new ComponentRegistryProxy<>(new ArrayList<>(), registry);
+        PhysicsComponentTypeRegistry.registerComponentTypes(proxy);
+        PhysicsResourceTypes.registerResourceTypes(proxy);
+        Store<PhysicsStore> store = registry.addStore(
+            new PhysicsStore(TestInstanceFactory.world("topology-destroy-body-test")),
+            EmptyResourceStorage.get());
+        try {
+            markCurrentThreadAsWorldThread(store);
+            UUID spaceUuid = uuid(1);
+            UUID bodyAUuid = uuid(2);
+            UUID bodyBUuid = uuid(3);
+            UUID jointUuid = uuid(4);
+            BackendId backendId = new BackendId("test:topology-cleanup");
+            BoundSpace space = addBoundSpace(store, spaceUuid, backendId);
+            Ref<PhysicsStore> bodyARef = addBody(store, spaceUuid, space.ref(), bodyAUuid);
+            Ref<PhysicsStore> bodyBRef = addBody(store, spaceUuid, space.ref(), bodyBUuid);
+            Ref<PhysicsStore> jointRef = addJoint(store,
+                spaceUuid,
+                space.ref(),
+                bodyAUuid,
+                bodyARef,
+                bodyBUuid,
+                bodyBRef,
+                jointUuid);
+            BackendBodyHandle bodyAHandle = bindBody(store,
+                space,
+                bodyAUuid,
+                bodyARef,
+                0.0f);
+            bindBody(store, space, bodyBUuid, bodyBRef, 2.0f);
+            bindJoint(store, space, jointUuid, jointRef, bodyAHandle, bodyBRef);
+            publishCopiedState(store, spaceUuid, bodyAUuid, bodyARef, bodyBUuid, bodyBRef);
+
+            PhysicsTopologyMutations.destroyBody(store, bodyAUuid);
+
+            PhysicsRuntimeResource runtime = store.getResource(
+                PhysicsRuntimeResource.getResourceType());
+            PhysicsSnapshotResource snapshots =
+                store.getResource(PhysicsSnapshotResource.getResourceType());
+            assertNull(store.getExternalData().getRefFromUUID(bodyAUuid));
+            assertNull(store.getExternalData().getRefFromUUID(jointUuid));
+            Ref<PhysicsStore> remainingBodyRef =
+                store.getExternalData().getRefFromUUID(bodyBUuid);
+            assertNotNull(remainingBodyRef);
+            assertNull(runtime.getBodyHandle(bodyARef));
+            assertNull(runtime.getJointHandle(jointRef));
+            assertNotNull(runtime.getBodyHandle(remainingBodyRef));
+            assertEquals(1, space.runtime().bodyCount(space.handle().value()));
+            assertEquals(0, space.runtime().jointCount(space.handle().value()));
+            assertNull(snapshots.getBody(bodyAUuid));
+            assertNotNull(snapshots.getBody(bodyBUuid));
+            assertFalse(PhysicsBodies.isRegistered(store, bodyAUuid));
+            assertEquals(new SpaceId(42), PhysicsBodies.spaceId(store, bodyBUuid));
+            assertFalse(bodyARef.isValid());
+            assertFalse(jointRef.isValid());
+            assertNotNull(store.getComponent(remainingBodyRef, BodyComponent.getComponentType()));
+        } finally {
+            registry.removeStore(store);
+            registry.shutdown();
+        }
+    }
+
+    @Test
+    void clearBodiesKeepingSpacesRecoversFailedRestoreStatus() {
+        ComponentRegistry<PhysicsStore> registry = new ComponentRegistry<>();
+        ComponentRegistryProxy<PhysicsStore> proxy =
+            new ComponentRegistryProxy<>(new ArrayList<>(), registry);
+        PhysicsComponentTypeRegistry.registerComponentTypes(proxy);
+        PhysicsResourceTypes.registerResourceTypes(proxy);
+        PhysicsChunkStoreTypes.registerPhysicsStoreResourceTypes(proxy);
+        Store<PhysicsStore> store = registry.addStore(
+            new PhysicsStore(TestInstanceFactory.world("topology-clean-recovers-restore")),
+            EmptyResourceStorage.get());
+        try {
+            markCurrentThreadAsWorldThread(store);
+            UUID spaceUuid = uuid(1);
+            UUID bodyUuid = uuid(2);
+            BoundSpace space = addBoundSpace(store,
+                spaceUuid,
+                new BackendId("test:topology-clean-recovers-restore"));
+            Ref<PhysicsStore> bodyRef = addBody(store, spaceUuid, space.ref(), bodyUuid);
+            bindBody(store, space, bodyUuid, bodyRef, 0.0f);
+            PhysicsRestoreStatusResource restore = store.getResource(
+                PhysicsRestoreStatusResource.getResourceType());
+            restore.markFailed("backend binding failed");
+
+            PhysicsTopologyMutations.clearBodiesKeepingSpaces(store);
+
+            assertFalse(restore.isFailed(), restore.getFailureMessage());
+            assertFalse(restore.isPending());
+            assertTrue(restore.isHydrated());
+        } finally {
+            registry.removeStore(store);
+            registry.shutdown();
+            PhysicsChunkStoreTypes.clearPhysicsStoreResourceTypes();
+        }
+    }
+
+    @Test
+    void clearBodiesKeepingSpacesClosesUntrackedRuntimeSpacesAfterFailedRestore() {
+        ComponentRegistry<PhysicsStore> registry = new ComponentRegistry<>();
+        ComponentRegistryProxy<PhysicsStore> proxy =
+            new ComponentRegistryProxy<>(new ArrayList<>(), registry);
+        PhysicsComponentTypeRegistry.registerComponentTypes(proxy);
+        PhysicsResourceTypes.registerResourceTypes(proxy);
+        PhysicsChunkStoreTypes.registerPhysicsStoreResourceTypes(proxy);
+        Store<PhysicsStore> store = registry.addStore(
+            new PhysicsStore(TestInstanceFactory.world("topology-clean-closes-orphan-runtime")),
+            EmptyResourceStorage.get());
+        try {
+            markCurrentThreadAsWorldThread(store);
+            UUID spaceUuid = uuid(1);
+            BackendId backendId = new BackendId("test:topology-clean-orphan-runtime");
+            Ref<PhysicsStore> spaceRef = store.addEntity(PhysicsEntities.spaceHolder(store,
+                    spaceUuid,
+                    new SpaceComponent(backendId, new Vector3f(0.0f, -9.81f, 0.0f))),
+                AddReason.SPAWN);
+            assertNotNull(spaceRef);
+            store.getExternalData().putRefForUUID(spaceUuid, spaceRef);
+            SpaceId compatibilitySpaceId = new SpaceId(42);
+            store.getResource(PhysicsSpaceCompatibilityIndexResource.getResourceType())
+                .putSpace(compatibilitySpaceId, spaceUuid);
+            FakePhysicsBackendRuntime staleRuntime = (FakePhysicsBackendRuntime)
+                new FakePhysicsBackendRuntimeProvider(backendId, false, false).createRuntime();
+            staleRuntime.createSpace(compatibilitySpaceId);
+            PhysicsRuntimeResource runtime = store.getResource(
+                PhysicsRuntimeResource.getResourceType());
+            runtime.putRuntime(backendId, staleRuntime);
+            PhysicsRestoreStatusResource restore = store.getResource(
+                PhysicsRestoreStatusResource.getResourceType());
+            restore.markFailed("PhysicsStore space " + spaceUuid
+                + " failed backend binding: Space already exists: " + compatibilitySpaceId);
+
+            PhysicsTopologyMutations.clearBodiesKeepingSpaces(store);
+
+            assertFalse(staleRuntime.hasSpace(compatibilitySpaceId.value()));
+            assertNull(runtime.getRuntime(backendId));
+            assertFalse(restore.isFailed(), restore.getFailureMessage());
+            assertTrue(restore.isHydrated());
+            assertEquals(spaceUuid,
+                store.getResource(PhysicsSpaceCompatibilityIndexResource.getResourceType())
+                    .getSpaceUuid(compatibilitySpaceId));
+            assertNotNull(store.getComponent(spaceRef, SpaceComponent.getComponentType()));
+        } finally {
+            registry.removeStore(store);
+            registry.shutdown();
+            PhysicsChunkStoreTypes.clearPhysicsStoreResourceTypes();
+        }
+    }
+
+    @Nonnull
+    private static BoundSpace addBoundSpace(@Nonnull Store<PhysicsStore> store,
+        @Nonnull UUID spaceUuid,
+        @Nonnull BackendId backendId) {
+        Ref<PhysicsStore> spaceRef = store.addEntity(PhysicsEntities.spaceHolder(store,
+                spaceUuid,
+                new SpaceComponent(backendId, new Vector3f(0.0f, -9.81f, 0.0f))),
+            AddReason.SPAWN);
+        assertNotNull(spaceRef);
+        store.getExternalData().putRefForUUID(spaceUuid, spaceRef);
+        PhysicsBackendRuntime backendRuntime =
+            new FakePhysicsBackendRuntimeProvider(backendId, false, false).createRuntime();
+        BackendSpaceHandle spaceHandle =
+            new BackendSpaceHandle(backendRuntime.createSpace(new SpaceId(42)));
+        PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
+        runtime.putRuntime(backendId, backendRuntime);
+        runtime.putSpaceHandle(spaceRef, backendId, spaceHandle);
+        runtime.putSpaceMetadata(backendId, spaceHandle, spaceUuid, spaceRef);
+        store.getResource(PhysicsSpaceCompatibilityIndexResource.getResourceType())
+            .putSpace(new SpaceId(42), spaceUuid);
+        return new BoundSpace(spaceUuid, spaceRef, backendRuntime, spaceHandle, backendId);
+    }
+
+    @Nonnull
+    private static Ref<PhysicsStore> addBody(@Nonnull Store<PhysicsStore> store,
+        @Nonnull UUID spaceUuid,
+        @Nonnull Ref<PhysicsStore> spaceRef,
+        @Nonnull UUID bodyUuid) {
+        BodyComponent body = new BodyComponent(spaceUuid);
+        body.setSpaceRef(spaceRef);
+        Ref<PhysicsStore> bodyRef = store.addEntity(PhysicsEntities.bodyHolder(store,
+                bodyUuid,
+                body,
+                new DynamicsComponent(PhysicsBodyType.DYNAMIC, 1.0f, 0.0f, 0.0f, false),
+                null,
+                new ColliderComponent(new Vector3f(), new Quaternionf(), false),
+                new ShapeComponent(ShapeType.BOX,
+                    0.5f,
+                    0.5f,
+                    0.5f,
+                    0.0f,
+                    0.0f,
+                    PhysicsAxis.Y,
+                    0.0f,
+                    ""),
+                new MaterialComponent(0.5f, 0.1f),
+                new CollisionFilterComponent(0x01, 0x02)),
+            AddReason.SPAWN);
+        assertNotNull(bodyRef);
+        store.getExternalData().putRefForUUID(bodyUuid, bodyRef);
+        return bodyRef;
+    }
+
+    @Nonnull
+    private static Ref<PhysicsStore> addJoint(@Nonnull Store<PhysicsStore> store,
+        @Nonnull UUID spaceUuid,
+        @Nonnull Ref<PhysicsStore> spaceRef,
+        @Nonnull UUID bodyAUuid,
+        @Nonnull Ref<PhysicsStore> bodyARef,
+        @Nonnull UUID bodyBUuid,
+        @Nonnull Ref<PhysicsStore> bodyBRef,
+        @Nonnull UUID jointUuid) {
+        JointComponent joint = PhysicsJointEntities.joint(spaceRef,
+            bodyARef,
+            bodyBRef,
+            JointType.FIXED,
+            new Vector3f(),
+            new Vector3f(),
+            new Vector3f(0.0f, 1.0f, 0.0f));
+        joint.setSpaceUuid(spaceUuid);
+        joint.setBodyAUuid(bodyAUuid);
+        joint.setBodyBUuid(bodyBUuid);
+        Ref<PhysicsStore> jointRef = store.addEntity(PhysicsEntities.jointHolder(store,
+                jointUuid,
+                joint),
+            AddReason.SPAWN);
+        assertNotNull(jointRef);
+        store.getExternalData().putRefForUUID(jointUuid, jointRef);
+        return jointRef;
+    }
+
+    @Nonnull
+    private static BackendBodyHandle bindBody(@Nonnull Store<PhysicsStore> store,
+        @Nonnull BoundSpace space,
+        @Nonnull UUID bodyUuid,
+        @Nonnull Ref<PhysicsStore> bodyRef,
+        float positionX) {
+        long bodyId = space.runtime().createBody(space.handle().value(),
+            BackendRuntimeCodes.shapeTypeCode(ShapeType.BOX),
+            0.5f,
+            0.5f,
+            0.5f,
+            0.0f,
+            0.0f,
+            BackendRuntimeCodes.axisCode(PhysicsAxis.Y),
+            0.0f,
+            1.0f,
+            BackendRuntimeCodes.bodyTypeCode(PhysicsBodyType.DYNAMIC),
+            positionX,
+            0.0f,
+            0.0f,
+            0.0f,
+            0.0f,
+            0.0f,
+            1.0f);
+        BackendBodyHandle handle = new BackendBodyHandle(bodyId);
+        PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
+        runtime.putBodyHandle(bodyRef, space.ref(), space.handle(), handle);
+        runtime.putBodySnapshotMetadata(space.backendId(),
+            space.handle(),
+            handle,
+            bodyUuid,
+            bodyRef,
+            space.uuid());
+        runtime.putBodyHitMetadata(space.backendId(),
+            space.handle(),
+            handle,
+            bodyUuid,
+            bodyRef,
+            PhysicsBodyType.DYNAMIC,
+            ShapeType.BOX);
+        return handle;
+    }
+
+    private static void bindJoint(@Nonnull Store<PhysicsStore> store,
+        @Nonnull BoundSpace space,
+        @Nonnull UUID jointUuid,
+        @Nonnull Ref<PhysicsStore> jointRef,
+        @Nonnull BackendBodyHandle bodyAHandle,
+        @Nonnull Ref<PhysicsStore> bodyBRef) {
+        BackendBodyHandle bodyBHandle = store.getResource(PhysicsRuntimeResource.getResourceType())
+            .getBodyHandle(bodyBRef);
+        assertNotNull(bodyBHandle);
+        long jointId = space.runtime().createJoint(space.handle().value(),
+            BackendRuntimeCodes.jointTypeCode(BackendJointType.FIXED),
+            bodyAHandle.value(),
+            bodyBHandle.value(),
+            0.0f,
+            0.0f,
+            0.0f,
+            0.0f,
+            0.0f,
+            0.0f,
+            0.0f,
+            1.0f,
+            0.0f,
+            0.0f,
+            0.0f,
+            0.0f,
+            0.0f,
+            0.0f,
+            false,
+            0.0f,
+            0.0f);
+        BackendJointHandle handle = new BackendJointHandle(jointId);
+        store.getResource(PhysicsRuntimeResource.getResourceType())
+            .putJointHandle(jointRef, space.ref(), space.handle(), handle);
+        store.getResource(PhysicsRuntimeResource.getResourceType())
+            .putJointMetadata(space.backendId(), space.handle(), handle, jointUuid, jointRef);
+    }
+
+    private static void publishCopiedState(@Nonnull Store<PhysicsStore> store,
+        @Nonnull UUID spaceUuid,
+        @Nonnull UUID bodyAUuid,
+        @Nonnull Ref<PhysicsStore> bodyARef,
+        @Nonnull UUID bodyBUuid,
+        @Nonnull Ref<PhysicsStore> bodyBRef) {
+        store.getResource(PhysicsSnapshotResource.getResourceType())
+            .publish(new PhysicsSnapshotFrame(1L,
+                0.05f,
+                List.of(snapshot(bodyARef, bodyAUuid, spaceUuid),
+                    snapshot(bodyBRef, bodyBUuid, spaceUuid))));
+    }
+
+    @Nonnull
+    private static PhysicsBodySnapshot snapshot(@Nonnull Ref<PhysicsStore> bodyRef,
+        @Nonnull UUID bodyUuid,
+        @Nonnull UUID spaceUuid) {
+        return PhysicsBodySnapshot.of(bodyRef,
+            bodyUuid,
+            spaceUuid,
+            PhysicsBodyType.DYNAMIC,
+            0.0f,
+            0.0f,
+            0.0f,
+            0.0f,
+            0.0f,
+            0.0f,
+            1.0f,
+            0.0f,
+            0.0f,
+            0.0f,
+            0.0f,
+            0.0f,
+            0.0f,
+            0.0f,
+            false);
+    }
+
+    private static void markCurrentThreadAsWorldThread(@Nonnull Store<PhysicsStore> store) {
+        try {
+            Method setThread = TickingThread.class.getDeclaredMethod("setThread", Thread.class);
+            setThread.setAccessible(true);
+            setThread.invoke(store.getExternalData().getWorld(), Thread.currentThread());
+        } catch (NoSuchMethodException | IllegalAccessException exception) {
+            throw new AssertionError("Could not mark test world thread", exception);
+        } catch (InvocationTargetException exception) {
+            throw new AssertionError("Could not mark test world thread",
+                exception.getTargetException());
+        }
+    }
+
+    @Nonnull
+    private static UUID uuid(long leastSignificantBits) {
+        return new UUID(0L, leastSignificantBits);
+    }
+
+    private record BoundSpace(@Nonnull UUID uuid,
+                              @Nonnull Ref<PhysicsStore> ref,
+                              @Nonnull PhysicsBackendRuntime runtime,
+                              @Nonnull BackendSpaceHandle handle,
+                              @Nonnull BackendId backendId) {
+    }
+}

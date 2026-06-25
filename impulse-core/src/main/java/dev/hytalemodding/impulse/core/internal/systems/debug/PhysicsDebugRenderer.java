@@ -7,10 +7,8 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import dev.hytalemodding.impulse.api.PhysicsAxis;
 import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.core.internal.math.PhysicsVisualPoseMath;
-import dev.hytalemodding.impulse.core.internal.modules.worldcollision.SectionCollisionGeometry.BoxCollider;
-import dev.hytalemodding.impulse.core.internal.simulation.view.PhysicsDebugContactView;
-import dev.hytalemodding.impulse.core.internal.simulation.view.PhysicsDebugJointView;
-import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.SectionCollisionGeometry.BoxCollider;
+import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.BodyAttachmentComponent;
 import java.util.Collection;
 import javax.annotation.Nonnull;
 import org.joml.Matrix4d;
@@ -22,7 +20,7 @@ import org.joml.Vector3f;
 final class PhysicsDebugRenderer {
 
     private static final double SHAPE_INFLATION = 1.025;
-    private static final double WORLD_COLLISION_EDGE_PADDING = 0.0125;
+    private static final double TERRAIN_EDGE_PADDING = 0.0125;
     private static final float MIN_DEBUG_LIFETIME = 0.08f;
     private static final double MIN_ARROW_LENGTH = 0.05;
     private static final double MAX_ARROW_LENGTH = 4.0;
@@ -230,7 +228,7 @@ final class PhysicsDebugRenderer {
         renderArrow(viewers, start, direction, color, time);
     }
 
-    static void renderWorldCollisionSection(@Nonnull Collection<PlayerRef> viewers,
+    static void renderPhysicsChunkCollisionSection(@Nonnull Collection<PlayerRef> viewers,
         int chunkX,
         int sectionY,
         int chunkZ,
@@ -245,10 +243,10 @@ final class PhysicsDebugRenderer {
             new Vector3d(halfSection, halfSection, halfSection),
             color,
             time,
-            WORLD_COLLISION_EDGE_PADDING);
+            TERRAIN_EDGE_PADDING);
     }
 
-    static void renderWorldCollisionBox(@Nonnull Collection<PlayerRef> viewers,
+    static void renderPhysicsChunkCollisionBox(@Nonnull Collection<PlayerRef> viewers,
         @Nonnull BoxCollider box,
         @Nonnull Vector3f color,
         float time) {
@@ -257,12 +255,12 @@ final class PhysicsDebugRenderer {
             new Vector3d(box.halfX(), box.halfY(), box.halfZ()),
             color,
             time,
-            WORLD_COLLISION_EDGE_PADDING);
+            TERRAIN_EDGE_PADDING);
     }
 
     static Vector3d centerFromSyncedTransform(@Nonnull PhysicsBodySnapshot snapshot,
         @Nonnull Vector3d transformPosition,
-        @Nonnull PhysicsBodyAttachmentComponent attachment,
+        @Nonnull BodyAttachmentComponent attachment,
         @Nonnull Quaterniond bodyRotation) {
         return PhysicsVisualPoseMath.bodyCenterFromVisualPose(transformPosition,
             bodyRotation,
@@ -275,7 +273,7 @@ final class PhysicsDebugRenderer {
     static BodyDebugPose bodyPoseFromSyncedTransform(@Nonnull PhysicsBodySnapshot snapshot,
         @Nonnull Vector3d transformPosition,
         @Nonnull Quaterniond transformRotation,
-        @Nonnull PhysicsBodyAttachmentComponent attachment) {
+        @Nonnull BodyAttachmentComponent attachment) {
         Quaterniond bodyRotation = new Quaterniond(transformRotation);
         if (!isIdentity(attachment.getLocalRotationOffset())) {
             bodyRotation.mul(new Quaterniond(attachment.getLocalRotationOffset()).invert()).normalize();

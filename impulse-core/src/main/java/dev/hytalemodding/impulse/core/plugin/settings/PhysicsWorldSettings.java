@@ -1,5 +1,6 @@
 package dev.hytalemodding.impulse.core.plugin.settings;
 
+import dev.hytalemodding.impulse.core.plugin.events.PhysicsEventCollectionMode;
 import lombok.Getter;
 import java.util.Objects;
 import javax.annotation.Nonnull;
@@ -9,7 +10,7 @@ import javax.annotation.Nonnull;
  *
  * <p>These values control how the world schedules and subdivides physics steps. They are not
  * per-space solver tuning; {@link PhysicsSolverSettings} remains part of
- * {@link PhysicsSpaceSettings} because solver parameters are applied to individual backend spaces.</p>
+ * per-space solver settings because solver parameters are applied to individual backend spaces.</p>
  */
 public class PhysicsWorldSettings {
 
@@ -19,6 +20,10 @@ public class PhysicsWorldSettings {
     @Nonnull
     public static final PhysicsStepSchedulingMode DEFAULT_STEP_SCHEDULING_MODE =
         PhysicsStepSchedulingMode.DROP_PENDING_DT;
+    /**
+     * @deprecated Physics event plugin API is deprecated without replacement.
+     */
+    @Deprecated(since = "0.1.0", forRemoval = false)
     @Nonnull
     public static final PhysicsEventCollectionMode DEFAULT_EVENT_COLLECTION_MODE =
         PhysicsEventCollectionMode.DISABLED;
@@ -82,11 +87,19 @@ public class PhysicsWorldSettings {
             "stepSchedulingMode");
     }
 
+    /**
+     * @deprecated Physics event plugin API is deprecated without replacement.
+     */
+    @Deprecated(since = "0.1.0", forRemoval = false)
     @Nonnull
     public PhysicsEventCollectionMode getEventCollectionMode() {
         return eventCollectionMode;
     }
 
+    /**
+     * @deprecated Physics event plugin API is deprecated without replacement.
+     */
+    @Deprecated(since = "0.1.0", forRemoval = false)
     public void setEventCollectionMode(@Nonnull PhysicsEventCollectionMode eventCollectionMode) {
         this.eventCollectionMode = Objects.requireNonNull(eventCollectionMode,
             "eventCollectionMode");

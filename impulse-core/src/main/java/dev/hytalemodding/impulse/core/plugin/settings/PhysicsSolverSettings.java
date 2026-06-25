@@ -1,10 +1,12 @@
 package dev.hytalemodding.impulse.core.plugin.settings;
 
+import lombok.Getter;
 import javax.annotation.Nonnull;
 
 /**
  * Portable solver and activation tuning for a physics space.
  */
+@Getter
 public class PhysicsSolverSettings {
 
     /**
@@ -68,19 +70,11 @@ public class PhysicsSolverSettings {
         dynamicSleepTimeUntilSleep = settings.dynamicSleepTimeUntilSleep;
     }
 
-    public int getSolverIterations() {
-        return solverIterations;
-    }
-
     public void setSolverIterations(int solverIterations) {
         if (solverIterations < 1) {
             throw new IllegalArgumentException("Solver iterations must be positive");
         }
         this.solverIterations = solverIterations;
-    }
-
-    public int getStabilizationIterations() {
-        return stabilizationIterations;
     }
 
     public void setStabilizationIterations(int stabilizationIterations) {
@@ -98,10 +92,6 @@ public class PhysicsSolverSettings {
         setDynamicSleepTimeUntilSleep(timeUntilSleep);
     }
 
-    public float getDynamicSleepLinearThreshold() {
-        return dynamicSleepLinearThreshold;
-    }
-
     public void setDynamicSleepLinearThreshold(float dynamicSleepLinearThreshold) {
         this.dynamicSleepLinearThreshold = PhysicsSettingsValidation.requireFiniteAtLeast(
             "Dynamic sleep linear threshold",
@@ -109,19 +99,11 @@ public class PhysicsSolverSettings {
             0.0f);
     }
 
-    public float getDynamicSleepAngularThreshold() {
-        return dynamicSleepAngularThreshold;
-    }
-
     public void setDynamicSleepAngularThreshold(float dynamicSleepAngularThreshold) {
         this.dynamicSleepAngularThreshold = PhysicsSettingsValidation.requireFiniteAtLeast(
             "Dynamic sleep angular threshold",
             dynamicSleepAngularThreshold,
             0.0f);
-    }
-
-    public float getDynamicSleepTimeUntilSleep() {
-        return dynamicSleepTimeUntilSleep;
     }
 
     public void setDynamicSleepTimeUntilSleep(float dynamicSleepTimeUntilSleep) {

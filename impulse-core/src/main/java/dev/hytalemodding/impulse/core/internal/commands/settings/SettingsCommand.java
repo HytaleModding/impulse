@@ -10,10 +10,9 @@ public class SettingsCommand extends AbstractCommandCollection {
         super("settings", "Impulse runtime settings commands");
         addSubCommand(new SimulationSettingsCommand());
         addSubCommand(new SolverSettingsCommand());
-        addSubCommand(new VisualSettingsCommand());
     }
 
-    public void addContribution(@Nonnull AbstractCommand command) {
+    public void registerSettingsCommand(@Nonnull AbstractCommand command) {
         addSubCommand(command);
     }
 }

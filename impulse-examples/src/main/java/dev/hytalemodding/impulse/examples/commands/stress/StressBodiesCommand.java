@@ -11,27 +11,28 @@ import com.hypixel.hytale.server.core.modules.time.TimeResource;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.api.PhysicsBodyType;
+import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.PhysicsCollisionFilters;
 import dev.hytalemodding.impulse.api.SpaceId;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
-import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
-import dev.hytalemodding.impulse.core.plugin.modules.worldcollision.WorldCollisionPrewarmStats;
-import dev.hytalemodding.impulse.core.plugin.modules.worldcollision.WorldCollisionMode;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkCollision;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkCollisionPrewarmStats;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkCollisionMode;
+import dev.hytalemodding.impulse.core.plugin.physics.PhysicsSpaces;
+import dev.hytalemodding.impulse.core.plugin.physics.PhysicsWorlds;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsBackendExtensionId;
-import dev.hytalemodding.impulse.core.plugin.settings.PhysicsCollisionLodSettings;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.settings.PhysicsCollisionLodSettings;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsExtensionSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSolverSettings;
-import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
-import dev.hytalemodding.impulse.core.plugin.settings.PhysicsVisualMaterializationSettings;
-import dev.hytalemodding.impulse.core.plugin.settings.PhysicsVisualSyncSettings;
-import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldCollisionSettings;
+import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.settings.PhysicsVisualMaterializationSettings;
+import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.settings.PhysicsVisualSyncSettings;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.settings.PhysicsChunkCollisionSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
-import dev.hytalemodding.impulse.core.plugin.settings.VisualOcclusionMode;
-import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
-import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
-import dev.hytalemodding.impulse.examples.commands.ExamplePhysicsUtils;
+import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.settings.VisualOcclusionMode;
+import dev.hytalemodding.impulse.core.plugin.physics.PhysicsShapeSpec;
+import dev.hytalemodding.impulse.core.plugin.physics.RigidBodySpawnSettings;
+import dev.hytalemodding.impulse.core.plugin.physics.PhysicsThreading;
+import dev.hytalemodding.impulse.examples.utils.ExampleBlockEntityVisuals;
+import dev.hytalemodding.impulse.examples.utils.ExamplePhysicsUtils;
 import java.util.Iterator;
 import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
@@ -51,7 +52,7 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
         DETACHED_VISUAL_DEMATERIALIZATION_RADIUS - DETACHED_VISUAL_MATERIALIZATION_RADIUS;
     private static final int DETACHED_VISUAL_MAX_MATERIALIZED = 10_000;
     private static final int DETACHED_VISUAL_MAX_SPAWNS_PER_TICK = 128;
-    private static final int STRESS_BODY_WORLD_COLLISION_RADIUS = 8;
+    private static final int STRESS_BODY_CHUNK_COLLISION_RADIUS = 8;
     private static final PhysicsBackendExtensionId RAPIER_SOLVER_EXTENSION_ID =
         new PhysicsBackendExtensionId("impulse:rapier_solver");
     private static final String RAPIER_INTERNAL_PGS_ITERATIONS = "internalPgsIterations";
@@ -109,7 +110,7 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
         ArgTypes.INTEGER);
 
     public StressBodiesCommand() {
-        super("bodies", "Spawn many dynamic box bodies");
+        super("bodies", "Spawn dynamic bodies in detached-view, detached, or entity visual modes");
     }
 
     @Nonnull
@@ -119,10 +120,7 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
         @Nonnull Ref<EntityStore> ref,
         @Nonnull PlayerRef playerRef,
         @Nonnull World world) {
-        Vector3d playerPos = ExamplePhysicsUtils.playerPosition(ctx, store, ref);
-        if (playerPos == null) {
-            return CompletableFuture.completedFuture(null);
-        }
+        Vector3d playerPos = new Vector3d(playerRef.getTransform().getPosition());
 
         StressMode mode = parseMode(ctx);
         if (mode == null) {
@@ -146,25 +144,35 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
         if (visualSettings == null) {
             return CompletableFuture.completedFuture(null);
         }
-        PhysicsWorldResource resource = ExamplePhysicsUtils.resource(store);
-        SpaceId spaceId = ExamplePhysicsUtils.spaceId(ctx, resource, spaceArg);
+        SpaceId spaceId = ExamplePhysicsUtils.spaceId(ctx, world, spaceArg);
         if (spaceId == null) {
             return CompletableFuture.completedFuture(null);
         }
-        PhysicsSpaceSettings settings = configureStressRuntime(resource,
-            spaceId,
+        Ref<PhysicsStore> spaceRef = ExamplePhysicsUtils.resolveSpaceRef(world, spaceId);
+        if (spaceRef == null) {
+            ctx.sender().sendMessage(Message.raw("PhysicsStore space id=" + spaceId.value()
+                + " is not bound."));
+            return CompletableFuture.completedFuture(null);
+        }
+        Store<PhysicsStore> physicsStore = PhysicsThreading.store(world);
+        StressRuntimeSettings runtimeSettings = configureStressRuntime(physicsStore,
+            spaceRef,
             mode,
             visibility,
             visualSettings,
             collisionLod);
+        if (runtimeSettings == null) {
+            ctx.sender().sendMessage(Message.raw("PhysicsStore space id=" + spaceId.value()
+                + " no longer exists."));
+            return CompletableFuture.completedFuture(null);
+        }
         TimeResource time = store.getResource(TimeResource.getResourceType());
 
         StressLayout layout = StressLayout.forCount(count, playerPos);
         long prewarmStartNanos = System.nanoTime();
-        int prewarmedSections = prewarmStressWorldCollision(world,
-            resource,
-            spaceId,
-            settings,
+        int prewarmedSections = prewarmStressTerrain(world,
+            spaceRef,
+            runtimeSettings.chunkCollisionSettings(),
             mode,
             layout,
             count);
@@ -175,10 +183,10 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
         if (mode == StressMode.ENTITY) {
             PhysicsShapeSpec box = PhysicsShapeSpec.box(0.48f, 0.48f, 0.48f);
             RigidBodySpawnSettings spawnSettings = RigidBodySpawnSettings.material(0.65f, 0.15f);
-            ExamplePhysicsUtils.BlockBodyBatchTiming batchTiming = ExamplePhysicsUtils.spawnBlockBodiesMeasured(store,
+            StressBodyBatches.BlockBodyBatchTiming batchTiming = StressBodyBatches.spawnBlockBodiesMeasured(store,
                 time,
-                resource,
                 serverTick,
+                spaceRef,
                 spaceId,
                 count,
                 visualSettings.blockType(),
@@ -192,68 +200,59 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
                             layout.positionZ(i));
                     }
                 });
-            timing = new StressSpawnTiming(batchTiming.commandApplyNanos(),
-                batchTiming.entityAttachNanos(),
-                0L);
+            timing = new StressSpawnTiming(batchTiming.physicsStoreApplyNanos() + batchTiming.visualAttachNanos(),
+                batchTiming.physicsStoreApplyNanos(),
+                batchTiming.visualAttachNanos());
         } else {
             PhysicsShapeSpec box = PhysicsShapeSpec.box(0.48f, 0.48f, 0.48f);
             RigidBodySpawnSettings spawnSettings = detachedSpawnSettings(collisionPolicy);
-            long bodyKeyRunId = RigidBodyKey.random().mostSignificantBits();
-            long commandStartNanos = System.nanoTime();
-            ExamplePhysicsUtils.requireApplied(resource.submitCommands(serverTick, 1, commands ->
-                commands.spawnBodies(count,
+            StressBodyBatches.BodyEntityBatchTiming batchTiming =
+                StressBodyBatches.addDynamicBodyBatchMeasured(world,
+                    spaceRef,
                     spaceId,
+                    count,
                     box,
                     1.0f,
-                    PhysicsBodyType.DYNAMIC,
                     spawnSettings,
-                    PhysicsBodyKind.BODY,
-                    PhysicsBodyPersistenceMode.RUNTIME_ONLY,
-                    spawns -> {
+                    bodies -> {
                         for (int i = 0; i < count; i++) {
-                            spawns.body(bodyKeyRunId,
-                                i + 1L,
-                                layout.positionX(i),
+                            bodies.addBody(layout.positionX(i),
                                 layout.positionY(i),
                                 layout.positionZ(i));
                         }
-                    })), "spawn detached stress bodies");
-            timing = new StressSpawnTiming(System.nanoTime() - commandStartNanos, 0L, 0L);
+                    });
+            timing = new StressSpawnTiming(batchTiming.setupWallNanos(),
+                batchTiming.physicsStoreApplyNanos(),
+                0L);
         }
-        if (mode.usesDetachedBodies()) {
-            long snapshotStartNanos = System.nanoTime();
-            resource.refreshBodySnapshots();
-            timing = timing.withSnapshotRefreshNanos(System.nanoTime() - snapshotStartNanos);
-        }
-        PhysicsWorldCollisionSettings worldCollisionSettings =
-            settings.getWorldCollisionSettings();
+        PhysicsChunkCollisionSettings chunkCollisionSettings =
+            runtimeSettings.chunkCollisionSettings();
         PhysicsVisualMaterializationSettings visualMaterializationSettings =
-            settings.getVisualMaterializationSettings();
-        PhysicsVisualSyncSettings visualSyncSettings = settings.getVisualSyncSettings();
-        PhysicsCollisionLodSettings collisionLodSettings = settings.getCollisionLodSettings();
-        PhysicsWorldSettings worldSettings = resource.getWorldSettings();
+            runtimeSettings.visualMaterializationSettings();
+        PhysicsVisualSyncSettings visualSyncSettings = runtimeSettings.visualSyncSettings();
+        PhysicsCollisionLodSettings collisionLodSettings = runtimeSettings.collisionLodSettings();
+        PhysicsWorldSettings worldSettings = PhysicsWorlds.settings(physicsStore);
 
-        ctx.sender().sendMessage(Message.raw("Spawned " + count
+        ctx.sender().sendMessage(Message.raw("Added " + count
             + " stress bodies: setupWallMs="
             + millis(prewarmNanos + timing.setupWallNanos())
             + " prewarmMs=" + millis(prewarmNanos)
-            + " commandApplyMs=" + millis(timing.commandApplyNanos())
-            + (timing.snapshotRefreshNanos() > 0L
-                ? " snapshotRefreshMs=" + millis(timing.snapshotRefreshNanos())
-                : "")
-            + (timing.entityAttachNanos() > 0L
-                ? " entityAttachMs=" + millis(timing.entityAttachNanos())
+            + " physicsStoreApplyMs=" + millis(timing.physicsStoreApplyNanos())
+            + (timing.visualAttachNanos() > 0L
+                ? " visualAttachMs=" + millis(timing.visualAttachNanos())
                 : "")
             + ": mode=" + mode.serialized()
             + " space=" + spaceId.value()
-            + " worldCollision=streaming"
-            + " bodyCollisionRadius=" + worldCollisionSettings.getWorldCollisionBodyRadius()
+            + " physicsChunk=streaming"
+            + " bodyChunkCollisionRadius=" + chunkCollisionSettings.getBodyRadius()
             + " prewarmedSections=" + prewarmedSections
             + " step=" + worldSettings.getStepMode().getSerializedName()
             + "/" + worldSettings.getSimulationSteps()
+            + " scheduling=" + worldSettings.getStepSchedulingMode().getSerializedName()
             + " maxStepDt=" + String.format(Locale.ROOT, "%.3f", worldSettings.getMaxStepDt())
             + " visuals=" + mode.visualDescription()
             + (mode == StressMode.ENTITY ? " blockType=" + visualSettings.blockType() : "")
+            + " " + mode.bindingMessage()
             + (mode == StressMode.DETACHED_VIEW
                 ? " visualProxyCap="
                 + visualMaterializationSettings.getDetachedVisualMaxMaterialized()
@@ -275,34 +274,46 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
         return CompletableFuture.completedFuture(null);
     }
 
-    @Nonnull
-    private static PhysicsSpaceSettings configureStressRuntime(@Nonnull PhysicsWorldResource resource,
-        @Nonnull SpaceId spaceId,
+    @Nullable
+    private static StressRuntimeSettings configureStressRuntime(@Nonnull Store<PhysicsStore> physicsStore,
+        @Nonnull Ref<PhysicsStore> spaceRef,
         @Nonnull StressMode mode,
         @Nonnull StressVisibility visibility,
         @Nonnull StressVisualSettings visualSettings,
         @Nullable Boolean collisionLod) {
-        PhysicsSpaceSettings settings = new PhysicsSpaceSettings(resource.getSpaceSettings(spaceId));
-        PhysicsSolverSettings solverSettings = settings.getSolverSettings();
+        PhysicsSolverSettings solverSettings = PhysicsSpaces.solverSettings(physicsStore, spaceRef);
+        PhysicsExtensionSettings extensionSettings = PhysicsSpaces.extensionSettings(physicsStore,
+            spaceRef);
+        PhysicsChunkCollisionSettings chunkCollisionSettings =
+            PhysicsSpaces.chunkCollisionSettings(physicsStore, spaceRef);
+        PhysicsCollisionLodSettings collisionLodSettings =
+            PhysicsSpaces.collisionLodSettings(physicsStore, spaceRef);
+        PhysicsVisualMaterializationSettings visualMaterializationSettings =
+            PhysicsSpaces.visualMaterializationSettings(physicsStore, spaceRef);
+        PhysicsVisualSyncSettings visualSyncSettings = PhysicsSpaces.visualSyncSettings(physicsStore,
+            spaceRef);
+        if (solverSettings == null
+            || extensionSettings == null
+            || chunkCollisionSettings == null
+            || collisionLodSettings == null
+            || visualMaterializationSettings == null
+            || visualSyncSettings == null) {
+            return null;
+        }
         solverSettings.setSolverIterations(1);
         solverSettings.setStabilizationIterations(1);
-        settings.getExtensionSettings().setInt(RAPIER_SOLVER_EXTENSION_ID,
+        extensionSettings.setInt(RAPIER_SOLVER_EXTENSION_ID,
             RAPIER_INTERNAL_PGS_ITERATIONS,
             1);
         solverSettings.setDynamicSleepTuning(
             PhysicsSolverSettings.DEFAULT_DYNAMIC_SLEEP_LINEAR_THRESHOLD,
             PhysicsSolverSettings.DEFAULT_DYNAMIC_SLEEP_ANGULAR_THRESHOLD,
             PhysicsSolverSettings.DEFAULT_DYNAMIC_SLEEP_TIME_UNTIL_SLEEP);
-        PhysicsWorldCollisionSettings worldCollisionSettings =
-            settings.getWorldCollisionSettings();
-        worldCollisionSettings.setWorldCollisionMode(WorldCollisionMode.STREAMING);
-        worldCollisionSettings.setWorldCollisionBodyRadius(
-            Math.max(worldCollisionSettings.getWorldCollisionBodyRadius(),
-                STRESS_BODY_WORLD_COLLISION_RADIUS));
+        chunkCollisionSettings.setMode(PhysicsChunkCollisionMode.STREAMING);
+        chunkCollisionSettings.setBodyRadius(
+            Math.max(chunkCollisionSettings.getBodyRadius(),
+                STRESS_BODY_CHUNK_COLLISION_RADIUS));
         if (mode.usesDetachedBodies()) {
-            PhysicsVisualMaterializationSettings visualMaterializationSettings =
-                settings.getVisualMaterializationSettings();
-            PhysicsVisualSyncSettings visualSyncSettings = settings.getVisualSyncSettings();
             visualMaterializationSettings.setDetachedVisualMaterializationEnabled(
                 mode == StressMode.DETACHED_VIEW);
             visualSyncSettings.setVisualVisibilityCullingEnabled(mode == StressMode.DETACHED_VIEW
@@ -317,31 +328,41 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
             visualSyncSettings.setVisualSnapshotPredictionEnabled(visualSettings.predictionEnabled());
             visualSyncSettings.setVisualSnapshotSmoothingEnabled(visualSettings.smoothingEnabled());
             if (collisionLod != null) {
-                settings.getCollisionLodSettings().setCollisionLodEnabled(collisionLod);
+                collisionLodSettings.setCollisionLodEnabled(collisionLod);
+            }
+            PhysicsSpaces.putVisualMaterializationSettings(physicsStore,
+                spaceRef,
+                visualMaterializationSettings);
+            PhysicsSpaces.putVisualSyncSettings(physicsStore, spaceRef, visualSyncSettings);
+            if (collisionLod != null) {
+                PhysicsSpaces.putCollisionLodSettings(physicsStore, spaceRef, collisionLodSettings);
             }
         }
-        resource.setSpaceSettings(spaceId, settings);
-        return settings;
+        PhysicsSpaces.putSolverSettings(physicsStore, spaceRef, solverSettings);
+        PhysicsSpaces.putExtensionSettings(physicsStore, spaceRef, extensionSettings);
+        PhysicsSpaces.putChunkCollisionSettings(physicsStore, spaceRef, chunkCollisionSettings);
+        return new StressRuntimeSettings(chunkCollisionSettings,
+            visualMaterializationSettings,
+            visualSyncSettings,
+            collisionLodSettings);
     }
 
-    private static int prewarmStressWorldCollision(@Nonnull World world,
-        @Nonnull PhysicsWorldResource resource,
-        @Nonnull SpaceId spaceId,
-        @Nonnull PhysicsSpaceSettings settings,
+    private static int prewarmStressTerrain(@Nonnull World world,
+        @Nonnull Ref<PhysicsStore> spaceRef,
+        @Nonnull PhysicsChunkCollisionSettings chunkCollisionSettings,
         @Nonnull StressMode mode,
         @Nonnull StressLayout layout,
         int count) {
-        PhysicsWorldCollisionSettings worldCollisionSettings =
-            settings.getWorldCollisionSettings();
         if (!mode.usesDetachedBodies()
-            || worldCollisionSettings.getWorldCollisionMode() != WorldCollisionMode.STREAMING) {
+            || chunkCollisionSettings.getMode() != PhysicsChunkCollisionMode.STREAMING) {
             return 0;
         }
 
-        WorldCollisionPrewarmStats stats = resource.ensureWorldCollisionAround(world,
-            spaceId,
+        PhysicsChunkCollisionPrewarmStats stats = PhysicsChunkCollision.ensureAround(world,
+            PhysicsThreading.store(world),
+            spaceRef,
             layout.positions(count),
-            worldCollisionSettings.getWorldCollisionBodyRadius(),
+            chunkCollisionSettings.getBodyRadius(),
             0L);
         return stats.sectionTargets();
     }
@@ -475,7 +496,7 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
     @Nonnull
     private String blockType(@Nonnull CommandContext ctx) {
         return blockTypeArg.provided(ctx)
-            ? ExamplePhysicsUtils.resolveBlockType(blockTypeArg.get(ctx))
+            ? ExampleBlockEntityVisuals.resolveBlockType(blockTypeArg.get(ctx))
             : ExamplePhysicsUtils.DEFAULT_BLOCK_TYPE;
     }
 
@@ -527,6 +548,18 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
                 case ENTITY -> "entity-backed";
                 case DETACHED -> "none";
                 case DETACHED_VIEW -> "detached-proxies near real players";
+            };
+        }
+
+        @Nonnull
+        private String bindingMessage() {
+            return switch (this) {
+                case ENTITY -> "Hytale EntityStore block visuals are attached immediately;"
+                    + " physics motion follows copied PhysicsStore snapshots.";
+                case DETACHED -> "Body-count diagnostics update after PhysicsStore binds the new rows;"
+                    + " no EntityStore visuals are created.";
+                case DETACHED_VIEW -> "Body-count diagnostics update after PhysicsStore binds the new rows;"
+                    + " detached visual proxies materialize progressively from copied snapshots.";
             };
         }
 
@@ -600,25 +633,21 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
                                         boolean smoothingEnabled) {
     }
 
-    private record StressSpawnTiming(long commandApplyNanos,
-                                     long entityAttachNanos,
-                                     long snapshotRefreshNanos) {
+    private record StressRuntimeSettings(
+        @Nonnull PhysicsChunkCollisionSettings chunkCollisionSettings,
+        @Nonnull PhysicsVisualMaterializationSettings visualMaterializationSettings,
+        @Nonnull PhysicsVisualSyncSettings visualSyncSettings,
+        @Nonnull PhysicsCollisionLodSettings collisionLodSettings) {
+    }
+
+    private record StressSpawnTiming(long setupWallNanos,
+                                     long physicsStoreApplyNanos,
+                                     long visualAttachNanos) {
 
         private StressSpawnTiming {
-            commandApplyNanos = Math.max(0L, commandApplyNanos);
-            entityAttachNanos = Math.max(0L, entityAttachNanos);
-            snapshotRefreshNanos = Math.max(0L, snapshotRefreshNanos);
-        }
-
-        @Nonnull
-        private StressSpawnTiming withSnapshotRefreshNanos(long snapshotRefreshNanos) {
-            return new StressSpawnTiming(commandApplyNanos,
-                entityAttachNanos,
-                snapshotRefreshNanos);
-        }
-
-        private long setupWallNanos() {
-            return commandApplyNanos + entityAttachNanos + snapshotRefreshNanos;
+            setupWallNanos = Math.max(0L, setupWallNanos);
+            physicsStoreApplyNanos = Math.max(0L, physicsStoreApplyNanos);
+            visualAttachNanos = Math.max(0L, visualAttachNanos);
         }
     }
 

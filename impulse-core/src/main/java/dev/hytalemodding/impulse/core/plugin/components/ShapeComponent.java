@@ -1,0 +1,157 @@
+package dev.hytalemodding.impulse.core.plugin.components;
+
+import com.hypixel.hytale.codec.Codec;
+import com.hypixel.hytale.codec.KeyedCodec;
+import com.hypixel.hytale.codec.builder.BuilderCodec;
+import com.hypixel.hytale.codec.codecs.EnumCodec;
+import com.hypixel.hytale.component.Component;
+import com.hypixel.hytale.component.ComponentType;
+import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
+import dev.hytalemodding.impulse.api.PhysicsAxis;
+import dev.hytalemodding.impulse.api.ShapeType;
+import lombok.Getter;
+import lombok.Setter;
+import java.util.Objects;
+import javax.annotation.Nonnull;
+
+/**
+ * Authored collision shape for one collider entity.
+ */
+public final class ShapeComponent implements Component<PhysicsStore> {
+
+    @Nonnull
+    public static final BuilderCodec<ShapeComponent> CODEC = BuilderCodec.builder(
+            ShapeComponent.class,
+            ShapeComponent::new)
+        .append(new KeyedCodec<>("ShapeType", new EnumCodec<>(ShapeType.class), false),
+            (component, value) -> component.shapeType = value != null ? value : ShapeType.BOX,
+            ShapeComponent::getShapeType)
+        .add()
+        .append(new KeyedCodec<>("HalfExtentX", Codec.FLOAT, false),
+            (component, value) -> component.halfExtentX = value != null ? value : 0.5f,
+            ShapeComponent::getHalfExtentX)
+        .add()
+        .append(new KeyedCodec<>("HalfExtentY", Codec.FLOAT, false),
+            (component, value) -> component.halfExtentY = value != null ? value : 0.5f,
+            ShapeComponent::getHalfExtentY)
+        .add()
+        .append(new KeyedCodec<>("HalfExtentZ", Codec.FLOAT, false),
+            (component, value) -> component.halfExtentZ = value != null ? value : 0.5f,
+            ShapeComponent::getHalfExtentZ)
+        .add()
+        .append(new KeyedCodec<>("Radius", Codec.FLOAT, false),
+            (component, value) -> component.radius = value != null ? value : 0.5f,
+            ShapeComponent::getRadius)
+        .add()
+        .append(new KeyedCodec<>("HalfHeight", Codec.FLOAT, false),
+            (component, value) -> component.halfHeight = value != null ? value : 0.5f,
+            ShapeComponent::getHalfHeight)
+        .add()
+        .append(new KeyedCodec<>("Axis", new EnumCodec<>(PhysicsAxis.class), false),
+            (component, value) -> component.axis = value != null ? value : PhysicsAxis.Y,
+            ShapeComponent::getAxis)
+        .add()
+        .append(new KeyedCodec<>("GroundY", Codec.FLOAT, false),
+            (component, value) -> component.groundY = value != null ? value : 0.0f,
+            ShapeComponent::getGroundY)
+        .add()
+        .append(new KeyedCodec<>("ResourceKey", Codec.STRING, false),
+            (component, value) -> component.resourceKey = value != null ? value : "",
+            ShapeComponent::getResourceKey)
+        .add()
+        .build();
+
+    @Nonnull
+    private ShapeType shapeType = ShapeType.BOX;
+    @Setter
+    @Getter
+    private float halfExtentX = 0.5f;
+    @Setter
+    @Getter
+    private float halfExtentY = 0.5f;
+    @Setter
+    @Getter
+    private float halfExtentZ = 0.5f;
+    @Setter
+    @Getter
+    private float radius = 0.5f;
+    @Setter
+    @Getter
+    private float halfHeight = 0.5f;
+    @Nonnull
+    private PhysicsAxis axis = PhysicsAxis.Y;
+    @Setter
+    @Getter
+    private float groundY;
+    @Nonnull
+    private String resourceKey = "";
+
+    public ShapeComponent() {
+    }
+
+    public ShapeComponent(@Nonnull ShapeType shapeType,
+        float halfExtentX,
+        float halfExtentY,
+        float halfExtentZ,
+        float radius,
+        float halfHeight,
+        @Nonnull PhysicsAxis axis,
+        float groundY,
+        @Nonnull String resourceKey) {
+        this.shapeType = Objects.requireNonNull(shapeType, "shapeType");
+        this.halfExtentX = halfExtentX;
+        this.halfExtentY = halfExtentY;
+        this.halfExtentZ = halfExtentZ;
+        this.radius = radius;
+        this.halfHeight = halfHeight;
+        this.axis = Objects.requireNonNull(axis, "axis");
+        this.groundY = groundY;
+        this.resourceKey = Objects.requireNonNull(resourceKey, "resourceKey");
+    }
+
+    @Nonnull
+    public ShapeType getShapeType() {
+        return shapeType;
+    }
+
+    public void setShapeType(@Nonnull ShapeType shapeType) {
+        this.shapeType = Objects.requireNonNull(shapeType, "shapeType");
+    }
+
+    @Nonnull
+    public PhysicsAxis getAxis() {
+        return axis;
+    }
+
+    public void setAxis(@Nonnull PhysicsAxis axis) {
+        this.axis = Objects.requireNonNull(axis, "axis");
+    }
+
+    @Nonnull
+    public String getResourceKey() {
+        return resourceKey;
+    }
+
+    public void setResourceKey(@Nonnull String resourceKey) {
+        this.resourceKey = Objects.requireNonNull(resourceKey, "resourceKey");
+    }
+
+    @Nonnull
+    public static ComponentType<PhysicsStore, ShapeComponent> getComponentType() {
+        return PhysicsComponentTypes.shapeComponentType();
+    }
+
+    @Nonnull
+    @Override
+    public ShapeComponent clone() {
+        return new ShapeComponent(shapeType,
+            halfExtentX,
+            halfExtentY,
+            halfExtentZ,
+            radius,
+            halfHeight,
+            axis,
+            groundY,
+            resourceKey);
+    }
+}

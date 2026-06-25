@@ -1,0 +1,57 @@
+package dev.hytalemodding.impulse.core.internal.systems;
+
+import com.hypixel.hytale.component.ArchetypeChunk;
+import com.hypixel.hytale.component.Component;
+import com.hypixel.hytale.component.ComponentType;
+import com.hypixel.hytale.component.Ref;
+import com.hypixel.hytale.component.Store;
+import com.hypixel.hytale.component.query.Query;
+import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
+import dev.hytalemodding.impulse.core.plugin.components.UuidComponent;
+import java.util.UUID;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+
+public final class PhysicsStoreSystemSupport {
+
+    static final UUID NIL_UUID = new UUID(0L, 0L);
+    private PhysicsStoreSystemSupport() {
+    }
+
+    @Nonnull
+    static ComponentType<PhysicsStore, UuidComponent> uuidType() {
+        return UuidComponent.getComponentType();
+    }
+
+    @Nonnull
+    public static Query<PhysicsStore> uuidQuery() {
+        return uuidType();
+    }
+
+    @Nonnull
+    public static UUID rowUuid(@Nonnull ArchetypeChunk<PhysicsStore> chunk, int index) {
+        UuidComponent uuid = chunk.getComponent(index, uuidType());
+        return uuid != null ? uuid.getUuid() : NIL_UUID;
+    }
+
+    @Nonnull
+    static UUID rowUuid(@Nonnull Ref<PhysicsStore> ref) {
+        UuidComponent uuid = component(ref.getStore(), ref, uuidType());
+        return uuid != null ? uuid.getUuid() : NIL_UUID;
+    }
+
+    public static boolean isNil(@Nonnull UUID uuid) {
+        return NIL_UUID.equals(uuid);
+    }
+
+    @Nullable
+    public static <C extends Component<PhysicsStore>> C component(
+        @Nonnull Store<PhysicsStore> store,
+        @Nullable Ref<PhysicsStore> ref,
+        @Nonnull ComponentType<PhysicsStore, C> type) {
+        if (ref == null || !ref.isValid()) {
+            return null;
+        }
+        return store.getComponent(ref, type);
+    }
+}

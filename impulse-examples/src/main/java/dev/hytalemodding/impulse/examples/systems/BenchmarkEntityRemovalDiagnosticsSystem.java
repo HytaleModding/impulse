@@ -9,10 +9,11 @@ import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.component.query.Query;
 import com.hypixel.hytale.component.system.RefSystem;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent;
+import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.BodyAttachmentComponent;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -20,12 +21,23 @@ import javax.annotation.Nonnull;
 
 public final class BenchmarkEntityRemovalDiagnosticsSystem extends RefSystem<EntityStore> {
 
-    private static final ComponentType<EntityStore, PhysicsBodyAttachmentComponent> ATTACHMENT_TYPE =
-        PhysicsBodyAttachmentComponent.getComponentType();
-    private static final Query<EntityStore> QUERY = ATTACHMENT_TYPE;
-
     private static final AtomicInteger PHYSICS_ENTITY_REMOVALS = new AtomicInteger();
     private static final ConcurrentMap<String, AtomicInteger> REMOVALS_BY_REASON = new ConcurrentHashMap<>();
+
+    @Nonnull
+    private final ComponentType<EntityStore, BodyAttachmentComponent> attachmentType;
+    @Nonnull
+    private final Query<EntityStore> query;
+
+    public BenchmarkEntityRemovalDiagnosticsSystem() {
+        this(BodyAttachmentComponent.getComponentType());
+    }
+
+    BenchmarkEntityRemovalDiagnosticsSystem(
+        @Nonnull ComponentType<EntityStore, BodyAttachmentComponent> attachmentType) {
+        this.attachmentType = Objects.requireNonNull(attachmentType, "attachmentType");
+        this.query = attachmentType;
+    }
 
     public static void reset() {
         PHYSICS_ENTITY_REMOVALS.set(0);
@@ -55,7 +67,7 @@ public final class BenchmarkEntityRemovalDiagnosticsSystem extends RefSystem<Ent
         @Nonnull RemoveReason reason,
         @Nonnull Store<EntityStore> store,
         @Nonnull CommandBuffer<EntityStore> commandBuffer) {
-        PhysicsBodyAttachmentComponent component = store.getComponent(ref, ATTACHMENT_TYPE);
+        BodyAttachmentComponent component = store.getComponent(ref, attachmentType);
         if (component == null) {
             return;
         }
@@ -68,6 +80,6 @@ public final class BenchmarkEntityRemovalDiagnosticsSystem extends RefSystem<Ent
     @Nonnull
     @Override
     public Query<EntityStore> getQuery() {
-        return QUERY;
+        return query;
     }
 }

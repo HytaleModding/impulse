@@ -4,21 +4,12 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import dev.hytalemodding.impulse.api.BackendId;
 import dev.hytalemodding.impulse.api.PhysicsAxis;
-import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
-import dev.hytalemodding.impulse.api.PhysicsContact;
-import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.ShapeType;
-import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
-import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent;
+import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.BodyAttachmentComponent;
 import dev.hytalemodding.impulse.api.SpaceId;
-import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackend;
-import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackend.InMemoryPhysicsSpace;
-import dev.hytalemodding.impulse.core.internal.simulation.view.PhysicsDebugContactView;
-import dev.hytalemodding.impulse.core.internal.simulation.view.PhysicsDebugJointView;
 import java.util.concurrent.CompletableFuture;
 import java.util.List;
 import java.util.UUID;
@@ -62,8 +53,7 @@ class PhysicsDebugSystemTest {
         Vector3d syncedVisualPosition = new Vector3d(snapshot.positionX(),
             snapshot.positionY() - snapshot.centerOfMassOffsetY(),
             snapshot.positionZ()).add(localOffset.x, localOffset.y, localOffset.z);
-        PhysicsBodyAttachmentComponent attachment = PhysicsBodyAttachmentComponent.externalEntity(RigidBodyKey.random(),
-            null,
+        BodyAttachmentComponent attachment = BodyAttachmentComponent.externalEntity(UUID.randomUUID(),
             localOffset,
             new Quaternionf());
 
@@ -112,8 +102,7 @@ class PhysicsDebugSystemTest {
         syncedVisualPosition.add(syncedBodyRotation.transform(new Vector3d(localOffset.x,
             localOffset.y,
             localOffset.z)));
-        PhysicsBodyAttachmentComponent attachment = PhysicsBodyAttachmentComponent.externalEntity(RigidBodyKey.random(),
-            null,
+        BodyAttachmentComponent attachment = BodyAttachmentComponent.externalEntity(UUID.randomUUID(),
             localOffset,
             new Quaternionf());
 
@@ -159,8 +148,7 @@ class PhysicsDebugSystemTest {
             0.0f,
             PhysicsAxis.Y);
         Vector3f localOffset = new Vector3f(0.0f, -0.5f, 0.0f);
-        PhysicsBodyAttachmentComponent attachment = PhysicsBodyAttachmentComponent.externalEntity(RigidBodyKey.random(),
-            null,
+        BodyAttachmentComponent attachment = BodyAttachmentComponent.externalEntity(UUID.randomUUID(),
             localOffset,
             new Quaternionf(),
             0.5f);
@@ -286,20 +274,16 @@ class PhysicsDebugSystemTest {
 
     @Test
     void collectVisibleJointPrimitivesUsesAnchorsForDistanceAndRendering() {
-        PhysicsSpace space = new FakePhysicsBackend(new BackendId("test:debug-joints"))
-            .createSpace(new SpaceId(1));
-        PhysicsBody bodyA = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
-        PhysicsBody bodyB = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
-        bodyA.setPosition(1.0f, 0.0f, 0.0f);
-        bodyB.setPosition(5.0f, 0.0f, 0.0f);
-        space.createHingeJoint(bodyA,
-            bodyB,
-            new Vector3f(1.0f, 0.0f, 0.0f),
-            new Vector3f(-1.0f, 0.0f, 0.0f),
-            new Vector3f(0.0f, 1.0f, 0.0f));
+        List<PhysicsJointDebugCapture.JointDebugSource> joints = List.of(
+            new PhysicsJointDebugCapture.JointDebugSource(
+                new Vector3f(1.0f, 0.0f, 0.0f),
+                new Vector3f(5.0f, 0.0f, 0.0f),
+                new Vector3f(1.0f, 0.0f, 0.0f),
+                new Vector3f(-1.0f, 0.0f, 0.0f),
+                new Vector3f(0.0f, 1.0f, 0.0f)));
 
         List<PhysicsDebugRenderer.JointDebugPrimitive> visible =
-            PhysicsJointDebugCapture.collectVisibleJointPrimitives(space,
+            PhysicsJointDebugCapture.collectVisibleJointPrimitives(joints,
                 new Vector3d(3.0, 0.0, 0.0),
                 1.0,
                 4);
@@ -312,11 +296,11 @@ class PhysicsDebugSystemTest {
         assertEquals(0.9, primitive.axis().y, 0.00001);
         assertEquals(0.0, primitive.axis().z, 0.00001);
 
-        assertTrue(PhysicsJointDebugCapture.collectVisibleJointPrimitives(space,
+        assertTrue(PhysicsJointDebugCapture.collectVisibleJointPrimitives(joints,
             new Vector3d(8.0, 0.0, 0.0),
             1.0,
             4).isEmpty());
-        assertTrue(PhysicsJointDebugCapture.collectVisibleJointPrimitives(space,
+        assertTrue(PhysicsJointDebugCapture.collectVisibleJointPrimitives(joints,
             new Vector3d(3.0, 0.0, 0.0),
             1.0,
             0).isEmpty());
@@ -324,20 +308,13 @@ class PhysicsDebugSystemTest {
 
     @Test
     void collectVisibleContactPrimitivesCapturesPointsAndNormals() {
-        InMemoryPhysicsSpace space = (InMemoryPhysicsSpace) new FakePhysicsBackend(
-            new BackendId("test:debug-contacts")).createSpace(new SpaceId(2));
-        PhysicsBody bodyA = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
-        PhysicsBody bodyB = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
-        space.addContact(new PhysicsContact(bodyA,
-            bodyB,
-            new Vector3f(0.0f, 0.0f, 0.0f),
-            new Vector3f(1.0f, 2.0f, 3.0f),
-            new Vector3f(0.0f, 2.0f, 0.0f),
-            -0.1f,
-            20.0f));
+        List<PhysicsContactDebugCapture.ContactDebugSource> contacts = List.of(
+            new PhysicsContactDebugCapture.ContactDebugSource(
+                new Vector3f(1.0f, 2.0f, 3.0f),
+                new Vector3f(0.0f, 2.0f, 0.0f)));
 
         List<PhysicsDebugRenderer.ContactDebugPrimitive> visible =
-            PhysicsContactDebugCapture.collectVisibleContactPrimitives(space,
+            PhysicsContactDebugCapture.collectVisibleContactPrimitives(contacts,
                 new Vector3d(1.0, 2.0, 3.0),
                 0.5,
                 4);
@@ -349,11 +326,11 @@ class PhysicsDebugSystemTest {
         assertEquals(1.0, primitive.normal().y, 0.00001);
         assertEquals(0.0, primitive.normal().z, 0.00001);
 
-        assertTrue(PhysicsContactDebugCapture.collectVisibleContactPrimitives(space,
+        assertTrue(PhysicsContactDebugCapture.collectVisibleContactPrimitives(contacts,
             new Vector3d(3.0, 2.0, 3.0),
             0.5,
             4).isEmpty());
-        assertTrue(PhysicsContactDebugCapture.collectVisibleContactPrimitives(space,
+        assertTrue(PhysicsContactDebugCapture.collectVisibleContactPrimitives(contacts,
             new Vector3d(1.0, 2.0, 3.0),
             0.5,
             0).isEmpty());

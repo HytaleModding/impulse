@@ -1,31 +1,29 @@
 package dev.hytalemodding.impulse.examples.commands;
 
-import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
+import com.hypixel.hytale.math.vector.Transform;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.command.system.arguments.system.OptionalArg;
 import com.hypixel.hytale.server.core.command.system.arguments.types.ArgTypes;
 import com.hypixel.hytale.server.core.command.system.basecommands.AbstractAsyncPlayerCommand;
 import com.hypixel.hytale.server.core.modules.debug.DebugUtils;
-import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.api.SpaceId;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
-import dev.hytalemodding.impulse.core.plugin.simulation.query.RaycastClosestQuery;
-import dev.hytalemodding.impulse.core.plugin.simulation.view.RaycastHitView;
+import com.hypixel.hytale.server.core.util.TargetUtil;
+import dev.hytalemodding.impulse.core.plugin.physics.PhysicsAsync;
+import dev.hytalemodding.impulse.core.plugin.physics.PhysicsRaycasts;
+import dev.hytalemodding.impulse.core.plugin.physics.RaycastHitView;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
+import dev.hytalemodding.impulse.examples.utils.ExamplePhysicsUtils;
 import org.joml.Vector3d;
 
 public class RaycastCommand extends AbstractAsyncPlayerCommand {
 
     private static final double RAY_LENGTH = 24.0;
-    private static final ComponentType<EntityStore, TransformComponent> TRANSFORM_TYPE =
-        TransformComponent.getComponentType();
     private final OptionalArg<Integer> spaceArg = this.withOptionalArg(
         "space",
         "Physics space id to target",
@@ -42,35 +40,34 @@ public class RaycastCommand extends AbstractAsyncPlayerCommand {
         @Nonnull Ref<EntityStore> ref,
         @Nonnull PlayerRef playerRef,
         @Nonnull World world) {
-        TransformComponent transform = store.getComponent(ref, TRANSFORM_TYPE);
-        if (transform == null) {
-            ctx.sender().sendMessage(Message.raw("Cannot determine player position."));
+        ExamplePhysicsUtils.SpaceSelection space = ExamplePhysicsUtils.spaceSelection(ctx,
+            world,
+            spaceArg);
+        if (space == null) {
             return CompletableFuture.completedFuture(null);
         }
 
-        PhysicsWorldResource resource = ExamplePhysicsUtils.resource(store);
-        SpaceId spaceId = ExamplePhysicsUtils.spaceId(ctx, resource, spaceArg);
-        if (spaceId == null) {
-            return CompletableFuture.completedFuture(null);
-        }
-
-        Vector3d start = ExamplePhysicsUtils.eyePosition(store, ref, transform);
-        Vector3d direction = ExamplePhysicsUtils.lookDirection(store, ref, transform).mul(RAY_LENGTH);
+        Transform look = TargetUtil.getLook(ref, store);
+        Vector3d start = new Vector3d(look.getPosition());
+        Vector3d direction = new Vector3d(look.getDirection()).mul(RAY_LENGTH);
         Vector3d end = new Vector3d(start).add(direction);
 
         DebugUtils.addArrow(world, start, direction, DebugUtils.COLOR_WHITE, 0.8f, 4.0f,
             DebugUtils.FLAG_FADE);
-        RaycastResult hit = resource.query(new RaycastClosestQuery(spaceId,
+        return PhysicsAsync.acceptOnWorldThread(world,
+            PhysicsRaycasts.closestAsync(world,
+                space.spaceRef(),
                 ExamplePhysicsUtils.toVector3f(start),
-                ExamplePhysicsUtils.toVector3f(end)))
-            .completion()
-            .toCompletableFuture()
-            .join()
-            .map(RaycastCommand::toResult)
-            .orElse(null);
+                ExamplePhysicsUtils.toVector3f(end)),
+            hit -> handleHit(ctx, world, hit.map(RaycastCommand::toResult).orElse(null)));
+    }
+
+    private static void handleHit(@Nonnull CommandContext ctx,
+        @Nonnull World world,
+        RaycastResult hit) {
         if (hit == null) {
             ctx.sender().sendMessage(Message.raw("Physics ray missed."));
-            return CompletableFuture.completedFuture(null);
+            return;
         }
 
         Vector3d hitPoint = hit.point();
@@ -83,7 +80,6 @@ public class RaycastCommand extends AbstractAsyncPlayerCommand {
 
         ctx.sender().sendMessage(Message.raw("Physics ray hit " + hit.shapeType()
             + " at distance " + hit.distance()));
-        return CompletableFuture.completedFuture(null);
     }
 
     private record RaycastResult(@Nonnull Vector3d point,

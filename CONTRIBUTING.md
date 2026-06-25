@@ -16,7 +16,8 @@ Open an issue or design discussion before changing architecture, persistence, li
 backend runtime contracts, public API packages or native artifact packaging.
 
 For bug reports, include a clear reproduction path and logs. When the bug depends on Hytale server
-runtime behavior, also try to add or propose a failing Crucible test so that it can be reproduced in-game. 
+runtime behavior, also try to add or propose a focused JUnit/headless regression test, or document
+the `runAllMods` world setup and commands needed to reproduce it.
 
 ## AI-Assisted Contributions
 
@@ -67,8 +68,9 @@ Runtime/server behavior should be checked with:
 ./gradlew runAllMods
 ```
 
-When a runtime bug is fixed, prefer adding a focused Crucible test that reproduces the failing
-server behavior.
+When a runtime bug is fixed, prefer adding a focused module test that reproduces the failing
+behavior. If the bug only exists in a live Hytale server loop, document the manual `runAllMods`
+scenario used for validation.
 
 Backend-specific changes should name the backend used for validation, such as `impulse:bullet` or
 `impulse:rapier`.

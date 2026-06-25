@@ -1,5 +1,6 @@
 package dev.hytalemodding.impulse.examples.commands;
 
+import com.hypixel.hytale.component.AddReason;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.Message;
@@ -11,18 +12,24 @@ import com.hypixel.hytale.server.core.modules.time.TimeResource;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.SpaceId;
-import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
-import dev.hytalemodding.impulse.core.plugin.joint.JointKey;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
-import dev.hytalemodding.impulse.core.plugin.simulation.recorder.PhysicsCommandRecorder;
-import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
-import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
-import dev.hytalemodding.impulse.examples.commands.ExamplePhysicsUtils.PendingBlockBody;
+import dev.hytalemodding.impulse.core.plugin.physics.PhysicsBodyEntities;
+import dev.hytalemodding.impulse.core.plugin.physics.PhysicsEntities;
+import dev.hytalemodding.impulse.core.plugin.physics.PhysicsJointEntities;
+import dev.hytalemodding.impulse.core.plugin.physics.PhysicsThreading;
+import dev.hytalemodding.impulse.core.plugin.components.JointComponent;
+import dev.hytalemodding.impulse.core.plugin.components.JointType;
+import dev.hytalemodding.impulse.core.plugin.physics.PhysicsShapeSpec;
+import dev.hytalemodding.impulse.core.plugin.physics.RigidBodySpawnSettings;
+import dev.hytalemodding.impulse.examples.utils.ExamplePhysicsUtils;
+import dev.hytalemodding.impulse.examples.utils.ExamplePhysicsUtils.CreatedBlockBody;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.joml.Vector3d;
 import org.joml.Vector3f;
 
@@ -47,29 +54,35 @@ public class JointsCommand extends AbstractAsyncPlayerCommand {
         @Nonnull Ref<EntityStore> ref,
         @Nonnull PlayerRef playerRef,
         @Nonnull World world) {
-        Vector3d playerPos = ExamplePhysicsUtils.playerPosition(ctx, store, ref);
-        if (playerPos == null) {
-            return CompletableFuture.completedFuture(null);
-        }
+        Vector3d playerPos = new Vector3d(playerRef.getTransform().getPosition());
 
-        PhysicsWorldResource resource = ExamplePhysicsUtils.resource(store);
-        SpaceId spaceId = ExamplePhysicsUtils.spaceId(ctx, resource, spaceArg);
+        SpaceId spaceId = ExamplePhysicsUtils.spaceId(ctx, world, spaceArg);
         if (spaceId == null) {
             return CompletableFuture.completedFuture(null);
         }
         TimeResource time = store.getResource(TimeResource.getResourceType());
+        Store<PhysicsStore> physicsStore = PhysicsThreading.store(world);
+        Ref<PhysicsStore> spaceRef = ExamplePhysicsUtils.resolveSpaceRef(world, spaceId);
+        if (spaceRef == null) {
+            ctx.sender().sendMessage(Message.raw(
+                "Cannot spawn joint demo because the target space is not bound in PhysicsStore."));
+            return CompletableFuture.completedFuture(null);
+        }
 
         Vector3d origin = new Vector3d(playerPos).add(-5.0, 5.0, 5.0);
-        List<PendingBlockBody> pendingBodies = new ArrayList<>(10);
-        ExamplePhysicsUtils.requireApplied(resource.submitCommands(Math.max(0L, world.getTick()), 16, commands -> {
-            createFixed(pendingBodies, commands, spaceId, new Vector3d(origin));
-            createPoint(pendingBodies, commands, spaceId, new Vector3d(origin).add(2.5, 0.0, 0.0));
-            createHinge(pendingBodies, commands, spaceId, new Vector3d(origin).add(5.0, 0.0, 0.0));
-            createSlider(pendingBodies, commands, spaceId, new Vector3d(origin).add(7.5, 0.0, 0.0));
-            createSpring(pendingBodies, commands, spaceId, new Vector3d(origin).add(10.0, 0.0, 0.0));
-        }), "create joint demo");
-        for (PendingBlockBody pending : pendingBodies) {
-            ExamplePhysicsUtils.attachRecordedBlockBody(store, time, pending);
+        List<CreatedBlockBody> createdBodies;
+        try {
+            createdBodies = createPhysicsStoreDemo(physicsStore,
+                spaceRef,
+                spaceId,
+                new Vector3d(origin));
+        } catch (IllegalStateException exception) {
+            ctx.sender().sendMessage(Message.raw(
+                "Cannot spawn joint demo because the target space is not bound in PhysicsStore."));
+            return CompletableFuture.completedFuture(null);
+        }
+        for (CreatedBlockBody created : createdBodies) {
+            ExamplePhysicsUtils.attachBlockBody(store, time, created);
         }
 
         ctx.sender().sendMessage(Message.raw(
@@ -77,100 +90,217 @@ public class JointsCommand extends AbstractAsyncPlayerCommand {
         return CompletableFuture.completedFuture(null);
     }
 
-    private static void createFixed(@Nonnull List<PendingBlockBody> pendingBodies,
-        @Nonnull PhysicsCommandRecorder commands,
+    @Nonnull
+    private static List<CreatedBlockBody> createPhysicsStoreDemo(@Nonnull Store<PhysicsStore> physicsStore,
+        @Nonnull Ref<PhysicsStore> spaceRef,
         @Nonnull SpaceId spaceId,
         @Nonnull Vector3d origin) {
-        RigidBodyKey anchorKey = spawnBox(pendingBodies, commands, spaceId, origin, 0.0f);
-        RigidBodyKey childKey = spawnBox(pendingBodies, commands, spaceId,
-            new Vector3d(origin).add(0.0, -TOUCHING_SPACING, 0.0), 1.0f);
-        commands.joint(JointKey.random(), joint -> joint
-            .space(spaceId)
-            .bodies(anchorKey, childKey)
-            .fixed(new Vector3f(0.0f, -HALF_SIZE, 0.0f),
-                new Vector3f(0.0f, HALF_SIZE, 0.0f)));
+        List<CreatedBlockBody> createdBodies = new ArrayList<>(10);
+        createFixed(createdBodies, physicsStore, spaceRef, spaceId, new Vector3d(origin));
+        createPoint(createdBodies,
+            physicsStore,
+            spaceRef,
+            spaceId,
+            new Vector3d(origin).add(2.5, 0.0, 0.0));
+        createHinge(createdBodies,
+            physicsStore,
+            spaceRef,
+            spaceId,
+            new Vector3d(origin).add(5.0, 0.0, 0.0));
+        createSlider(createdBodies,
+            physicsStore,
+            spaceRef,
+            spaceId,
+            new Vector3d(origin).add(7.5, 0.0, 0.0));
+        createSpring(createdBodies,
+            physicsStore,
+            spaceRef,
+            spaceId,
+            new Vector3d(origin).add(10.0, 0.0, 0.0));
+        return createdBodies;
     }
 
-    private static void createPoint(@Nonnull List<PendingBlockBody> pendingBodies,
-        @Nonnull PhysicsCommandRecorder commands,
+    private static void createFixed(@Nonnull List<CreatedBlockBody> createdBodies,
+        @Nonnull Store<PhysicsStore> physicsStore,
+        @Nonnull Ref<PhysicsStore> spaceRef,
         @Nonnull SpaceId spaceId,
         @Nonnull Vector3d origin) {
-        RigidBodyKey anchorKey = spawnBox(pendingBodies, commands, spaceId, origin, 0.0f);
-        RigidBodyKey bobKey = spawnBox(pendingBodies, commands, spaceId,
+        CreatedBlockBody anchor = spawnBox(createdBodies, physicsStore, spaceRef, spaceId, origin, 0.0f);
+        CreatedBlockBody child = spawnBox(createdBodies, physicsStore, spaceRef, spaceId,
             new Vector3d(origin).add(0.0, -TOUCHING_SPACING, 0.0), 1.0f);
-        commands.setBodyVelocity(bobKey, 1.5f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, true);
-        commands.joint(JointKey.random(), joint -> joint
-            .space(spaceId)
-            .bodies(anchorKey, bobKey)
-            .point(new Vector3f(0.0f, -HALF_SIZE, 0.0f),
-                new Vector3f(0.0f, HALF_SIZE, 0.0f)));
+        JointComponent joint = joint(spaceRef,
+            anchor,
+            child,
+            JointType.FIXED,
+            new Vector3f(0.0f, -HALF_SIZE, 0.0f),
+            new Vector3f(0.0f, HALF_SIZE, 0.0f),
+            new Vector3f());
+        Ref<PhysicsStore> jointRef = physicsStore.addEntity(PhysicsEntities.jointHolder(physicsStore,
+            UUID.randomUUID(),
+            joint), AddReason.SPAWN);
+        assert jointRef != null;
     }
 
-    private static void createHinge(@Nonnull List<PendingBlockBody> pendingBodies,
-        @Nonnull PhysicsCommandRecorder commands,
+    private static void createPoint(@Nonnull List<CreatedBlockBody> createdBodies,
+        @Nonnull Store<PhysicsStore> physicsStore,
+        @Nonnull Ref<PhysicsStore> spaceRef,
         @Nonnull SpaceId spaceId,
         @Nonnull Vector3d origin) {
-        RigidBodyKey anchorKey = spawnBox(pendingBodies, commands, spaceId, origin, 0.0f);
-        RigidBodyKey armKey = spawnBox(pendingBodies, commands, spaceId,
-            new Vector3d(origin).add(0.0, -TOUCHING_SPACING, 0.0), 1.0f);
-        commands.joint(JointKey.random(), joint -> joint
-            .space(spaceId)
-            .bodies(anchorKey, armKey)
-            .hinge(new Vector3f(0.0f, -HALF_SIZE, 0.0f),
-                new Vector3f(0.0f, HALF_SIZE, 0.0f),
-                new Vector3f(0.0f, 0.0f, 1.0f))
-            .limits(-1.2f, 1.2f)
-            .motor(1.5f, 3.0f));
+        CreatedBlockBody anchor = spawnBox(createdBodies, physicsStore, spaceRef, spaceId, origin, 0.0f);
+        CreatedBlockBody bob = spawnBox(createdBodies,
+            physicsStore,
+            spaceRef,
+            spaceId,
+            new Vector3d(origin).add(0.0, -TOUCHING_SPACING, 0.0),
+            1.0f,
+            new Vector3f(1.5f, 0.0f, 0.0f));
+        JointComponent joint = joint(spaceRef,
+            anchor,
+            bob,
+            JointType.POINT,
+            new Vector3f(0.0f, -HALF_SIZE, 0.0f),
+            new Vector3f(0.0f, HALF_SIZE, 0.0f),
+            new Vector3f());
+        Ref<PhysicsStore> jointRef = physicsStore.addEntity(PhysicsEntities.jointHolder(physicsStore,
+            UUID.randomUUID(),
+            joint), AddReason.SPAWN);
+        assert jointRef != null;
     }
 
-    private static void createSlider(@Nonnull List<PendingBlockBody> pendingBodies,
-        @Nonnull PhysicsCommandRecorder commands,
+    private static void createHinge(@Nonnull List<CreatedBlockBody> createdBodies,
+        @Nonnull Store<PhysicsStore> physicsStore,
+        @Nonnull Ref<PhysicsStore> spaceRef,
         @Nonnull SpaceId spaceId,
         @Nonnull Vector3d origin) {
-        RigidBodyKey anchorKey = spawnBox(pendingBodies, commands, spaceId, origin, 0.0f);
-        RigidBodyKey blockKey = spawnBox(pendingBodies, commands, spaceId,
+        CreatedBlockBody anchor = spawnBox(createdBodies, physicsStore, spaceRef, spaceId, origin, 0.0f);
+        CreatedBlockBody arm = spawnBox(createdBodies, physicsStore, spaceRef, spaceId,
+            new Vector3d(origin).add(0.0, -TOUCHING_SPACING, 0.0), 1.0f);
+        JointComponent joint = joint(spaceRef,
+            anchor,
+            arm,
+            JointType.HINGE,
+            new Vector3f(0.0f, -HALF_SIZE, 0.0f),
+            new Vector3f(0.0f, HALF_SIZE, 0.0f),
+            new Vector3f(0.0f, 0.0f, 1.0f));
+        joint.setLowerLimit(-1.2f);
+        joint.setUpperLimit(1.2f);
+        joint.setMotorEnabled(true);
+        joint.setMotorTargetVelocity(1.5f);
+        joint.setMotorMaxForce(3.0f);
+        Ref<PhysicsStore> jointRef = physicsStore.addEntity(PhysicsEntities.jointHolder(physicsStore,
+            UUID.randomUUID(),
+            joint), AddReason.SPAWN);
+        assert jointRef != null;
+    }
+
+    private static void createSlider(@Nonnull List<CreatedBlockBody> createdBodies,
+        @Nonnull Store<PhysicsStore> physicsStore,
+        @Nonnull Ref<PhysicsStore> spaceRef,
+        @Nonnull SpaceId spaceId,
+        @Nonnull Vector3d origin) {
+        CreatedBlockBody anchor = spawnBox(createdBodies, physicsStore, spaceRef, spaceId, origin, 0.0f);
+        CreatedBlockBody block = spawnBox(createdBodies, physicsStore, spaceRef, spaceId,
             new Vector3d(origin).add(TOUCHING_SPACING, 0.0, 0.0), 1.0f);
-        commands.joint(JointKey.random(), joint -> joint
-            .space(spaceId)
-            .bodies(anchorKey, blockKey)
-            .slider(new Vector3f(HALF_SIZE, 0.0f, 0.0f),
-                new Vector3f(-HALF_SIZE, 0.0f, 0.0f),
-                new Vector3f(1.0f, 0.0f, 0.0f))
-            .limits(-1.0f, 1.0f)
-            .motor(1.0f, 4.0f));
+        JointComponent joint = joint(spaceRef,
+            anchor,
+            block,
+            JointType.SLIDER,
+            new Vector3f(HALF_SIZE, 0.0f, 0.0f),
+            new Vector3f(-HALF_SIZE, 0.0f, 0.0f),
+            new Vector3f(1.0f, 0.0f, 0.0f));
+        joint.setLowerLimit(-1.0f);
+        joint.setUpperLimit(1.0f);
+        joint.setMotorEnabled(true);
+        joint.setMotorTargetVelocity(1.0f);
+        joint.setMotorMaxForce(4.0f);
+        Ref<PhysicsStore> jointRef = physicsStore.addEntity(PhysicsEntities.jointHolder(physicsStore,
+            UUID.randomUUID(),
+            joint), AddReason.SPAWN);
+        assert jointRef != null;
     }
 
-    private static void createSpring(@Nonnull List<PendingBlockBody> pendingBodies,
-        @Nonnull PhysicsCommandRecorder commands,
+    private static void createSpring(@Nonnull List<CreatedBlockBody> createdBodies,
+        @Nonnull Store<PhysicsStore> physicsStore,
+        @Nonnull Ref<PhysicsStore> spaceRef,
         @Nonnull SpaceId spaceId,
         @Nonnull Vector3d origin) {
-        RigidBodyKey anchorKey = spawnBox(pendingBodies, commands, spaceId, origin, 0.0f);
-        RigidBodyKey bobKey = spawnBox(pendingBodies, commands, spaceId,
+        CreatedBlockBody anchor = spawnBox(createdBodies, physicsStore, spaceRef, spaceId, origin, 0.0f);
+        CreatedBlockBody bob = spawnBox(createdBodies,
+            physicsStore,
+            spaceRef,
+            spaceId,
             new Vector3d(origin).add(0.0, -(TOUCHING_SPACING + SPRING_REST_LENGTH), 0.0),
-            1.0f);
-        commands.setBodyVelocity(bobKey, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, true);
-        commands.joint(JointKey.random(), joint -> joint
-            .space(spaceId)
-            .bodies(anchorKey, bobKey)
-            .spring(new Vector3f(0.0f, -HALF_SIZE, 0.0f),
-                new Vector3f(0.0f, HALF_SIZE, 0.0f),
-                SPRING_REST_LENGTH,
-                20.0f,
-                2.0f));
+            1.0f,
+            new Vector3f(1.0f, 0.0f, 0.0f));
+        JointComponent joint = joint(spaceRef,
+            anchor,
+            bob,
+            JointType.SPRING,
+            new Vector3f(0.0f, -HALF_SIZE, 0.0f),
+            new Vector3f(0.0f, HALF_SIZE, 0.0f),
+            new Vector3f());
+        joint.setSpringRestLength(SPRING_REST_LENGTH);
+        joint.setSpringStiffness(20.0f);
+        joint.setSpringDamping(2.0f);
+        Ref<PhysicsStore> jointRef = physicsStore.addEntity(PhysicsEntities.jointHolder(physicsStore,
+            UUID.randomUUID(),
+            joint), AddReason.SPAWN);
+        assert jointRef != null;
     }
 
-    private static RigidBodyKey spawnBox(@Nonnull List<PendingBlockBody> pendingBodies,
-        @Nonnull PhysicsCommandRecorder commands,
+    private static CreatedBlockBody spawnBox(@Nonnull List<CreatedBlockBody> createdBodies,
+        @Nonnull Store<PhysicsStore> physicsStore,
+        @Nonnull Ref<PhysicsStore> spaceRef,
         @Nonnull SpaceId spaceId,
         @Nonnull Vector3d position,
         float mass) {
-        PendingBlockBody pending = ExamplePhysicsUtils.recordBlockBodySpawn(commands,
-            spaceId,
-            position,
+        return spawnBox(createdBodies, physicsStore, spaceRef, spaceId, position, mass, null);
+    }
+
+    private static CreatedBlockBody spawnBox(@Nonnull List<CreatedBlockBody> createdBodies,
+        @Nonnull Store<PhysicsStore> physicsStore,
+        @Nonnull Ref<PhysicsStore> spaceRef,
+        @Nonnull SpaceId spaceId,
+        @Nonnull Vector3d position,
+        float mass,
+        @Nullable Vector3f linearVelocity) {
+        UUID bodyUuid = UUID.randomUUID();
+        var bodyHolder = PhysicsBodyEntities.dynamicBodyHolder(spaceRef,
+            bodyUuid,
+            ExamplePhysicsUtils.toVector3f(position),
             PhysicsShapeSpec.box(HALF_SIZE, HALF_SIZE, HALF_SIZE),
             mass,
-            RigidBodySpawnSettings.material(0.6f, 0.15f));
-        pendingBodies.add(pending);
-        return pending.bodyKey();
+            RigidBodySpawnSettings.material(0.6f, 0.15f),
+            linearVelocity);
+        Ref<PhysicsStore> bodyRef = physicsStore.addEntity(bodyHolder, AddReason.SPAWN);
+        assert bodyRef != null;
+        CreatedBlockBody created = new CreatedBlockBody(bodyUuid,
+            bodyRef,
+            spaceId,
+            ExamplePhysicsUtils.DEFAULT_BLOCK_TYPE,
+            (float) position.x,
+            (float) position.y,
+            (float) position.z,
+            mass > 0.0f);
+        createdBodies.add(created);
+        return created;
     }
+
+    @Nonnull
+    private static JointComponent joint(@Nonnull Ref<PhysicsStore> spaceRef,
+        @Nonnull CreatedBlockBody bodyA,
+        @Nonnull CreatedBlockBody bodyB,
+        @Nonnull JointType type,
+        @Nonnull Vector3f anchorA,
+        @Nonnull Vector3f anchorB,
+        @Nonnull Vector3f axis) {
+        return PhysicsJointEntities.joint(spaceRef,
+            bodyA.bodyRef(),
+            bodyB.bodyRef(),
+            type,
+            anchorA,
+            anchorB,
+            axis);
+    }
+
 }

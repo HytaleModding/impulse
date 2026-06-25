@@ -17,18 +17,16 @@ dependencyResolutionManagement {
         maven {
             url = uri("impulse-core/build/generated-sources-m2")
         }
-        // Crucible Maven repository.
-        maven {
-            url = uri("https://gitlab.com/api/v4/projects/82033924/packages/maven")
-        }
     }
 }
 
 rootProject.name = "impulse"
 
-include("impulse-api")
-include("impulse-native-loader")
-include("impulse-bullet")
-include("impulse-rapier")
+include(":impulse-backends:api")
+include(":impulse-backends:native-loader")
+include(":impulse-backends:jolt")
+include(":impulse-backends:rapier")
+include(":impulse-builtins:control")
 include("impulse-core")
 include("impulse-examples")
+include("impulse-early-plugin")

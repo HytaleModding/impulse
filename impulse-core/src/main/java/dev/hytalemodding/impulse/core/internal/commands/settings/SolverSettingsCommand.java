@@ -1,22 +1,26 @@
 package dev.hytalemodding.impulse.core.internal.commands.settings;
 
+import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.command.system.arguments.system.OptionalArg;
 import com.hypixel.hytale.server.core.command.system.arguments.types.ArgTypes;
-import com.hypixel.hytale.server.core.command.system.basecommands.AbstractWorldCommand;
+import com.hypixel.hytale.server.core.command.system.basecommands.AbstractAsyncWorldCommand;
 import com.hypixel.hytale.server.core.universe.world.World;
-import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.SpaceId;
-import dev.hytalemodding.impulse.core.internal.commands.SpaceSelection;
-import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
-import dev.hytalemodding.impulse.core.plugin.simulation.query.SolverCapabilityQuery;
-import dev.hytalemodding.impulse.core.plugin.simulation.SolverCapabilitySummary;
+import dev.hytalemodding.impulse.core.internal.commands.space.SpaceSelection;
+import dev.hytalemodding.impulse.core.plugin.physics.PhysicsDiagnostics;
+import dev.hytalemodding.impulse.core.plugin.physics.PhysicsAsync;
+import dev.hytalemodding.impulse.core.plugin.physics.PhysicsSpaces;
+import dev.hytalemodding.impulse.core.plugin.physics.PhysicsThreading;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSolverSettings;
+import dev.hytalemodding.impulse.core.plugin.physics.SolverCapabilitySummary;
+import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
 
-public class SolverSettingsCommand extends AbstractWorldCommand {
+public class SolverSettingsCommand extends AbstractAsyncWorldCommand {
 
     private final OptionalArg<Integer> solverIterationsArg = this.withOptionalArg(
         "solverIterations",
@@ -47,21 +51,34 @@ public class SolverSettingsCommand extends AbstractWorldCommand {
         super("solver", "Get or set solver tuning for a physics space", true);
     }
 
+    @Nonnull
     @Override
-    protected void execute(@Nonnull CommandContext ctx,
-        @Nonnull World world,
-        @Nonnull Store<EntityStore> store) {
-        PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
-        SpaceId spaceId = SpaceSelection.resolve(ctx, world, resource, spaceArg);
-        if (spaceId == null) {
+    protected CompletableFuture<Void> executeAsync(@Nonnull CommandContext ctx,
+        @Nonnull World world) {
+        Store<PhysicsStore> physicsStore = PhysicsThreading.store(world);
+        SpaceSelection.SelectedSpace selectedSpace = SpaceSelection.resolveStoreSpace(ctx,
+            world,
+            spaceArg);
+        if (selectedSpace == null) {
+            return CompletableFuture.completedFuture(null);
+        }
+        SpaceId spaceId = selectedSpace.spaceId();
+        return PhysicsAsync.acceptOnWorldThread(world,
+            PhysicsDiagnostics.solverCapabilityAsync(world, selectedSpace.spaceRef()),
+            summary -> applySettings(ctx, physicsStore, selectedSpace.spaceRef(), spaceId, summary));
+    }
+
+    private void applySettings(@Nonnull CommandContext ctx,
+        @Nonnull Store<PhysicsStore> physicsStore,
+        @Nonnull Ref<PhysicsStore> spaceRef,
+        @Nonnull SpaceId spaceId,
+        @Nonnull SolverCapabilitySummary summary) {
+        PhysicsSolverSettings settings = PhysicsSpaces.solverSettings(physicsStore, spaceRef);
+        if (settings == null) {
+            ctx.sender().sendMessage(Message.raw("Physics space id=" + spaceId.value()
+                + " no longer exists."));
             return;
         }
-        SolverCapabilitySummary summary = resource.query(new SolverCapabilityQuery(spaceId))
-            .completion()
-            .toCompletableFuture()
-            .join();
-
-        PhysicsSpaceSettings settings = new PhysicsSpaceSettings(resource.getSpaceSettings(spaceId));
         if (!anyArgProvided(ctx)) {
             sendSummary(ctx, spaceId, summary, settings);
             return;
@@ -69,19 +86,19 @@ public class SolverSettingsCommand extends AbstractWorldCommand {
 
         int solverIterations = solverIterationsArg.provided(ctx)
             ? solverIterationsArg.get(ctx)
-            : settings.getSolverSettings().getSolverIterations();
+            : settings.getSolverIterations();
         int stabilizationIterations = stabilizationIterationsArg.provided(ctx)
             ? stabilizationIterationsArg.get(ctx)
-            : settings.getSolverSettings().getStabilizationIterations();
+            : settings.getStabilizationIterations();
         float sleepLinearThreshold = sleepLinearThresholdArg.provided(ctx)
             ? sleepLinearThresholdArg.get(ctx)
-            : settings.getSolverSettings().getDynamicSleepLinearThreshold();
+            : settings.getDynamicSleepLinearThreshold();
         float sleepAngularThreshold = sleepAngularThresholdArg.provided(ctx)
             ? sleepAngularThresholdArg.get(ctx)
-            : settings.getSolverSettings().getDynamicSleepAngularThreshold();
+            : settings.getDynamicSleepAngularThreshold();
         float sleepTime = sleepTimeArg.provided(ctx)
             ? sleepTimeArg.get(ctx)
-            : settings.getSolverSettings().getDynamicSleepTimeUntilSleep();
+            : settings.getDynamicSleepTimeUntilSleep();
 
         if (solverIterations < 1
             || stabilizationIterations < 0
@@ -96,10 +113,10 @@ public class SolverSettingsCommand extends AbstractWorldCommand {
             return;
         }
 
-        settings.getSolverSettings().setSolverIterations(solverIterations);
-        settings.getSolverSettings().setStabilizationIterations(stabilizationIterations);
-        settings.getSolverSettings().setDynamicSleepTuning(sleepLinearThreshold, sleepAngularThreshold, sleepTime);
-        resource.setSpaceSettings(spaceId, settings);
+        settings.setSolverIterations(solverIterations);
+        settings.setStabilizationIterations(stabilizationIterations);
+        settings.setDynamicSleepTuning(sleepLinearThreshold, sleepAngularThreshold, sleepTime);
+        PhysicsSpaces.putSolverSettings(physicsStore, spaceRef, settings);
         sendSummary(ctx, spaceId, summary, settings);
     }
 
@@ -114,17 +131,17 @@ public class SolverSettingsCommand extends AbstractWorldCommand {
     private static void sendSummary(@Nonnull CommandContext ctx,
         @Nonnull SpaceId spaceId,
         @Nonnull SolverCapabilitySummary summary,
-        @Nonnull PhysicsSpaceSettings settings) {
+        @Nonnull PhysicsSolverSettings settings) {
         ctx.sender().sendMessage(Message.raw("Impulse solver settings for space "
             + spaceId.value()
             + " backend=" + summary.backendId()
             + " solverApplied=" + summary.solverTuningSupported()
             + " sleepApplied=" + summary.activationTuningSupported()
-            + ": solverIterations=" + settings.getSolverSettings().getSolverIterations()
-            + " stabilizationIterations=" + settings.getSolverSettings().getStabilizationIterations()
-            + " sleepLinearThreshold=" + settings.getSolverSettings().getDynamicSleepLinearThreshold()
-            + " sleepAngularThreshold=" + settings.getSolverSettings().getDynamicSleepAngularThreshold()
-            + " sleepTime=" + settings.getSolverSettings().getDynamicSleepTimeUntilSleep()));
+            + ": solverIterations=" + settings.getSolverIterations()
+            + " stabilizationIterations=" + settings.getStabilizationIterations()
+            + " sleepLinearThreshold=" + settings.getDynamicSleepLinearThreshold()
+            + " sleepAngularThreshold=" + settings.getDynamicSleepAngularThreshold()
+            + " sleepTime=" + settings.getDynamicSleepTimeUntilSleep()));
     }
 
 }

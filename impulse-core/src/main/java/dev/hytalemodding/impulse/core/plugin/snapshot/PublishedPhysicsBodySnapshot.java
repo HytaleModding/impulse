@@ -5,10 +5,8 @@ import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.PhysicsAxis;
 import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.SpaceId;
-import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import java.util.Objects;
+import java.util.UUID;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.joml.Quaternionf;
@@ -17,23 +15,19 @@ import org.joml.Vector3f;
 /**
  * Immutable body state published as part of an async snapshot frame.
  *
- * <p>This type deliberately carries an Impulse body key instead of backend
- * body handles so published frames can be read away from the owner lane.</p>
+ * <p>This type deliberately carries a durable body UUID instead of backend
+ * body handles so published frames can be read away from the store tick lane.</p>
  */
 public final class PublishedPhysicsBodySnapshot implements PublishedPhysicsBodySnapshotCursor {
 
-    @Nonnull
-    private final RigidBodyKey bodyKey;
+    private final long bodyUuidMostSignificantBits;
+    private final long bodyUuidLeastSignificantBits;
     @Nonnull
     private final SpaceId spaceId;
     private final long frameEpoch;
     private final long worldEpoch;
     private final long spaceEpoch;
     private final long registrationGeneration;
-    @Nonnull
-    private final PhysicsBodyKind kind;
-    @Nonnull
-    private final PhysicsBodyPersistenceMode persistenceMode;
     private final float positionX;
     private final float positionY;
     private final float positionZ;
@@ -71,14 +65,12 @@ public final class PublishedPhysicsBodySnapshot implements PublishedPhysicsBodyS
     @Nonnull
     private final PhysicsAxis shapeAxis;
 
-    public PublishedPhysicsBodySnapshot(@Nonnull RigidBodyKey bodyKey,
+    public PublishedPhysicsBodySnapshot(@Nonnull UUID bodyUuid,
         @Nonnull SpaceId spaceId,
         long frameEpoch,
         long worldEpoch,
         long spaceEpoch,
         long registrationGeneration,
-        @Nonnull PhysicsBodyKind kind,
-        @Nonnull PhysicsBodyPersistenceMode persistenceMode,
         @Nonnull Vector3f position,
         @Nonnull Quaternionf rotation,
         @Nonnull Vector3f linearVelocity,
@@ -92,7 +84,50 @@ public final class PublishedPhysicsBodySnapshot implements PublishedPhysicsBodyS
         float sphereRadius,
         float halfHeight,
         @Nonnull PhysicsAxis shapeAxis) {
-        this.bodyKey = Objects.requireNonNull(bodyKey, "bodyKey");
+        this(uuidMostSignificantBits(bodyUuid),
+            uuidLeastSignificantBits(bodyUuid),
+            spaceId,
+            frameEpoch,
+            worldEpoch,
+            spaceEpoch,
+            registrationGeneration,
+            position,
+            rotation,
+            linearVelocity,
+            angularVelocity,
+            bodyType,
+            sleeping,
+            sensor,
+            centerOfMassOffsetY,
+            shapeType,
+            boxHalfExtents,
+            sphereRadius,
+            halfHeight,
+            shapeAxis);
+    }
+
+    private PublishedPhysicsBodySnapshot(long bodyUuidMostSignificantBits,
+        long bodyUuidLeastSignificantBits,
+        @Nonnull SpaceId spaceId,
+        long frameEpoch,
+        long worldEpoch,
+        long spaceEpoch,
+        long registrationGeneration,
+        @Nonnull Vector3f position,
+        @Nonnull Quaternionf rotation,
+        @Nonnull Vector3f linearVelocity,
+        @Nonnull Vector3f angularVelocity,
+        @Nonnull PhysicsBodyType bodyType,
+        boolean sleeping,
+        boolean sensor,
+        float centerOfMassOffsetY,
+        @Nonnull ShapeType shapeType,
+        @Nullable Vector3f boxHalfExtents,
+        float sphereRadius,
+        float halfHeight,
+        @Nonnull PhysicsAxis shapeAxis) {
+        this.bodyUuidMostSignificantBits = bodyUuidMostSignificantBits;
+        this.bodyUuidLeastSignificantBits = bodyUuidLeastSignificantBits;
         this.spaceId = Objects.requireNonNull(spaceId, "spaceId");
         requireNonNegativeEpoch(frameEpoch, "frameEpoch");
         requireNonNegativeEpoch(worldEpoch, "worldEpoch");
@@ -102,8 +137,6 @@ public final class PublishedPhysicsBodySnapshot implements PublishedPhysicsBodyS
         this.worldEpoch = worldEpoch;
         this.spaceEpoch = spaceEpoch;
         this.registrationGeneration = registrationGeneration;
-        this.kind = Objects.requireNonNull(kind, "kind");
-        this.persistenceMode = Objects.requireNonNull(persistenceMode, "persistenceMode");
         Objects.requireNonNull(position, "position");
         this.positionX = position.x;
         this.positionY = position.y;
@@ -151,24 +184,39 @@ public final class PublishedPhysicsBodySnapshot implements PublishedPhysicsBodyS
     }
 
     @Nonnull
-    public static PublishedPhysicsBodySnapshot from(@Nonnull RigidBodyKey bodyKey,
+    public static PublishedPhysicsBodySnapshot from(@Nonnull UUID bodyUuid,
         @Nonnull SpaceId spaceId,
         long frameEpoch,
         long worldEpoch,
         long spaceEpoch,
         long registrationGeneration,
-        @Nonnull PhysicsBodyKind kind,
-        @Nonnull PhysicsBodyPersistenceMode persistenceMode,
         @Nonnull PhysicsBodySnapshot snapshot) {
-        Objects.requireNonNull(snapshot, "snapshot");
-        return new PublishedPhysicsBodySnapshot(bodyKey,
+        return fromBits(uuidMostSignificantBits(bodyUuid),
+            uuidLeastSignificantBits(bodyUuid),
             spaceId,
             frameEpoch,
             worldEpoch,
             spaceEpoch,
             registrationGeneration,
-            kind,
-            persistenceMode,
+            snapshot);
+    }
+
+    private static PublishedPhysicsBodySnapshot fromBits(long bodyUuidMostSignificantBits,
+        long bodyUuidLeastSignificantBits,
+        @Nonnull SpaceId spaceId,
+        long frameEpoch,
+        long worldEpoch,
+        long spaceEpoch,
+        long registrationGeneration,
+        @Nonnull PhysicsBodySnapshot snapshot) {
+        Objects.requireNonNull(snapshot, "snapshot");
+        return new PublishedPhysicsBodySnapshot(bodyUuidMostSignificantBits,
+            bodyUuidLeastSignificantBits,
+            spaceId,
+            frameEpoch,
+            worldEpoch,
+            spaceEpoch,
+            registrationGeneration,
             snapshot.positionX(),
             snapshot.positionY(),
             snapshot.positionZ(),
@@ -204,14 +252,21 @@ public final class PublishedPhysicsBodySnapshot implements PublishedPhysicsBodyS
             snapshot.shapeAxis());
     }
 
-    PublishedPhysicsBodySnapshot(@Nonnull RigidBodyKey bodyKey,
+    private static long uuidMostSignificantBits(@Nonnull UUID bodyUuid) {
+        return Objects.requireNonNull(bodyUuid, "bodyUuid").getMostSignificantBits();
+    }
+
+    private static long uuidLeastSignificantBits(@Nonnull UUID bodyUuid) {
+        return Objects.requireNonNull(bodyUuid, "bodyUuid").getLeastSignificantBits();
+    }
+
+    PublishedPhysicsBodySnapshot(long bodyUuidMostSignificantBits,
+        long bodyUuidLeastSignificantBits,
         @Nonnull SpaceId spaceId,
         long frameEpoch,
         long worldEpoch,
         long spaceEpoch,
         long registrationGeneration,
-        @Nonnull PhysicsBodyKind kind,
-        @Nonnull PhysicsBodyPersistenceMode persistenceMode,
         float positionX,
         float positionY,
         float positionZ,
@@ -245,7 +300,8 @@ public final class PublishedPhysicsBodySnapshot implements PublishedPhysicsBodyS
         float sphereRadius,
         float halfHeight,
         @Nonnull PhysicsAxis shapeAxis) {
-        this.bodyKey = Objects.requireNonNull(bodyKey, "bodyKey");
+        this.bodyUuidMostSignificantBits = bodyUuidMostSignificantBits;
+        this.bodyUuidLeastSignificantBits = bodyUuidLeastSignificantBits;
         this.spaceId = Objects.requireNonNull(spaceId, "spaceId");
         requireNonNegativeEpoch(frameEpoch, "frameEpoch");
         requireNonNegativeEpoch(worldEpoch, "worldEpoch");
@@ -255,8 +311,6 @@ public final class PublishedPhysicsBodySnapshot implements PublishedPhysicsBodyS
         this.worldEpoch = worldEpoch;
         this.spaceEpoch = spaceEpoch;
         this.registrationGeneration = registrationGeneration;
-        this.kind = Objects.requireNonNull(kind, "kind");
-        this.persistenceMode = Objects.requireNonNull(persistenceMode, "persistenceMode");
         this.positionX = positionX;
         this.positionY = positionY;
         this.positionZ = positionZ;
@@ -379,8 +433,8 @@ public final class PublishedPhysicsBodySnapshot implements PublishedPhysicsBodyS
 
     @Nonnull
     @Override
-    public RigidBodyKey bodyKey() {
-        return bodyKey;
+    public UUID bodyUuid() {
+        return new UUID(bodyUuidMostSignificantBits, bodyUuidLeastSignificantBits);
     }
 
     @Nonnull
@@ -407,18 +461,6 @@ public final class PublishedPhysicsBodySnapshot implements PublishedPhysicsBodyS
     @Override
     public long registrationGeneration() {
         return registrationGeneration;
-    }
-
-    @Nonnull
-    @Override
-    public PhysicsBodyKind kind() {
-        return kind;
-    }
-
-    @Nonnull
-    @Override
-    public PhysicsBodyPersistenceMode persistenceMode() {
-        return persistenceMode;
     }
 
     @Nonnull
@@ -704,10 +746,9 @@ public final class PublishedPhysicsBodySnapshot implements PublishedPhysicsBodyS
             && Float.compare(boxHalfExtentZ, that.boxHalfExtentZ) == 0
             && Float.compare(sphereRadius, that.sphereRadius) == 0
             && Float.compare(halfHeight, that.halfHeight) == 0
-            && bodyKey.equals(that.bodyKey)
+            && bodyUuidMostSignificantBits == that.bodyUuidMostSignificantBits
+            && bodyUuidLeastSignificantBits == that.bodyUuidLeastSignificantBits
             && spaceId.equals(that.spaceId)
-            && kind == that.kind
-            && persistenceMode == that.persistenceMode
             && bodyType == that.bodyType
             && shapeType == that.shapeType
             && shapeAxis == that.shapeAxis;
@@ -715,14 +756,13 @@ public final class PublishedPhysicsBodySnapshot implements PublishedPhysicsBodyS
 
     @Override
     public int hashCode() {
-        int result = bodyKey.hashCode();
+        int result = Long.hashCode(bodyUuidMostSignificantBits);
+        result = 31 * result + Long.hashCode(bodyUuidLeastSignificantBits);
         result = 31 * result + spaceId.hashCode();
         result = 31 * result + Long.hashCode(frameEpoch);
         result = 31 * result + Long.hashCode(worldEpoch);
         result = 31 * result + Long.hashCode(spaceEpoch);
         result = 31 * result + Long.hashCode(registrationGeneration);
-        result = 31 * result + kind.hashCode();
-        result = 31 * result + persistenceMode.hashCode();
         result = 31 * result + Float.hashCode(positionX);
         result = 31 * result + Float.hashCode(positionY);
         result = 31 * result + Float.hashCode(positionZ);
@@ -763,14 +803,12 @@ public final class PublishedPhysicsBodySnapshot implements PublishedPhysicsBodyS
     @Override
     public String toString() {
         return "PublishedPhysicsBodySnapshot["
-            + "bodyKey=" + bodyKey
+            + "bodyUuid=" + bodyUuid()
             + ", spaceId=" + spaceId
             + ", frameEpoch=" + frameEpoch
             + ", worldEpoch=" + worldEpoch
             + ", spaceEpoch=" + spaceEpoch
             + ", registrationGeneration=" + registrationGeneration
-            + ", kind=" + kind
-            + ", persistenceMode=" + persistenceMode
             + ", position=(" + positionX + ", " + positionY + ", " + positionZ + ')'
             + ", rotation=(" + rotationX + ", " + rotationY + ", " + rotationZ + ", " + rotationW + ')'
             + ", linearVelocity=(" + linearVelocityX + ", " + linearVelocityY + ", " + linearVelocityZ + ')'

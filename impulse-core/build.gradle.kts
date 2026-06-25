@@ -4,11 +4,7 @@ plugins {
 
 version = rootProject.version
 
-repositories {
-    maven {
-        url = uri("https://gitlab.com/api/v4/projects/82033924/packages/maven")
-    }
-}
+evaluationDependsOn(":impulse-backends:api")
 
 val coreModuleName = "dev.hytalemodding.impulse.core"
 // These parent dependencies are shared by the core plugin and inherited by bundled subplugins.
@@ -25,24 +21,28 @@ val moduleInfoModulePath by configurations.creating {
 }
 
 dependencies {
-    implementation(project(":impulse-api"))
-    testImplementation(testFixtures(project(":impulse-api")))
-    testImplementation(libs.objenesis)
-    testCompileOnly("com.hypixel.hytale:Server:${property("hytale_version") as String}")
-    testRuntimeOnly("com.hypixel.hytale:Server:${property("hytale_version") as String}")
-    compileOnly(libs.crucible)
+    implementation(project(":impulse-backends:api"))
+    compileOnly(project(":impulse-early-plugin"))
+    compileOnly(libs.lombok)
 
     moduleInfoModulePath(libs.joml)
     moduleInfoModulePath(libs.jsr305)
-    moduleInfoModulePath(libs.crucible)
 
-    compileOnly(libs.lombok)
     annotationProcessor(libs.lombok)
+
+    testImplementation(testFixtures(project(":impulse-backends:api")))
+    testImplementation(libs.objenesis)
+    testCompileOnly(project(":impulse-early-plugin"))
+    testRuntimeOnly(project(":impulse-early-plugin"))
+    testCompileOnly("com.hypixel.hytale:Server:${property("hytale_version") as String}")
+    testRuntimeOnly("com.hypixel.hytale:Server:${property("hytale_version") as String}")
+
 }
 
-val impulseApiJar = project(":impulse-api").tasks.named<org.gradle.jvm.tasks.Jar>("jar")
+val impulseApiJar = project(":impulse-backends:api").tasks.named<org.gradle.jvm.tasks.Jar>("jar")
+val controlBuiltinProject = project(":impulse-builtins:control")
 
-tasks.named<org.gradle.api.tasks.compile.JavaCompile>("compileJava") {
+tasks.named<JavaCompile>("compileJava") {
     doFirst {
         destinationDirectory.file("module-info.class").get().asFile.delete()
     }
@@ -80,8 +80,13 @@ tasks.named("classes") {
 
 tasks.named<org.gradle.jvm.tasks.Jar>("jar") {
     dependsOn(compileCoreModuleInfo)
+    dependsOn(":impulse-builtins:control:classes")
     from(compileCoreModuleInfo.flatMap { it.destinationDirectory }) {
         include("module-info.class")
+    }
+    from(controlBuiltinProject.layout.buildDirectory.dir("classes/java/main"))
+    from(controlBuiltinProject.layout.buildDirectory.dir("resources/main")) {
+        exclude("manifest.json")
     }
 }
 
@@ -97,18 +102,59 @@ hytaleTools {
     modDescription = property("mod_description") as String
     manifestServerVersion = property("hytale_version") as String
     manifestDependencies = impulseManifestDependencies
-    manifestOptionalDependencies = "com.ionforgelabs:crucible=*"
 
     subPlugin (
-        "ImpulseWorldCollision",
-        "dev.hytalemodding.impulse.core.plugin.modules.worldcollision.ImpulseWorldCollisionPlugin",
+        "ImpulsePhysicsEntity",
+        "dev.hytalemodding.impulse.core.internal.modules.physicsentity.PhysicsEntityModule",
         false, /* disabledByDefault */
         false  /* includeAssetPack */
     )
+
     subPlugin (
         "ImpulseControl",
-        "dev.hytalemodding.impulse.core.plugin.modules.control.ImpulseControlPlugin",
+        "dev.hytalemodding.impulse.builtin.control.ImpulseControlPlugin",
         false, /* disabledByDefault */
         false  /* includeAssetPack */
     )
+
+    subPlugin (
+        "ImpulsePhysicsChunk",
+        "dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkSubPlugin",
+        false, /* disabledByDefault */
+        false  /* includeAssetPack */
+    )
+}
+
+tasks.named("updatePluginManifest") {
+    doLast {
+        val manifestFile = file("src/main/resources/manifest.json")
+
+        @Suppress("UNCHECKED_CAST")
+        val manifestJson = groovy.json.JsonSlurper().parse(manifestFile)
+            as MutableMap<String, Any?>
+
+        @Suppress("UNCHECKED_CAST")
+        val subPlugins = manifestJson["SubPlugins"] as? List<MutableMap<String, Any?>>
+            ?: return@doLast
+
+        fun MutableMap<String, Any?>.mergeLoadBefore(loadBefore: Map<String, String>) {
+            @Suppress("UNCHECKED_CAST")
+            val existingLoadBefore = (this["LoadBefore"] as? Map<String, String>)
+                ?.toMutableMap()
+                ?: linkedMapOf()
+            existingLoadBefore.putAll(loadBefore)
+            this["LoadBefore"] = existingLoadBefore
+        }
+
+        subPlugins.firstOrNull { it["Name"] == "ImpulsePhysicsEntity" }
+            ?.mergeLoadBefore(mapOf(
+                "HytaleModding:ImpulseControl" to "*",
+                "HytaleModding:ImpulsePhysicsChunk" to "*"
+            ))
+
+        manifestFile.writeText(
+            groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(manifestJson))
+                + System.lineSeparator()
+        )
+    }
 }

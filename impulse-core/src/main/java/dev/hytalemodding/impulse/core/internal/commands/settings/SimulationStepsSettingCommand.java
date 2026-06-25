@@ -10,7 +10,9 @@ import com.hypixel.hytale.server.core.command.system.basecommands.AbstractAsyncP
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
+import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
+import dev.hytalemodding.impulse.core.plugin.physics.PhysicsWorlds;
+import dev.hytalemodding.impulse.core.plugin.physics.PhysicsThreading;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
 import java.util.concurrent.CompletableFuture;
@@ -34,8 +36,8 @@ public class SimulationStepsSettingCommand extends AbstractAsyncPlayerCommand {
         @Nonnull Ref<EntityStore> ref,
         @Nonnull PlayerRef playerRef,
         @Nonnull World world) {
-        PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
-        PhysicsWorldSettings settings = resource.getWorldSettings();
+        Store<PhysicsStore> physicsStore = PhysicsThreading.store(world);
+        PhysicsWorldSettings settings = PhysicsWorlds.settings(physicsStore);
         PhysicsStepMode stepMode = settings.getStepMode();
         if (!stepsArg.provided(ctx)) {
             ctx.sender().sendMessage(Message.raw("Impulse simulation steps: "
@@ -54,7 +56,7 @@ public class SimulationStepsSettingCommand extends AbstractAsyncPlayerCommand {
         }
 
         settings.setSimulationSteps(steps);
-        resource.setWorldSettings(settings);
+        PhysicsWorlds.putSettings(physicsStore, settings);
         ctx.sender().sendMessage(Message.raw("Impulse simulation steps set to " + steps
             + " (" + stepMode.describeSimulationSteps() + " in "
             + stepMode.getSerializedName() + " mode)"));

@@ -1,0 +1,232 @@
+package dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components;
+
+import com.hypixel.hytale.codec.Codec;
+import com.hypixel.hytale.codec.KeyedCodec;
+import com.hypixel.hytale.codec.builder.BuilderCodec;
+import com.hypixel.hytale.component.Component;
+import com.hypixel.hytale.component.ComponentType;
+import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
+import dev.hytalemodding.impulse.core.plugin.components.PhysicsComponentTypes;
+import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.settings.PhysicsVisualMaterializationSettings;
+import java.util.Objects;
+import javax.annotation.Nonnull;
+import lombok.Getter;
+
+/**
+ * Authored detached visual materialization policy for one PhysicsStore space entity.
+ */
+public final class VisualMaterializationSettingsComponent implements Component<PhysicsStore> {
+
+    @Nonnull
+    public static final BuilderCodec<VisualMaterializationSettingsComponent> CODEC =
+        BuilderCodec.builder(VisualMaterializationSettingsComponent.class,
+                VisualMaterializationSettingsComponent::new)
+            .append(new KeyedCodec<>("DetachedVisualMaterializationEnabled", Codec.BOOLEAN, false),
+                (component, value) -> component.detachedVisualMaterializationEnabled =
+                    value != null
+                        ? value
+                        : PhysicsVisualMaterializationSettings
+                            .DEFAULT_DETACHED_VISUAL_MATERIALIZATION_ENABLED,
+                VisualMaterializationSettingsComponent::isDetachedVisualMaterializationEnabled)
+            .add()
+            .append(new KeyedCodec<>("DetachedVisualMaterializationRadius", Codec.INTEGER, false),
+                (component, value) -> component.detachedVisualMaterializationRadius =
+                    value != null
+                        ? value
+                        : PhysicsVisualMaterializationSettings
+                            .DEFAULT_DETACHED_VISUAL_MATERIALIZATION_RADIUS,
+                VisualMaterializationSettingsComponent::getDetachedVisualMaterializationRadius)
+            .add()
+            .append(new KeyedCodec<>("DetachedVisualDematerializationRadius", Codec.INTEGER, false),
+                (component, value) -> component.detachedVisualDematerializationRadius =
+                    value != null
+                        ? value
+                        : PhysicsVisualMaterializationSettings
+                            .DEFAULT_DETACHED_VISUAL_DEMATERIALIZATION_RADIUS,
+                VisualMaterializationSettingsComponent::getDetachedVisualDematerializationRadius)
+            .add()
+            .append(new KeyedCodec<>("DetachedVisualMaxSpawnsPerTick", Codec.INTEGER, false),
+                (component, value) -> component.detachedVisualMaxSpawnsPerTick = value != null
+                    ? value
+                    : PhysicsVisualMaterializationSettings.DEFAULT_DETACHED_VISUAL_MAX_SPAWNS_PER_TICK,
+                VisualMaterializationSettingsComponent::getDetachedVisualMaxSpawnsPerTick)
+            .add()
+            .append(new KeyedCodec<>("DetachedVisualMaxMaterialized", Codec.INTEGER, false),
+                (component, value) -> component.detachedVisualMaxMaterialized = value != null
+                    ? value
+                    : PhysicsVisualMaterializationSettings.DEFAULT_DETACHED_VISUAL_MAX_MATERIALIZED,
+                VisualMaterializationSettingsComponent::getDetachedVisualMaxMaterialized)
+            .add()
+            .append(new KeyedCodec<>("DetachedVisualInterestRefreshIntervalTicks", Codec.INTEGER, false),
+                (component, value) -> component.detachedVisualInterestRefreshIntervalTicks =
+                    value != null
+                        ? value
+                        : PhysicsVisualMaterializationSettings
+                            .DEFAULT_DETACHED_VISUAL_INTEREST_REFRESH_INTERVAL_TICKS,
+                VisualMaterializationSettingsComponent::getDetachedVisualInterestRefreshIntervalTicks)
+            .add()
+            .append(new KeyedCodec<>("DetachedVisualCandidateRefreshIntervalTicks", Codec.INTEGER, false),
+                (component, value) -> component.detachedVisualCandidateRefreshIntervalTicks =
+                    value != null
+                        ? value
+                        : PhysicsVisualMaterializationSettings
+                            .DEFAULT_DETACHED_VISUAL_CANDIDATE_REFRESH_INTERVAL_TICKS,
+                VisualMaterializationSettingsComponent::getDetachedVisualCandidateRefreshIntervalTicks)
+            .add()
+            .append(new KeyedCodec<>("DetachedVisualVisibilityCheckIntervalTicks", Codec.INTEGER, false),
+                (component, value) -> component.detachedVisualVisibilityCheckIntervalTicks =
+                    value != null
+                        ? value
+                        : PhysicsVisualMaterializationSettings
+                            .DEFAULT_DETACHED_VISUAL_VISIBILITY_CHECK_INTERVAL_TICKS,
+                VisualMaterializationSettingsComponent::getDetachedVisualVisibilityCheckIntervalTicks)
+            .add()
+            .append(new KeyedCodec<>("DetachedVisualBlockType", Codec.STRING, false),
+                (component, value) -> component.detachedVisualBlockType = value != null
+                    ? value
+                    : PhysicsVisualMaterializationSettings.DEFAULT_DETACHED_VISUAL_BLOCK_TYPE,
+                VisualMaterializationSettingsComponent::getDetachedVisualBlockType)
+            .add()
+            .build();
+
+    @Getter
+    private boolean detachedVisualMaterializationEnabled =
+        PhysicsVisualMaterializationSettings.DEFAULT_DETACHED_VISUAL_MATERIALIZATION_ENABLED;
+    @Getter
+    private int detachedVisualMaterializationRadius =
+        PhysicsVisualMaterializationSettings.DEFAULT_DETACHED_VISUAL_MATERIALIZATION_RADIUS;
+    @Getter
+    private int detachedVisualDematerializationRadius =
+        PhysicsVisualMaterializationSettings.DEFAULT_DETACHED_VISUAL_DEMATERIALIZATION_RADIUS;
+    @Getter
+    private int detachedVisualMaxSpawnsPerTick =
+        PhysicsVisualMaterializationSettings.DEFAULT_DETACHED_VISUAL_MAX_SPAWNS_PER_TICK;
+    @Getter
+    private int detachedVisualMaxMaterialized =
+        PhysicsVisualMaterializationSettings.DEFAULT_DETACHED_VISUAL_MAX_MATERIALIZED;
+    @Getter
+    private int detachedVisualInterestRefreshIntervalTicks =
+        PhysicsVisualMaterializationSettings.DEFAULT_DETACHED_VISUAL_INTEREST_REFRESH_INTERVAL_TICKS;
+    @Getter
+    private int detachedVisualCandidateRefreshIntervalTicks =
+        PhysicsVisualMaterializationSettings.DEFAULT_DETACHED_VISUAL_CANDIDATE_REFRESH_INTERVAL_TICKS;
+    @Getter
+    private int detachedVisualVisibilityCheckIntervalTicks =
+        PhysicsVisualMaterializationSettings.DEFAULT_DETACHED_VISUAL_VISIBILITY_CHECK_INTERVAL_TICKS;
+    @Nonnull
+    private String detachedVisualBlockType =
+        PhysicsVisualMaterializationSettings.DEFAULT_DETACHED_VISUAL_BLOCK_TYPE;
+
+    public VisualMaterializationSettingsComponent() {
+    }
+
+    public VisualMaterializationSettingsComponent(
+        @Nonnull PhysicsVisualMaterializationSettings settings) {
+        detachedVisualMaterializationEnabled =
+            settings.isDetachedVisualMaterializationEnabled();
+        detachedVisualMaterializationRadius =
+            settings.getDetachedVisualMaterializationRadius();
+        detachedVisualDematerializationRadius =
+            settings.getDetachedVisualDematerializationRadius();
+        detachedVisualMaxSpawnsPerTick = settings.getDetachedVisualMaxSpawnsPerTick();
+        detachedVisualMaxMaterialized = settings.getDetachedVisualMaxMaterialized();
+        detachedVisualInterestRefreshIntervalTicks =
+            settings.getDetachedVisualInterestRefreshIntervalTicks();
+        detachedVisualCandidateRefreshIntervalTicks =
+            settings.getDetachedVisualCandidateRefreshIntervalTicks();
+        detachedVisualVisibilityCheckIntervalTicks =
+            settings.getDetachedVisualVisibilityCheckIntervalTicks();
+        detachedVisualBlockType = settings.getDetachedVisualBlockType();
+    }
+
+    private VisualMaterializationSettingsComponent(boolean detachedVisualMaterializationEnabled,
+        int detachedVisualMaterializationRadius,
+        int detachedVisualDematerializationRadius,
+        int detachedVisualMaxSpawnsPerTick,
+        int detachedVisualMaxMaterialized,
+        int detachedVisualInterestRefreshIntervalTicks,
+        int detachedVisualCandidateRefreshIntervalTicks,
+        int detachedVisualVisibilityCheckIntervalTicks,
+        @Nonnull String detachedVisualBlockType) {
+        this.detachedVisualMaterializationEnabled = detachedVisualMaterializationEnabled;
+        this.detachedVisualMaterializationRadius = detachedVisualMaterializationRadius;
+        this.detachedVisualDematerializationRadius = detachedVisualDematerializationRadius;
+        this.detachedVisualMaxSpawnsPerTick = detachedVisualMaxSpawnsPerTick;
+        this.detachedVisualMaxMaterialized = detachedVisualMaxMaterialized;
+        this.detachedVisualInterestRefreshIntervalTicks = detachedVisualInterestRefreshIntervalTicks;
+        this.detachedVisualCandidateRefreshIntervalTicks =
+            detachedVisualCandidateRefreshIntervalTicks;
+        this.detachedVisualVisibilityCheckIntervalTicks =
+            detachedVisualVisibilityCheckIntervalTicks;
+        this.detachedVisualBlockType = Objects.requireNonNull(detachedVisualBlockType,
+            "detachedVisualBlockType");
+    }
+
+    @Nonnull
+    public String getDetachedVisualBlockType() {
+        return detachedVisualBlockType;
+    }
+
+    public void copyTo(@Nonnull PhysicsVisualMaterializationSettings target) {
+        target.setDetachedVisualMaterializationEnabled(detachedVisualMaterializationEnabled);
+        target.setDetachedVisualRadii(detachedVisualMaterializationRadius,
+            detachedVisualDematerializationRadius);
+        target.setDetachedVisualMaxSpawnsPerTick(detachedVisualMaxSpawnsPerTick);
+        target.setDetachedVisualMaxMaterialized(detachedVisualMaxMaterialized);
+        target.setDetachedVisualInterestRefreshIntervalTicks(
+            detachedVisualInterestRefreshIntervalTicks);
+        target.setDetachedVisualCandidateRefreshIntervalTicks(
+            detachedVisualCandidateRefreshIntervalTicks);
+        target.setDetachedVisualVisibilityCheckIntervalTicks(
+            detachedVisualVisibilityCheckIntervalTicks);
+        target.setDetachedVisualBlockType(detachedVisualBlockType);
+    }
+
+    public boolean isDefault() {
+        return detachedVisualMaterializationEnabled
+                == PhysicsVisualMaterializationSettings
+                    .DEFAULT_DETACHED_VISUAL_MATERIALIZATION_ENABLED
+            && detachedVisualMaterializationRadius
+                == PhysicsVisualMaterializationSettings
+                    .DEFAULT_DETACHED_VISUAL_MATERIALIZATION_RADIUS
+            && detachedVisualDematerializationRadius
+                == PhysicsVisualMaterializationSettings
+                    .DEFAULT_DETACHED_VISUAL_DEMATERIALIZATION_RADIUS
+            && detachedVisualMaxSpawnsPerTick
+                == PhysicsVisualMaterializationSettings.DEFAULT_DETACHED_VISUAL_MAX_SPAWNS_PER_TICK
+            && detachedVisualMaxMaterialized
+                == PhysicsVisualMaterializationSettings.DEFAULT_DETACHED_VISUAL_MAX_MATERIALIZED
+            && detachedVisualInterestRefreshIntervalTicks
+                == PhysicsVisualMaterializationSettings
+                    .DEFAULT_DETACHED_VISUAL_INTEREST_REFRESH_INTERVAL_TICKS
+            && detachedVisualCandidateRefreshIntervalTicks
+                == PhysicsVisualMaterializationSettings
+                    .DEFAULT_DETACHED_VISUAL_CANDIDATE_REFRESH_INTERVAL_TICKS
+            && detachedVisualVisibilityCheckIntervalTicks
+                == PhysicsVisualMaterializationSettings
+                    .DEFAULT_DETACHED_VISUAL_VISIBILITY_CHECK_INTERVAL_TICKS
+            && detachedVisualBlockType.equals(
+                PhysicsVisualMaterializationSettings.DEFAULT_DETACHED_VISUAL_BLOCK_TYPE);
+    }
+
+    @Nonnull
+    public static ComponentType<PhysicsStore, VisualMaterializationSettingsComponent>
+    getComponentType() {
+        return PhysicsComponentTypes.visualMaterializationSettingsComponentType();
+    }
+
+    @Nonnull
+    @Override
+    public VisualMaterializationSettingsComponent clone() {
+        return new VisualMaterializationSettingsComponent(
+            detachedVisualMaterializationEnabled,
+            detachedVisualMaterializationRadius,
+            detachedVisualDematerializationRadius,
+            detachedVisualMaxSpawnsPerTick,
+            detachedVisualMaxMaterialized,
+            detachedVisualInterestRefreshIntervalTicks,
+            detachedVisualCandidateRefreshIntervalTicks,
+            detachedVisualVisibilityCheckIntervalTicks,
+            detachedVisualBlockType);
+    }
+}

@@ -13,6 +13,7 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.logging.Level;
 import javax.annotation.Nonnull;
@@ -54,10 +55,28 @@ public final class ImpulseSubPluginRegistration {
     static List<PluginManifest> prepareSubPluginManifests(@Nonnull PluginManifest parentManifest) {
         List<PluginManifest> prepared = new ArrayList<>();
         for (PluginManifest subPluginManifest : parentManifest.getSubPlugins()) {
-            subPluginManifest.inherit(parentManifest);
-            prepared.add(subPluginManifest);
+            PluginManifest mutableSubPluginManifest = mutableCopy(subPluginManifest);
+            mutableSubPluginManifest.inherit(parentManifest);
+            prepared.add(mutableSubPluginManifest);
         }
         return prepared;
+    }
+
+    @Nonnull
+    private static PluginManifest mutableCopy(@Nonnull PluginManifest manifest) {
+        return new PluginManifest(manifest.getGroup(),
+            manifest.getName(),
+            manifest.getVersion(),
+            manifest.getDescription(),
+            new ArrayList<>(manifest.getAuthors()),
+            manifest.getWebsite(),
+            manifest.getMain(),
+            manifest.getServerVersion(),
+            new LinkedHashMap<>(manifest.getDependencies()),
+            new LinkedHashMap<>(manifest.getOptionalDependencies()),
+            new LinkedHashMap<>(manifest.getLoadBefore()),
+            new ArrayList<>(manifest.getSubPlugins()),
+            manifest.isDisabledByDefault());
     }
 
     private static boolean hasPendingPlugin(@Nonnull List<PendingLoadPlugin> pendingPlugins,

@@ -7,7 +7,9 @@ import org.joml.Vector3d;
 import org.joml.Vector3f;
 
 /**
- * Transform helpers for physics bodies with Hytale visual attachments.
+ * Various helpers to fix annoyances between origin convention of EntityStore entities and PhysicsStore ones
+ *
+ * TODO: this and related PhysicsDebugResource methods should be owned by the PhysicsEntity module
  */
 public final class PhysicsVisualPoseMath {
 

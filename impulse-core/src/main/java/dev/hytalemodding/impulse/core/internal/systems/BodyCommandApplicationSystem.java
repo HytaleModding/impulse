@@ -1,0 +1,274 @@
+package dev.hytalemodding.impulse.core.internal.systems;
+
+import com.hypixel.hytale.component.ArchetypeChunk;
+import com.hypixel.hytale.component.CommandBuffer;
+import com.hypixel.hytale.component.Ref;
+import com.hypixel.hytale.component.Store;
+import com.hypixel.hytale.component.dependency.Dependency;
+import com.hypixel.hytale.component.dependency.Order;
+import com.hypixel.hytale.component.dependency.SystemDependency;
+import com.hypixel.hytale.component.query.Query;
+import com.hypixel.hytale.component.system.QuerySystem;
+import com.hypixel.hytale.component.system.tick.TickingSystem;
+import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
+import dev.hytalemodding.impulse.api.BackendId;
+import dev.hytalemodding.impulse.api.PhysicsBodyType;
+import dev.hytalemodding.impulse.api.runtime.BackendRuntimeCodes;
+import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntime;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsRestoreStatusResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResource.PendingBodyOperation;
+import dev.hytalemodding.impulse.core.internal.resources.BackendBodyHandle;
+import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
+import dev.hytalemodding.impulse.core.internal.systems.binding.BodyBindingSystem;
+import dev.hytalemodding.impulse.core.plugin.components.BodyCommandComponent;
+import dev.hytalemodding.impulse.core.plugin.components.CollisionFilterComponent;
+import dev.hytalemodding.impulse.core.plugin.components.DynamicsComponent;
+import java.util.Set;
+import java.util.UUID;
+import java.util.function.BiConsumer;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+
+/**
+ * Drains one-tick body command components into runtime/backend operations.
+ */
+public final class BodyCommandApplicationSystem extends TickingSystem<PhysicsStore>
+    implements QuerySystem<PhysicsStore> {
+
+    private static final Set<Dependency<PhysicsStore>> DEPENDENCIES = Set.of(
+        new SystemDependency<>(Order.AFTER, BodyBindingSystem.class)
+    );
+    private final Query<PhysicsStore> query = BodyCommandComponent.getComponentType();
+
+    @Override
+    public void tick(float dt, int systemIndex, @Nonnull Store<PhysicsStore> store) {
+        PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
+        PhysicsRestoreStatusResource restore = store.getResource(
+            PhysicsRestoreStatusResource.getResourceType());
+        BiConsumer<ArchetypeChunk<PhysicsStore>, CommandBuffer<PhysicsStore>> collector =
+            (chunk, commandBuffer) -> {
+            applyCommands(store, runtime, restore, chunk, commandBuffer);
+        };
+        store.forEachChunk(systemIndex, collector);
+    }
+
+    private static void applyCommands(@Nonnull Store<PhysicsStore> store,
+        @Nonnull PhysicsRuntimeResource runtime,
+        @Nonnull PhysicsRestoreStatusResource restore,
+        @Nonnull ArchetypeChunk<PhysicsStore> chunk,
+        @Nonnull CommandBuffer<PhysicsStore> commandBuffer) {
+        for (int index = 0; index < chunk.size(); index++) {
+            BodyCommandComponent commands = chunk.getComponent(index,
+                BodyCommandComponent.getComponentType());
+            if (commands == null) {
+                continue;
+            }
+            UUID bodyUuid = PhysicsStoreSystemSupport.rowUuid(chunk, index);
+            Ref<PhysicsStore> ref = chunk.getReferenceTo(index);
+            if (PhysicsStoreSystemSupport.isNil(bodyUuid)) {
+                restore.recordSoftSkip("Body command row has nil UUID");
+                commandBuffer.removeComponent(ref, BodyCommandComponent.getComponentType());
+                continue;
+            }
+            for (BodyCommandComponent.Entry command : commands.entries()) {
+                applyCommand(store, runtime, restore, commandBuffer, ref, bodyUuid, command);
+            }
+            commandBuffer.removeComponent(ref, BodyCommandComponent.getComponentType());
+        }
+    }
+
+    private static void applyCommand(@Nonnull Store<PhysicsStore> store,
+        @Nonnull PhysicsRuntimeResource runtime,
+        @Nonnull PhysicsRestoreStatusResource restore,
+        @Nonnull CommandBuffer<PhysicsStore> commandBuffer,
+        @Nonnull Ref<PhysicsStore> ref,
+        @Nonnull UUID bodyUuid,
+        @Nonnull BodyCommandComponent.Entry command) {
+        switch (command.getKind()) {
+            case WAKE -> runtime.enqueuePendingBodyOperation(PendingBodyOperation.wake(bodyUuid,
+                ref));
+            case SLEEP -> runtime.enqueuePendingBodyOperation(PendingBodyOperation.sleep(bodyUuid,
+                ref));
+            case IMPULSE -> enqueueVector(runtime, ref, bodyUuid, command, PendingBodyOperation.Kind.IMPULSE);
+            case TORQUE_IMPULSE -> enqueueVector(runtime,
+                ref,
+                bodyUuid,
+                command,
+                PendingBodyOperation.Kind.TORQUE_IMPULSE);
+            case FORCE -> enqueueVector(runtime, ref, bodyUuid, command, PendingBodyOperation.Kind.FORCE);
+            case TORQUE -> enqueueVector(runtime, ref, bodyUuid, command, PendingBodyOperation.Kind.TORQUE);
+            case SET_TYPE -> applyBodyType(store,
+                runtime,
+                restore,
+                commandBuffer,
+                ref,
+                bodyUuid,
+                command);
+            case SET_VELOCITY -> applyVelocity(runtime, restore, ref, bodyUuid, command);
+            case SET_COLLISION_FILTER -> applyCollisionFilter(runtime,
+                restore,
+                commandBuffer,
+                ref,
+                bodyUuid,
+                command);
+        }
+    }
+
+    private static void applyBodyType(@Nonnull Store<PhysicsStore> store,
+        @Nonnull PhysicsRuntimeResource runtime,
+        @Nonnull PhysicsRestoreStatusResource restore,
+        @Nonnull CommandBuffer<PhysicsStore> commandBuffer,
+        @Nonnull Ref<PhysicsStore> ref,
+        @Nonnull UUID bodyUuid,
+        @Nonnull BodyCommandComponent.Entry command) {
+        DynamicsComponent dynamics = PhysicsStoreSystemSupport.component(store,
+            ref,
+            DynamicsComponent.getComponentType());
+        DynamicsComponent updated = dynamics != null ? dynamics.clone() : new DynamicsComponent();
+        updated.setBodyType(command.getBodyType());
+        commandBuffer.putComponent(ref, DynamicsComponent.getComponentType(), updated);
+
+        RuntimeBodyBinding binding = runtimeBodyBinding(runtime, ref, bodyUuid, restore, false);
+        if (binding == null) {
+            if (command.isActivate()) {
+                runtime.enqueuePendingBodyOperation(PendingBodyOperation.wake(bodyUuid, ref));
+            }
+            return;
+        }
+        binding.backendRuntime().setBodyType(binding.spaceHandle().value(),
+            binding.bodyHandle().value(),
+            BackendRuntimeCodes.bodyTypeCode(command.getBodyType()));
+        updateBodyHitMetadata(runtime,
+            binding.backendId(),
+            binding.spaceHandle(),
+            binding.bodyHandle(),
+            command.getBodyType());
+        if (command.isActivate()) {
+            runtime.enqueuePendingBodyOperation(PendingBodyOperation.wake(bodyUuid, ref));
+        }
+    }
+
+    private static void applyCollisionFilter(@Nonnull PhysicsRuntimeResource runtime,
+        @Nonnull PhysicsRestoreStatusResource restore,
+        @Nonnull CommandBuffer<PhysicsStore> commandBuffer,
+        @Nonnull Ref<PhysicsStore> ref,
+        @Nonnull UUID bodyUuid,
+        @Nonnull BodyCommandComponent.Entry command) {
+        commandBuffer.putComponent(ref,
+            CollisionFilterComponent.getComponentType(),
+            new CollisionFilterComponent(command.getCollisionGroup(), command.getCollisionMask()));
+        RuntimeBodyBinding binding = runtimeBodyBinding(runtime, ref, bodyUuid, restore, false);
+        if (binding == null) {
+            if (command.isActivate()) {
+                runtime.enqueuePendingBodyOperation(PendingBodyOperation.wake(bodyUuid, ref));
+            }
+            return;
+        }
+        binding.backendRuntime().setBodyCollisionFilter(binding.spaceHandle().value(),
+            binding.bodyHandle().value(),
+            command.getCollisionGroup(),
+            command.getCollisionMask());
+        if (command.isActivate()) {
+            runtime.enqueuePendingBodyOperation(PendingBodyOperation.wake(bodyUuid, ref));
+        }
+    }
+
+    private static void applyVelocity(@Nonnull PhysicsRuntimeResource runtime,
+        @Nonnull PhysicsRestoreStatusResource restore,
+        @Nonnull Ref<PhysicsStore> ref,
+        @Nonnull UUID bodyUuid,
+        @Nonnull BodyCommandComponent.Entry command) {
+        RuntimeBodyBinding binding = runtimeBodyBinding(runtime, ref, bodyUuid, restore, true);
+        if (binding == null) {
+            return;
+        }
+        binding.backendRuntime().setBodyVelocity(binding.spaceHandle().value(),
+            binding.bodyHandle().value(),
+            command.getX(),
+            command.getY(),
+            command.getZ(),
+            command.getAngularX(),
+            command.getAngularY(),
+            command.getAngularZ());
+        if (command.isActivate()) {
+            runtime.enqueuePendingBodyOperation(PendingBodyOperation.wake(bodyUuid, ref));
+        }
+    }
+
+    private static void enqueueVector(@Nonnull PhysicsRuntimeResource runtime,
+        @Nonnull Ref<PhysicsStore> ref,
+        @Nonnull UUID bodyUuid,
+        @Nonnull BodyCommandComponent.Entry command,
+        @Nonnull PendingBodyOperation.Kind kind) {
+        runtime.enqueuePendingBodyOperation(PendingBodyOperation.vector(kind,
+            bodyUuid,
+            ref,
+            command.getX(),
+            command.getY(),
+            command.getZ(),
+            command.hasOffset(),
+            command.getOffsetX(),
+            command.getOffsetY(),
+            command.getOffsetZ()));
+    }
+
+    @Nullable
+    private static RuntimeBodyBinding runtimeBodyBinding(@Nonnull PhysicsRuntimeResource runtime,
+        @Nonnull Ref<PhysicsStore> ref,
+        @Nonnull UUID bodyUuid,
+        @Nonnull PhysicsRestoreStatusResource restore,
+        boolean requireBound) {
+        BackendBodyHandle bodyHandle = runtime.getBodyHandle(ref);
+        BackendSpaceHandle spaceHandle = runtime.getBodySpaceHandle(ref);
+        BackendId backendId = runtime.getBodyBackendId(ref);
+        if (bodyHandle == null || spaceHandle == null || backendId == null) {
+            if (requireBound) {
+                restore.recordSoftSkip("Body command target is unbound: " + bodyUuid);
+            }
+            return null;
+        }
+        PhysicsBackendRuntime backendRuntime = runtime.runtimeForBodyRef(ref);
+        if (backendRuntime == null) {
+            restore.recordSoftSkip("Body command backend runtime is missing: " + bodyUuid);
+            return null;
+        }
+        return new RuntimeBodyBinding(backendId, spaceHandle, bodyHandle, backendRuntime);
+    }
+
+    private static void updateBodyHitMetadata(@Nonnull PhysicsRuntimeResource runtime,
+        @Nonnull BackendId backendId,
+        @Nonnull BackendSpaceHandle spaceHandle,
+        @Nonnull BackendBodyHandle bodyHandle,
+        @Nonnull PhysicsBodyType bodyType) {
+        PhysicsRuntimeResource.BodyHitMetadata metadata =
+            runtime.getBodyHitMetadata(backendId, spaceHandle, bodyHandle.value());
+        if (metadata != null) {
+            runtime.putBodyHitMetadata(backendId,
+                spaceHandle,
+                bodyHandle,
+                metadata.bodyUuid(),
+                metadata.bodyRef(),
+                bodyType,
+                metadata.shapeType());
+        }
+    }
+
+    @Nonnull
+    @Override
+    public Query<PhysicsStore> getQuery() {
+        return query;
+    }
+
+    @Nonnull
+    @Override
+    public Set<Dependency<PhysicsStore>> getDependencies() {
+        return DEPENDENCIES;
+    }
+
+    private record RuntimeBodyBinding(@Nonnull BackendId backendId,
+                                      @Nonnull BackendSpaceHandle spaceHandle,
+                                      @Nonnull BackendBodyHandle bodyHandle,
+                                      @Nonnull PhysicsBackendRuntime backendRuntime) {
+    }
+}

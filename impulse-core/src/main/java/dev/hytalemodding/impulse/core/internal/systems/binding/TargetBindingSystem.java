@@ -1,0 +1,174 @@
+package dev.hytalemodding.impulse.core.internal.systems.binding;
+
+import com.hypixel.hytale.component.ArchetypeChunk;
+import com.hypixel.hytale.component.CommandBuffer;
+import com.hypixel.hytale.component.Ref;
+import com.hypixel.hytale.component.Store;
+import com.hypixel.hytale.component.dependency.Dependency;
+import com.hypixel.hytale.component.dependency.Order;
+import com.hypixel.hytale.component.dependency.SystemDependency;
+import com.hypixel.hytale.component.query.Query;
+import com.hypixel.hytale.component.system.QuerySystem;
+import com.hypixel.hytale.component.system.tick.TickingSystem;
+import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
+import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntime;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsRestoreStatusResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResource.PendingBodyOperation;
+import dev.hytalemodding.impulse.core.internal.resources.BackendBodyHandle;
+import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
+import dev.hytalemodding.impulse.core.internal.systems.BodyCommandApplicationSystem;
+import dev.hytalemodding.impulse.core.internal.systems.PhysicsStoreSystemSupport;
+import dev.hytalemodding.impulse.core.plugin.components.TargetComponent;
+import java.util.Set;
+import java.util.function.BiConsumer;
+import javax.annotation.Nonnull;
+import org.joml.Quaternionf;
+import org.joml.Vector3f;
+
+/**
+ * Applies copied kinematic target state to bound backend bodies before step submission.
+ */
+public final class TargetBindingSystem extends TickingSystem<PhysicsStore>
+    implements QuerySystem<PhysicsStore> {
+
+    private static final Set<Dependency<PhysicsStore>> DEPENDENCIES = Set.of(
+        new SystemDependency<>(Order.AFTER, BodyCommandApplicationSystem.class)
+    );
+
+    @Override
+    public void tick(float dt, int systemIndex, @Nonnull Store<PhysicsStore> store) {
+        PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
+        PhysicsRestoreStatusResource restore = store.getResource(
+            PhysicsRestoreStatusResource.getResourceType());
+        BiConsumer<ArchetypeChunk<PhysicsStore>, CommandBuffer<PhysicsStore>> collector =
+            (chunk, _) -> applyTargets(runtime, chunk);
+        store.forEachChunk(systemIndex, collector);
+        applyPendingBodyOperations(runtime, restore);
+    }
+
+    private static void applyTargets(@Nonnull PhysicsRuntimeResource runtime,
+        @Nonnull ArchetypeChunk<PhysicsStore> chunk) {
+        for (int index = 0; index < chunk.size(); index++) {
+            TargetComponent target = chunk.getComponent(index, TargetComponent.getComponentType());
+            if (target == null || !target.isActive()) {
+                continue;
+            }
+            Ref<PhysicsStore> ref = chunk.getReferenceTo(index);
+            BackendBodyHandle bodyHandle = runtime.getBodyHandle(ref);
+            BackendSpaceHandle spaceHandle = runtime.getBodySpaceHandle(ref);
+            if (bodyHandle == null || spaceHandle == null) {
+                continue;
+            }
+            PhysicsBackendRuntime backendRuntime = runtime.runtimeForBodyRef(ref);
+            if (backendRuntime == null) {
+                continue;
+            }
+            if (target.isTransformEnabled()) {
+                Vector3f position = target.getPosition();
+                Quaternionf rotation = target.getRotation();
+                backendRuntime.setBodyTransform(spaceHandle.value(),
+                    bodyHandle.value(),
+                    position.x,
+                    position.y,
+                    position.z,
+                    rotation.x,
+                    rotation.y,
+                    rotation.z,
+                    rotation.w);
+            }
+            if (target.isVelocityEnabled()) {
+                Vector3f linearVelocity = target.getLinearVelocity();
+                Vector3f angularVelocity = target.getAngularVelocity();
+                backendRuntime.setBodyVelocity(spaceHandle.value(),
+                    bodyHandle.value(),
+                    linearVelocity.x,
+                    linearVelocity.y,
+                    linearVelocity.z,
+                    angularVelocity.x,
+                    angularVelocity.y,
+                    angularVelocity.z);
+            }
+            if (target.isActivate()) {
+                backendRuntime.activateBody(spaceHandle.value(), bodyHandle.value());
+            }
+        }
+    }
+
+    private static void applyPendingBodyOperations(@Nonnull PhysicsRuntimeResource runtime,
+        @Nonnull PhysicsRestoreStatusResource restore) {
+        for (PendingBodyOperation operation : runtime.drainPendingBodyOperations()) {
+            BackendSpaceHandle spaceHandle = runtime.getBodySpaceHandle(operation.bodyRef());
+            BackendBodyHandle bodyHandle = runtime.getBodyHandle(operation.bodyRef());
+            if (spaceHandle == null || bodyHandle == null) {
+                restore.recordSoftSkip("Pending body operation body is unbound: "
+                    + operation.bodyUuid());
+                continue;
+            }
+            PhysicsBackendRuntime backendRuntime = runtime.runtimeForBodyRef(operation.bodyRef());
+            if (backendRuntime == null) {
+                restore.recordSoftSkip("Pending body operation backend runtime is missing: "
+                    + operation.bodyUuid());
+                continue;
+            }
+            int spaceId = spaceHandle.value();
+            long bodyId = bodyHandle.value();
+            switch (operation.kind()) {
+                case WAKE -> backendRuntime.activateBody(spaceId, bodyId);
+                case SLEEP -> backendRuntime.sleepBody(spaceId, bodyId);
+                case IMPULSE -> applyImpulse(backendRuntime, spaceId, bodyId, operation, false);
+                case TORQUE_IMPULSE -> applyImpulse(backendRuntime, spaceId, bodyId, operation, true);
+                case FORCE -> applyForce(backendRuntime, spaceId, bodyId, operation, false);
+                case TORQUE -> applyForce(backendRuntime, spaceId, bodyId, operation, true);
+            }
+        }
+    }
+
+    private static void applyImpulse(@Nonnull PhysicsBackendRuntime backendRuntime,
+        int spaceId,
+        long bodyId,
+        @Nonnull PendingBodyOperation operation,
+        boolean torque) {
+        backendRuntime.applyBodyImpulse(spaceId,
+            bodyId,
+            operation.x(),
+            operation.y(),
+            operation.z(),
+            operation.hasOffset(),
+            operation.offsetX(),
+            operation.offsetY(),
+            operation.offsetZ(),
+            torque);
+        backendRuntime.activateBody(spaceId, bodyId);
+    }
+
+    private static void applyForce(@Nonnull PhysicsBackendRuntime backendRuntime,
+        int spaceId,
+        long bodyId,
+        @Nonnull PendingBodyOperation operation,
+        boolean torque) {
+        backendRuntime.applyBodyForce(spaceId,
+            bodyId,
+            operation.x(),
+            operation.y(),
+            operation.z(),
+            operation.hasOffset(),
+            operation.offsetX(),
+            operation.offsetY(),
+            operation.offsetZ(),
+            torque);
+        backendRuntime.activateBody(spaceId, bodyId);
+    }
+
+    @Nonnull
+    @Override
+    public Query<PhysicsStore> getQuery() {
+        return PhysicsStoreSystemSupport.uuidQuery();
+    }
+
+    @Nonnull
+    @Override
+    public Set<Dependency<PhysicsStore>> getDependencies() {
+        return DEPENDENCIES;
+    }
+}

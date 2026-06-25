@@ -12,17 +12,21 @@ import com.hypixel.hytale.component.system.tick.EntityTickingSystem;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
+import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
+import dev.hytalemodding.impulse.core.plugin.physics.PhysicsThreading;
 import dev.hytalemodding.impulse.api.SpaceId;
-import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
-import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
+import dev.hytalemodding.impulse.core.plugin.physics.PhysicsBodies;
+import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.BodyAttachmentComponent;
+import dev.hytalemodding.impulse.core.plugin.snapshots.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.examples.explosive.ExplosiveBlockComponent;
 import dev.hytalemodding.impulse.examples.explosive.ExplosiveBlockRuntime;
 import dev.hytalemodding.impulse.examples.explosive.ExplosiveFuseComponent;
+import java.util.Objects;
+import java.util.UUID;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.joml.Vector3d;
+import org.joml.Vector3f;
 
 public final class ExplosiveFuseTickSystem extends EntityTickingSystem<EntityStore>
     implements QuerySystem<EntityStore> {
@@ -31,12 +35,26 @@ public final class ExplosiveFuseTickSystem extends EntityTickingSystem<EntitySto
         ExplosiveBlockComponent.getComponentType();
     private static final ComponentType<EntityStore, ExplosiveFuseComponent> FUSE_TYPE =
         ExplosiveFuseComponent.getComponentType();
-    private static final ComponentType<EntityStore, PhysicsBodyAttachmentComponent> ATTACHMENT_TYPE =
-        PhysicsBodyAttachmentComponent.getComponentType();
     private static final ComponentType<EntityStore, TransformComponent> TRANSFORM_TYPE =
         TransformComponent.getComponentType();
-    private static final Query<EntityStore> QUERY =
-        Query.and(EXPLOSIVE_TYPE, FUSE_TYPE, ATTACHMENT_TYPE, TRANSFORM_TYPE);
+
+    @Nonnull
+    private final ComponentType<EntityStore, BodyAttachmentComponent> attachmentType;
+    @Nonnull
+    private final Query<EntityStore> query;
+
+    public ExplosiveFuseTickSystem() {
+        this(BodyAttachmentComponent.getComponentType());
+    }
+
+    ExplosiveFuseTickSystem(
+        @Nonnull ComponentType<EntityStore, BodyAttachmentComponent> attachmentType) {
+        this.attachmentType = Objects.requireNonNull(attachmentType, "attachmentType");
+        this.query = Query.and(EXPLOSIVE_TYPE,
+            FUSE_TYPE,
+            this.attachmentType,
+            TRANSFORM_TYPE);
+    }
 
     @Override
     public boolean isParallel(int archetypeChunkSize, int taskCount) {
@@ -55,16 +73,15 @@ public final class ExplosiveFuseTickSystem extends EntityTickingSystem<EntitySto
             return;
         }
         ExplosiveBlockComponent explosive = chunk.getComponent(index, EXPLOSIVE_TYPE);
-        PhysicsBodyAttachmentComponent attachment = chunk.getComponent(index, ATTACHMENT_TYPE);
+        BodyAttachmentComponent attachment = chunk.getComponent(index, attachmentType);
         TransformComponent transform = chunk.getComponent(index, TRANSFORM_TYPE);
-        SpaceId spaceId = attachment != null ? attachment.getSpaceId() : null;
+        SpaceId spaceId = attachment != null ? attachmentSpaceId(store, attachment) : null;
         if (explosive == null || attachment == null || transform == null || spaceId == null) {
             return;
         }
 
         Ref<EntityStore> ref = chunk.getReferenceTo(index);
-        PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
-        PhysicsBodySnapshot snapshot = bodySnapshot(resource, attachment.getBodyKey());
+        BodyMotionSnapshot snapshot = bodySnapshot(store, attachment);
         Vector3d currentCenter = explosionCenter(snapshot, transform);
         if (!fuse.isArmed()) {
             ExplosiveFuseComponent updated = fuse.clone();
@@ -86,13 +103,14 @@ public final class ExplosiveFuseTickSystem extends EntityTickingSystem<EntitySto
             spaceId,
             center,
             explosive);
+        destroySourceBody(world, attachment);
         commandBuffer.removeEntity(ref, RemoveReason.REMOVE);
     }
 
     @Nonnull
     @Override
     public Query<EntityStore> getQuery() {
-        return QUERY;
+        return query;
     }
 
     private static long currentTick(@Nonnull Store<EntityStore> store) {
@@ -100,7 +118,7 @@ public final class ExplosiveFuseTickSystem extends EntityTickingSystem<EntitySto
     }
 
     @Nonnull
-    private static Vector3d explosionCenter(@Nullable PhysicsBodySnapshot snapshot,
+    private static Vector3d explosionCenter(@Nullable BodyMotionSnapshot snapshot,
         @Nonnull TransformComponent transform) {
         if (snapshot != null) {
             return ExplosiveBlockRuntime.sourceExplosionCenter(new Vector3d(snapshot.positionX(),
@@ -111,15 +129,58 @@ public final class ExplosiveFuseTickSystem extends EntityTickingSystem<EntitySto
     }
 
     @Nullable
-    private static PhysicsBodySnapshot bodySnapshot(@Nonnull PhysicsWorldResource resource,
-        @Nonnull RigidBodyKey bodyKey) {
-        if (resource.getBodyRegistrationView(bodyKey) != null) {
-            try {
-                return resource.getBodySnapshot(bodyKey);
-            } catch (IllegalArgumentException ignored) {
-                // Fall back to the last synced entity transform if the source body was destroyed.
-            }
+    private static SpaceId attachmentSpaceId(@Nonnull Store<EntityStore> store,
+        @Nonnull BodyAttachmentComponent attachment) {
+        Store<PhysicsStore> physics = PhysicsThreading.store(store.getExternalData().getWorld());
+        Ref<PhysicsStore> bodyRef = attachment.getBodyRef();
+        SpaceId spaceId = bodyRef != null && bodyRef.isValid()
+            ? PhysicsBodies.spaceId(physics, bodyRef)
+            : null;
+        if (spaceId == null) {
+            spaceId = PhysicsBodies.spaceId(physics, attachment.getBodyUuid());
         }
-        return null;
+        return spaceId;
+    }
+
+    @Nullable
+    private static BodyMotionSnapshot bodySnapshot(@Nonnull Store<EntityStore> store,
+        @Nonnull BodyAttachmentComponent attachment) {
+        UUID bodyUuid = attachment.getBodyUuid();
+        Store<PhysicsStore> physics = PhysicsThreading.store(store.getExternalData().getWorld());
+        Ref<PhysicsStore> bodyRef = attachment.getBodyRef();
+        PhysicsBodySnapshot snapshot = bodyRef != null && bodyRef.isValid()
+            ? PhysicsBodies.snapshot(physics, bodyRef)
+            : null;
+        if (snapshot != null && !bodyUuid.equals(snapshot.bodyUuid())) {
+            snapshot = null;
+        }
+        if (snapshot == null) {
+            snapshot = PhysicsBodies.snapshot(physics, bodyUuid);
+        }
+        return snapshot != null ? BodyMotionSnapshot.from(snapshot) : null;
+    }
+
+    private static void destroySourceBody(@Nonnull World world,
+        @Nonnull BodyAttachmentComponent attachment) {
+        Ref<PhysicsStore> bodyRef = attachment.getBodyRef();
+        if (bodyRef != null && bodyRef.isValid()) {
+            PhysicsBodies.destroyAsync(world, bodyRef);
+            return;
+        }
+        PhysicsBodies.destroyAsync(world, attachment.getBodyUuid());
+    }
+
+    private record BodyMotionSnapshot(float positionX,
+                                      float positionY,
+                                      float positionZ,
+                                      float linearVelocityY) {
+
+        @Nonnull
+        private static BodyMotionSnapshot from(@Nonnull PhysicsBodySnapshot snapshot) {
+            Vector3f position = snapshot.position();
+            Vector3f velocity = snapshot.linearVelocity();
+            return new BodyMotionSnapshot(position.x, position.y, position.z, velocity.y);
+        }
+
     }
 }

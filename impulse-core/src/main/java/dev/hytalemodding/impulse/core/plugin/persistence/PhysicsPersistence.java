@@ -2,9 +2,16 @@ package dev.hytalemodding.impulse.core.plugin.persistence;
 
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
-import dev.hytalemodding.impulse.core.plugin.simulation.query.RuntimeJointCountQuery;
+import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
+import dev.hytalemodding.impulse.core.internal.persistence.PhysicsStoreHolderStorage;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsRestoreStatusResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceCompatibilityIndexResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsSnapshotResource;
+import dev.hytalemodding.impulse.core.plugin.physics.PhysicsDiagnostics;
+import dev.hytalemodding.impulse.core.plugin.physics.PhysicsThreading;
+import dev.hytalemodding.impulse.core.plugin.physics.SpaceSummary;
+import java.util.List;
+import java.util.concurrent.CompletionStage;
 import javax.annotation.Nonnull;
 
 /**
@@ -13,94 +20,149 @@ import javax.annotation.Nonnull;
 public final class PhysicsPersistence {
 
     public static final int CURRENT_SCHEMA_VERSION =
-        PhysicsPersistenceResource.CURRENT_SCHEMA_VERSION;
+        PhysicsStoreHolderStorage.SCHEMA_VERSION;
+    private static final String SAVE_SKIPPED_REASON =
+        "authoritative-physics-store-holder-save-hook";
+    private static final String RESTORE_SKIPPED_REASON =
+        "authoritative-physics-store-auto-restore";
 
     private PhysicsPersistence() {
     }
 
     @Nonnull
     public static SaveResult saveRuntimeSnapshot(@Nonnull Store<EntityStore> store) {
-        PhysicsPersistenceResource persistent = persistent(store);
-        PhysicsWorldResource runtime = runtime(store);
-        PhysicsPersistenceSyncResult result = persistent.saveRuntimeSnapshot(store, runtime);
-        return new SaveResult(result.synced(),
-            persistent.getSchemaVersion(),
-            result.spaces(),
-            result.bodies(),
-            result.joints(),
-            result.skippedReason());
+        Status status = status(store);
+        return new SaveResult(false,
+            status.schemaVersion(),
+            status.storedSpaces(),
+            status.storedBodies(),
+            status.storedJoints(),
+            SAVE_SKIPPED_REASON);
+    }
+
+    @Nonnull
+    public static CompletionStage<SaveResult> saveRuntimeSnapshotAsync(
+        @Nonnull Store<EntityStore> store) {
+        return statusAsync(store).thenApply(status -> new SaveResult(false,
+            status.schemaVersion(),
+            status.storedSpaces(),
+            status.storedBodies(),
+            status.storedJoints(),
+            SAVE_SKIPPED_REASON));
     }
 
     @Nonnull
     public static RestoreRequestResult requestRuntimeRestore(@Nonnull Store<EntityStore> store) {
-        PhysicsPersistenceResource persistent = persistent(store);
         Status status = status(store);
-        if (persistent.isRuntimeRestorePending()) {
-            return new RestoreRequestResult(false, "already-pending", status);
-        }
-        if (persistent.getSchemaVersion() != CURRENT_SCHEMA_VERSION) {
-            return new RestoreRequestResult(false, "schema-mismatch", status);
-        }
+        return new RestoreRequestResult(false, RESTORE_SKIPPED_REASON, status);
+    }
 
-        persistent.markRuntimeRestorePending();
-        return new RestoreRequestResult(true, "", status(store));
+    @Nonnull
+    public static CompletionStage<RestoreRequestResult> requestRuntimeRestoreAsync(
+        @Nonnull Store<EntityStore> store) {
+        return statusAsync(store).thenApply(status ->
+            new RestoreRequestResult(false, RESTORE_SKIPPED_REASON, status));
     }
 
     @Nonnull
     public static Status status(@Nonnull Store<EntityStore> store) {
-        PhysicsPersistenceResource persistent = persistent(store);
-        PhysicsWorldResource runtime = runtime(store);
-        return new Status(runtime.getSpaceCount(),
-            runtime.getBodyRegistrationCount(PhysicsBodyPersistenceMode.PERSISTENT),
-            runtime.getBodyRegistrationCount(PhysicsBodyPersistenceMode.RUNTIME_ONLY),
-            countRuntimeJoints(runtime),
-            persistent.getSchemaVersion(),
-            persistent.getSpaceCount(),
-            persistent.getBodyCount(),
-            persistent.getJointCount(),
-            restoreState(persistent),
-            restoreMessage(persistent));
-    }
-
-    private static int countRuntimeJoints(@Nonnull PhysicsWorldResource runtime) {
-        return runtime.query(new RuntimeJointCountQuery())
-            .completion()
-            .toCompletableFuture()
-            .join();
+        Store<PhysicsStore> physicsStore = physicsStore(store);
+        return copiedStatus(physicsStore);
     }
 
     @Nonnull
-    private static RestoreState restoreState(@Nonnull PhysicsPersistenceResource persistent) {
-        if (persistent.hasRuntimeRestoreFailed()) {
+    public static CompletionStage<Status> statusAsync(@Nonnull Store<EntityStore> store) {
+        return PhysicsThreading.enqueueReadOnWorldThread(store.getExternalData().getWorld(),
+            "queue PhysicsStore persistence status read",
+            PhysicsPersistence::liveStatus);
+    }
+
+    @Nonnull
+    private static Store<PhysicsStore> physicsStore(@Nonnull Store<EntityStore> store) {
+        return PhysicsThreading.store(store.getExternalData().getWorld());
+    }
+
+    @Nonnull
+    private static Status liveStatus(@Nonnull Store<PhysicsStore> physicsStore) {
+        SavedStateSummary saved = savedStateSummary(physicsStore);
+        PhysicsRestoreStatusResource restore = physicsStore.getResource(
+            PhysicsRestoreStatusResource.getResourceType());
+        List<SpaceSummary> summaries = PhysicsDiagnostics.spaceSummaries(physicsStore);
+        int runtimeBodies = summaries.stream().mapToInt(SpaceSummary::bodyCount).sum();
+        int runtimeJoints = summaries.stream().mapToInt(SpaceSummary::jointCount).sum();
+        int physicsStoreSpaces = physicsStore.getResource(
+            PhysicsSpaceCompatibilityIndexResource.getResourceType()).size();
+        return new Status(Math.max(physicsStoreSpaces,
+                summaries.size()),
+            runtimeBodies,
+            0,
+            runtimeJoints,
+            saved.schemaVersion(),
+            saved.spaces(),
+            saved.bodies(),
+            saved.joints(),
+            restoreState(restore),
+            restoreMessage(restore));
+    }
+
+    @Nonnull
+    private static Status copiedStatus(@Nonnull Store<PhysicsStore> physicsStore) {
+        PhysicsThreading.requireWorldThread(physicsStore,
+            "read copied PhysicsStore persistence status");
+        SavedStateSummary saved = savedStateSummary(physicsStore);
+        PhysicsRestoreStatusResource restore = physicsStore.getResource(
+            PhysicsRestoreStatusResource.getResourceType());
+        int runtimeBodies = physicsStore.getResource(PhysicsSnapshotResource.getResourceType())
+            .getLatestFrame()
+            .bodies()
+            .size();
+        int physicsStoreSpaces = physicsStore.getResource(
+            PhysicsSpaceCompatibilityIndexResource.getResourceType()).size();
+        return new Status(physicsStoreSpaces,
+            runtimeBodies,
+            0,
+            saved.joints(),
+            saved.schemaVersion(),
+            saved.spaces(),
+            saved.bodies(),
+            saved.joints(),
+            restoreState(restore),
+            restoreMessage(restore));
+    }
+
+    @Nonnull
+    private static SavedStateSummary savedStateSummary(@Nonnull Store<PhysicsStore> physicsStore) {
+        PhysicsStoreHolderStorage.Summary holderSummary = PhysicsStoreHolderStorage.summary(
+            physicsStore);
+        if (holderSummary.present()) {
+            return new SavedStateSummary(CURRENT_SCHEMA_VERSION,
+                holderSummary.spaces(),
+                holderSummary.bodies(),
+                holderSummary.joints());
+        }
+        return new SavedStateSummary(CURRENT_SCHEMA_VERSION, 0, 0, 0);
+    }
+
+    @Nonnull
+    private static RestoreState restoreState(@Nonnull PhysicsRestoreStatusResource restore) {
+        if (restore.isFailed()) {
             return RestoreState.FAILED;
         }
-        if (!persistent.isRuntimeRestorePending()) {
-            return RestoreState.IDLE;
+        if (restore.isPending()) {
+            return RestoreState.PENDING_SPACES;
         }
-        return persistent.isRuntimeSpaceBootstrapComplete()
-            ? RestoreState.PENDING_BODIES_AND_JOINTS
-            : RestoreState.PENDING_SPACES;
+        return RestoreState.IDLE;
     }
 
     @Nonnull
-    private static String restoreMessage(@Nonnull PhysicsPersistenceResource persistent) {
-        if (persistent.hasRuntimeRestoreFailed()) {
-            return persistent.runtimeRestoreFailureSummary();
+    private static String restoreMessage(@Nonnull PhysicsRestoreStatusResource restore) {
+        if (restore.isFailed()) {
+            return restore.getFailureMessage();
         }
-        if (persistent.hasRuntimeRestoreSkips()) {
-            return persistent.runtimeRestoreSummary();
+        if (!restore.getSoftSkipsByReason().isEmpty()) {
+            return "PhysicsStore restore soft skips: " + restore.getSoftSkipsByReason();
         }
         return "";
-    }
-
-    @Nonnull
-    private static PhysicsPersistenceResource persistent(@Nonnull Store<EntityStore> store) {
-        return store.getResource(PhysicsPersistenceResource.getResourceType());
-    }
-
-    @Nonnull
-    private static PhysicsWorldResource runtime(@Nonnull Store<EntityStore> store) {
-        return store.getResource(PhysicsWorldResource.getResourceType());
     }
 
     public enum RestoreState {
@@ -150,4 +212,8 @@ public final class PhysicsPersistence {
             return !restoreMessage.isEmpty();
         }
     }
+
+    private record SavedStateSummary(int schemaVersion, int spaces, int bodies, int joints) {
+    }
+
 }

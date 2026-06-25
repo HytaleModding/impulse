@@ -1,0 +1,92 @@
+package dev.hytalemodding.impulse.core.internal.modules.physicschunk.systems;
+
+import com.hypixel.hytale.component.ArchetypeChunk;
+import com.hypixel.hytale.component.CommandBuffer;
+import com.hypixel.hytale.component.Store;
+import com.hypixel.hytale.component.dependency.Dependency;
+import com.hypixel.hytale.component.dependency.Order;
+import com.hypixel.hytale.component.dependency.SystemDependency;
+import com.hypixel.hytale.component.query.Query;
+import com.hypixel.hytale.component.system.QuerySystem;
+import com.hypixel.hytale.component.system.tick.TickingSystem;
+import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkLifecycle;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.resources.PhysicsChunkCollisionMutationQueueResource;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.resources.PhysicsChunkSettingsIndexResource;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.resources.PhysicsChunkSettingsIndexResource.PhysicsChunkSpaceSettings;
+import dev.hytalemodding.impulse.core.internal.systems.IdentityIndexSystem;
+import dev.hytalemodding.impulse.core.internal.systems.PhysicsStoreSystemSupport;
+import dev.hytalemodding.impulse.core.internal.systems.binding.SpaceBindingSystem;
+import dev.hytalemodding.impulse.core.plugin.components.SpaceComponent;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.ChunkCollisionSettingsComponent;
+import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+import java.util.function.BiConsumer;
+import javax.annotation.Nonnull;
+
+/**
+ * Publishes copied PhysicsChunk collision settings for PhysicsStore space entities.
+ */
+public final class PhysicsChunkSettingsIndexSystem extends TickingSystem<PhysicsStore>
+    implements QuerySystem<PhysicsStore> {
+
+    private static final Set<Dependency<PhysicsStore>> DEPENDENCIES = Set.of(
+        new SystemDependency<>(Order.AFTER, IdentityIndexSystem.class),
+        new SystemDependency<>(Order.BEFORE, SpaceBindingSystem.class)
+    );
+
+    @Override
+    public void tick(float dt, int systemIndex, @Nonnull Store<PhysicsStore> store) {
+        Map<UUID, PhysicsChunkSpaceSettings> settingsBySpaceUuid =
+            new Object2ObjectOpenHashMap<>();
+        BiConsumer<ArchetypeChunk<PhysicsStore>, CommandBuffer<PhysicsStore>> collector =
+            (chunk, _) -> collectChunk(settingsBySpaceUuid, chunk);
+        store.forEachChunk(systemIndex, collector);
+        PhysicsChunkSettingsIndexResource settingsIndex =
+            store.getResource(PhysicsChunkSettingsIndexResource.getResourceType());
+        settingsIndex.replaceAll(settingsBySpaceUuid);
+        store.getResource(PhysicsChunkCollisionMutationQueueResource.getResourceType())
+            .updateStamp(PhysicsChunkLifecycle.generation(), settingsIndex.generation());
+    }
+
+    private static void collectChunk(
+        @Nonnull Map<UUID, PhysicsChunkSpaceSettings> settingsBySpaceUuid,
+        @Nonnull ArchetypeChunk<PhysicsStore> chunk) {
+        for (int index = 0; index < chunk.size(); index++) {
+            SpaceComponent space = chunk.getComponent(index, SpaceComponent.getComponentType());
+            if (space == null) {
+                continue;
+            }
+            UUID spaceUuid = PhysicsStoreSystemSupport.rowUuid(chunk, index);
+            if (PhysicsStoreSystemSupport.isNil(spaceUuid)) {
+                continue;
+            }
+            ChunkCollisionSettingsComponent chunkCollision = chunk.getComponent(index,
+                ChunkCollisionSettingsComponent.getComponentType());
+            ChunkCollisionSettingsComponent settings = chunkCollision != null
+                ? chunkCollision
+                : new ChunkCollisionSettingsComponent();
+            settingsBySpaceUuid.put(spaceUuid, new PhysicsChunkSpaceSettings(spaceUuid,
+                settings.getMode(),
+                settings.getEntityChunkBoundaryMode(),
+                settings.isNativeVoxelCollisionEnabled(),
+                settings.getRadius(),
+                settings.getBodyRadius(),
+                settings.getTtlTicks()));
+        }
+    }
+
+    @Nonnull
+    @Override
+    public Query<PhysicsStore> getQuery() {
+        return PhysicsStoreSystemSupport.uuidQuery();
+    }
+
+    @Nonnull
+    @Override
+    public Set<Dependency<PhysicsStore>> getDependencies() {
+        return DEPENDENCIES;
+    }
+}

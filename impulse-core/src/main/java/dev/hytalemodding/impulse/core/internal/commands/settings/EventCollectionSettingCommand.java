@@ -10,8 +10,10 @@ import com.hypixel.hytale.server.core.command.system.basecommands.AbstractAsyncP
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
-import dev.hytalemodding.impulse.core.plugin.settings.PhysicsEventCollectionMode;
+import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
+import dev.hytalemodding.impulse.core.plugin.physics.PhysicsWorlds;
+import dev.hytalemodding.impulse.core.plugin.physics.PhysicsThreading;
+import dev.hytalemodding.impulse.core.plugin.events.PhysicsEventCollectionMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
@@ -34,9 +36,10 @@ public class EventCollectionSettingCommand extends AbstractAsyncPlayerCommand {
         @Nonnull Ref<EntityStore> ref,
         @Nonnull PlayerRef playerRef,
         @Nonnull World world) {
-        PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
+        Store<PhysicsStore> physicsStore = PhysicsThreading.store(world);
         if (!modeArg.provided(ctx)) {
-            PhysicsEventCollectionMode mode = resource.getWorldSettings().getEventCollectionMode();
+            PhysicsEventCollectionMode mode = PhysicsWorlds.settings(physicsStore)
+                .getEventCollectionMode();
             ctx.sender().sendMessage(Message.raw("Impulse event collection: "
                 + mode.getSerializedName()));
             return CompletableFuture.completedFuture(null);
@@ -51,9 +54,9 @@ public class EventCollectionSettingCommand extends AbstractAsyncPlayerCommand {
             return CompletableFuture.completedFuture(null);
         }
 
-        PhysicsWorldSettings settings = resource.getWorldSettings();
+        PhysicsWorldSettings settings = PhysicsWorlds.settings(physicsStore);
         settings.setEventCollectionMode(mode);
-        resource.setWorldSettings(settings);
+        PhysicsWorlds.putSettings(physicsStore, settings);
         ctx.sender().sendMessage(Message.raw("Impulse event collection set to "
             + mode.getSerializedName()));
         return CompletableFuture.completedFuture(null);

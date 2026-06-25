@@ -1,5 +1,6 @@
 package dev.hytalemodding.impulse.examples.commands.stress;
 
+import com.hypixel.hytale.component.AddReason;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.Message;
@@ -11,15 +12,17 @@ import com.hypixel.hytale.server.core.modules.time.TimeResource;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.PhysicsAxis;
-import dev.hytalemodding.impulse.api.SpaceId;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
-import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
-import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
-import dev.hytalemodding.impulse.examples.commands.ExamplePhysicsUtils;
+import dev.hytalemodding.impulse.core.plugin.physics.PhysicsShapeSpec;
+import dev.hytalemodding.impulse.core.plugin.physics.RigidBodySpawnSettings;
+import dev.hytalemodding.impulse.examples.utils.ExamplePhysicsUtils;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
+import org.joml.Quaternionf;
 import org.joml.Vector3d;
+import org.joml.Vector3f;
 
 public class StressShapesCommand extends AbstractAsyncPlayerCommand {
 
@@ -51,15 +54,13 @@ public class StressShapesCommand extends AbstractAsyncPlayerCommand {
         @Nonnull Ref<EntityStore> ref,
         @Nonnull PlayerRef playerRef,
         @Nonnull World world) {
-        Vector3d playerPos = ExamplePhysicsUtils.playerPosition(ctx, store, ref);
-        if (playerPos == null) {
-            return CompletableFuture.completedFuture(null);
-        }
+        Vector3d playerPos = new Vector3d(playerRef.getTransform().getPosition());
 
         int sets = ExamplePhysicsUtils.optionalInt(ctx, setsArg, DEFAULT_SETS, 1, MAX_SETS);
-        PhysicsWorldResource resource = ExamplePhysicsUtils.resource(store);
-        SpaceId spaceId = ExamplePhysicsUtils.spaceId(ctx, resource, spaceArg);
-        if (spaceId == null) {
+        ExamplePhysicsUtils.SpaceSelection space = ExamplePhysicsUtils.spaceSelection(ctx,
+            world,
+            spaceArg);
+        if (space == null) {
             return CompletableFuture.completedFuture(null);
         }
         TimeResource time = store.getResource(TimeResource.getResourceType());
@@ -71,39 +72,77 @@ public class StressShapesCommand extends AbstractAsyncPlayerCommand {
             int col = set % 4;
             Vector3d base = new Vector3d(origin).add(col * 7.0, row * 2.2, row * 1.5);
 
-            spawn(store, time, resource, spaceId, ShapeType.BOX, axis,
+            spawn(store,
+                world,
+                time,
+                space.spaceRef(),
+                ShapeType.BOX,
+                axis,
                 base, 0.0);
-            spawn(store, time, resource, spaceId, ShapeType.SPHERE, axis,
+            spawn(store,
+                world,
+                time,
+                space.spaceRef(),
+                ShapeType.SPHERE,
+                axis,
                 base, 1.2);
-            spawn(store, time, resource, spaceId, ShapeType.CAPSULE, axis,
+            spawn(store,
+                world,
+                time,
+                space.spaceRef(),
+                ShapeType.CAPSULE,
+                axis,
                 base, 2.4);
-            spawn(store, time, resource, spaceId, ShapeType.CYLINDER, axis,
+            spawn(store,
+                world,
+                time,
+                space.spaceRef(),
+                ShapeType.CYLINDER,
+                axis,
                 base, 3.6);
-            spawn(store, time, resource, spaceId, ShapeType.CONE, axis,
+            spawn(store,
+                world,
+                time,
+                space.spaceRef(),
+                ShapeType.CONE,
+                axis,
                 base, 4.8);
         }
 
-        ctx.sender().sendMessage(Message.raw("Spawned " + sets + " mixed shape sets ("
+        ctx.sender().sendMessage(Message.raw("Queued " + sets + " mixed shape sets ("
             + (sets * 5) + " bodies)."));
         return CompletableFuture.completedFuture(null);
     }
 
     private static void spawn(@Nonnull Store<EntityStore> store,
+        @Nonnull World world,
         @Nonnull TimeResource time,
-        @Nonnull PhysicsWorldResource resource,
-        @Nonnull SpaceId spaceId,
+        @Nonnull Ref<PhysicsStore> spaceRef,
         @Nonnull ShapeType type,
         @Nonnull PhysicsAxis axis,
         @Nonnull Vector3d base,
         double xOffset) {
-        ExamplePhysicsUtils.spawnBlockBody(store,
-            time,
-            resource,
-            spaceId,
-            new Vector3d(base).add(xOffset, 0.0, 0.0),
+        Vector3d position = new Vector3d(base).add(xOffset, 0.0, 0.0);
+        UUID bodyUuid = UUID.randomUUID();
+        var bodyHolder = ExamplePhysicsUtils.bodyEntity(spaceRef,
+            bodyUuid,
+            ExamplePhysicsUtils.toVector3f(position),
             shape(type, axis),
             1.0f,
-            RigidBodySpawnSettings.material(0.6f, 0.25f));
+            RigidBodySpawnSettings.material(0.6f, 0.25f),
+            null);
+        Ref<PhysicsStore> bodyRef = ExamplePhysicsUtils.addPhysicsStoreBody(world, bodyHolder);
+        store.addEntity(ExamplePhysicsUtils.attachedPhysicsBlockEntityHolder(
+            time,
+            bodyRef,
+            bodyUuid,
+            ExamplePhysicsUtils.DEFAULT_BLOCK_TYPE,
+            position,
+            new Vector3f(),
+            new Quaternionf(),
+            Float.NaN,
+            true),
+            AddReason.SPAWN);
     }
 
     @Nonnull

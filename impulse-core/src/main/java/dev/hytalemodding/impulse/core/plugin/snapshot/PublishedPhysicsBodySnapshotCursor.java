@@ -5,9 +5,7 @@ import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.SpaceId;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
-import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
+import java.util.UUID;
 import javax.annotation.Nonnull;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
@@ -22,7 +20,7 @@ import org.joml.Vector3f;
 public interface PublishedPhysicsBodySnapshotCursor {
 
     @Nonnull
-    RigidBodyKey bodyKey();
+    UUID bodyUuid();
 
     @Nonnull
     SpaceId spaceId();
@@ -34,12 +32,6 @@ public interface PublishedPhysicsBodySnapshotCursor {
     long spaceEpoch();
 
     long registrationGeneration();
-
-    @Nonnull
-    PhysicsBodyKind kind();
-
-    @Nonnull
-    PhysicsBodyPersistenceMode persistenceMode();
 
     float positionX();
 

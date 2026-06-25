@@ -1,0 +1,341 @@
+package dev.hytalemodding.impulse.core.internal.systems.binding;
+
+import com.hypixel.hytale.component.ArchetypeChunk;
+import com.hypixel.hytale.component.CommandBuffer;
+import com.hypixel.hytale.component.Ref;
+import com.hypixel.hytale.component.Store;
+import com.hypixel.hytale.component.dependency.Dependency;
+import com.hypixel.hytale.component.dependency.Order;
+import com.hypixel.hytale.component.dependency.SystemDependency;
+import com.hypixel.hytale.component.query.Query;
+import com.hypixel.hytale.component.system.QuerySystem;
+import com.hypixel.hytale.component.system.tick.TickingSystem;
+import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
+import dev.hytalemodding.impulse.api.BackendId;
+import dev.hytalemodding.impulse.api.PhysicsBodyType;
+import dev.hytalemodding.impulse.api.ShapeType;
+import dev.hytalemodding.impulse.api.runtime.BackendRuntimeCodes;
+import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntime;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkStoreTypes;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsRestoreStatusResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResource;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.resources.PhysicsChunkCollisionPayloadResource;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.ChunkCollisionPayload;
+import dev.hytalemodding.impulse.core.internal.resources.BackendBodyHandle;
+import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
+import dev.hytalemodding.impulse.core.internal.systems.PhysicsStoreSystemSupport;
+import dev.hytalemodding.impulse.core.internal.systems.SpaceSettingsApplicationSystem;
+import dev.hytalemodding.impulse.core.plugin.components.BodyComponent;
+import dev.hytalemodding.impulse.core.plugin.components.ColliderComponent;
+import dev.hytalemodding.impulse.core.plugin.components.CollisionFilterComponent;
+import dev.hytalemodding.impulse.core.plugin.components.DynamicsComponent;
+import dev.hytalemodding.impulse.core.plugin.components.MaterialComponent;
+import dev.hytalemodding.impulse.core.plugin.components.ShapeComponent;
+import dev.hytalemodding.impulse.core.plugin.components.TargetComponent;
+import dev.hytalemodding.impulse.core.plugin.components.UuidComponent;
+import java.util.Set;
+import java.util.UUID;
+import java.util.function.BiConsumer;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+import org.joml.Quaternionf;
+import org.joml.Vector3f;
+
+/**
+ * Creates backend bodies from authoritative PhysicsStore body entities.
+ */
+public final class BodyBindingSystem extends TickingSystem<PhysicsStore>
+    implements QuerySystem<PhysicsStore> {
+
+    private static final Set<Dependency<PhysicsStore>> DEPENDENCIES = Set.of(
+        new SystemDependency<>(Order.AFTER, SpaceBindingSystem.class),
+        new SystemDependency<>(Order.AFTER, SpaceSettingsApplicationSystem.class)
+    );
+
+    @Override
+    public void tick(float dt, int systemIndex, @Nonnull Store<PhysicsStore> store) {
+        PhysicsRestoreStatusResource restore = store.getResource(
+            PhysicsRestoreStatusResource.getResourceType());
+        if (restore.isFailed()) {
+            return;
+        }
+        PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
+        PhysicsChunkCollisionPayloadResource chunkCollisionPayloads =
+            PhysicsChunkStoreTypes.collisionPayloadsIfPresent(store);
+        BiConsumer<ArchetypeChunk<PhysicsStore>, CommandBuffer<PhysicsStore>> collector =
+            (chunk, commandBuffer) -> bindBodies(store,
+                runtime,
+                chunkCollisionPayloads,
+                restore,
+                commandBuffer,
+                chunk);
+        store.forEachChunk(systemIndex, collector);
+    }
+
+    private static void bindBodies(@Nonnull Store<PhysicsStore> store,
+        @Nonnull PhysicsRuntimeResource runtime,
+        @Nullable PhysicsChunkCollisionPayloadResource chunkCollisionPayloads,
+        @Nonnull PhysicsRestoreStatusResource restore,
+        @Nonnull CommandBuffer<PhysicsStore> commandBuffer,
+        @Nonnull ArchetypeChunk<PhysicsStore> chunk) {
+        for (int index = 0; index < chunk.size(); index++) {
+            BodyComponent body = chunk.getComponent(index, BodyComponent.getComponentType());
+            if (body == null) {
+                continue;
+            }
+            UUID bodyUuid = PhysicsStoreSystemSupport.rowUuid(chunk, index);
+            if (PhysicsStoreSystemSupport.isNil(bodyUuid)) {
+                continue;
+            }
+            Ref<PhysicsStore> bodyRef = chunk.getReferenceTo(index);
+            if (runtime.getBodyHandle(bodyRef) != null) {
+                continue;
+            }
+            bindBody(runtime,
+                store,
+                chunkCollisionPayloads,
+                restore,
+                commandBuffer,
+                bodyRef,
+                bodyUuid,
+                body,
+                chunk.getComponent(index, DynamicsComponent.getComponentType()),
+                chunk.getComponent(index, TargetComponent.getComponentType()),
+                chunk.getComponent(index, ColliderComponent.getComponentType()),
+                chunk.getComponent(index, ShapeComponent.getComponentType()),
+                chunk.getComponent(index, MaterialComponent.getComponentType()),
+                chunk.getComponent(index, CollisionFilterComponent.getComponentType()));
+        }
+    }
+
+    private static void bindBody(@Nonnull PhysicsRuntimeResource runtime,
+        @Nonnull Store<PhysicsStore> store,
+        @Nullable PhysicsChunkCollisionPayloadResource chunkCollisionPayloads,
+        @Nonnull PhysicsRestoreStatusResource restore,
+        @Nonnull CommandBuffer<PhysicsStore> commandBuffer,
+        @Nonnull Ref<PhysicsStore> bodyRef,
+        @Nonnull UUID bodyUuid,
+        @Nonnull BodyComponent body,
+        @Nullable DynamicsComponent dynamics,
+        @Nullable TargetComponent target,
+        @Nullable ColliderComponent collider,
+        @Nullable ShapeComponent shape,
+        @Nullable MaterialComponent material,
+        @Nullable CollisionFilterComponent filter) {
+        Ref<PhysicsStore> spaceRef = resolveSpaceRef(store, body);
+        BackendSpaceHandle spaceHandle = spaceRef != null ? runtime.getSpaceHandle(spaceRef) : null;
+        if (spaceHandle == null) {
+            restore.recordSoftSkip("Body references unbound space: " + bodyUuid);
+            return;
+        }
+        BackendId backendId = runtime.getSpaceBackendId(spaceRef);
+        if (backendId == null) {
+            restore.recordSoftSkip("Body references missing backend id: " + bodyUuid);
+            return;
+        }
+        PhysicsBackendRuntime backendRuntime = runtimeForSpace(runtime, spaceRef);
+        if (backendRuntime == null) {
+            restore.recordSoftSkip("Body references missing backend runtime: " + bodyUuid);
+            return;
+        }
+        if (collider == null || shape == null || material == null || filter == null) {
+            restore.recordSoftSkip("Body aggregate is missing collider data: " + bodyUuid);
+            return;
+        }
+        if (PhysicsChunkStoreTypes.shouldDeferChunkCollisionRestore(store,
+            commandBuffer,
+            bodyRef,
+            body,
+            dynamics,
+            restore)) {
+            return;
+        }
+        DynamicsComponent bodyDynamics = dynamics != null ? dynamics : new DynamicsComponent();
+        TargetComponent initialTarget = target != null ? target : new TargetComponent();
+        Vector3f position = target != null ? initialTarget.getPosition() : new Vector3f();
+        Quaternionf rotation = target != null ? initialTarget.getRotation() : new Quaternionf();
+        PhysicsBodyType bodyType = bodyDynamics.getBodyType();
+        float mass = bodyType == PhysicsBodyType.DYNAMIC ? bodyDynamics.getMass() : 0.0f;
+        long bodyId = Long.MIN_VALUE;
+        boolean bodyCreatedWithInitialState = false;
+        try {
+            if (shape.getShapeType() == ShapeType.VOXELS) {
+                if (bodyType != PhysicsBodyType.STATIC) {
+                    restore.recordSoftSkip("Voxel body must be static: " + bodyUuid);
+                    return;
+                }
+                bodyId = createVoxelBody(chunkCollisionPayloads,
+                    backendRuntime,
+                    spaceHandle,
+                    shape,
+                    material,
+                    filter,
+                    position);
+                if (bodyId == Long.MIN_VALUE) {
+                    restore.recordSoftSkip("Voxel body payload is missing or unsupported: "
+                        + bodyUuid);
+                    return;
+                }
+            } else {
+                bodyId = backendRuntime.createBodyWithInitialState(spaceHandle.value(),
+                    BackendRuntimeCodes.shapeTypeCode(shape.getShapeType()),
+                    shape.getHalfExtentX(),
+                    shape.getHalfExtentY(),
+                    shape.getHalfExtentZ(),
+                    shape.getRadius(),
+                    shape.getHalfHeight(),
+                    BackendRuntimeCodes.axisCode(shape.getAxis()),
+                    shape.getGroundY(),
+                    mass,
+                    BackendRuntimeCodes.bodyTypeCode(bodyType),
+                    position.x,
+                    position.y,
+                    position.z,
+                    rotation.x,
+                    rotation.y,
+                    rotation.z,
+                    rotation.w,
+                    bodyDynamics.getLinearDamping(),
+                    bodyDynamics.getAngularDamping(),
+                    material.getFriction(),
+                    material.getRestitution(),
+                    filter.getCollisionGroup(),
+                    filter.getCollisionMask(),
+                    collider.isSensor(),
+                    bodyDynamics.isContinuousCollisionEnabled());
+                bodyCreatedWithInitialState = true;
+            }
+            BackendBodyHandle bodyHandle = new BackendBodyHandle(bodyId);
+            if (!bodyCreatedWithInitialState
+                && bodyDynamics.isContinuousCollisionEnabled()
+                && backendRuntime.supportsContinuousCollision(spaceHandle.value())) {
+                backendRuntime.setBodyContinuousCollision(spaceHandle.value(), bodyId, true);
+            }
+            applyInitialTargetState(backendRuntime, spaceHandle, bodyHandle, bodyType, target);
+            runtime.putBodyHandle(bodyRef, spaceRef, spaceHandle, bodyHandle);
+            runtime.putBodySnapshotMetadata(backendId,
+                spaceHandle,
+                bodyHandle,
+                bodyUuid,
+                bodyRef,
+                body.getSpaceUuid());
+            runtime.putBodyHitMetadata(backendId,
+                spaceHandle,
+                bodyHandle,
+                bodyUuid,
+                bodyRef,
+                bodyType,
+                shape.getShapeType());
+        } catch (RuntimeException exception) {
+            if (bodyId != Long.MIN_VALUE) {
+                try {
+                    backendRuntime.removeBody(spaceHandle.value(), bodyId);
+                } catch (RuntimeException ignored) {
+                    // Preserve the original backend failure as the restore status.
+                }
+            }
+            restore.markFailed("PhysicsStore body " + bodyUuid
+                + " failed backend binding: " + exception.getMessage());
+        }
+    }
+
+    private static long createVoxelBody(@Nullable PhysicsChunkCollisionPayloadResource chunkCollisionPayloads,
+        @Nonnull PhysicsBackendRuntime backendRuntime,
+        @Nonnull BackendSpaceHandle spaceHandle,
+        @Nonnull ShapeComponent shape,
+        @Nonnull MaterialComponent material,
+        @Nonnull CollisionFilterComponent filter,
+        @Nonnull Vector3f position) {
+        String payloadKey = shape.getResourceKey();
+        if (payloadKey.isBlank() || !backendRuntime.supportsVoxelTerrain(spaceHandle.value())) {
+            return Long.MIN_VALUE;
+        }
+        if (chunkCollisionPayloads == null) {
+            return Long.MIN_VALUE;
+        }
+        ChunkCollisionPayload payload = chunkCollisionPayloads.get(payloadKey);
+        if (payload == null || !payload.hasFullCubeVoxels()) {
+            return Long.MIN_VALUE;
+        }
+        try {
+            return backendRuntime.createVoxelTerrain(spaceHandle.value(),
+                payload.voxelSizeX(),
+                payload.voxelSizeY(),
+                payload.voxelSizeZ(),
+                payload.voxelCoordinates(),
+                position.x,
+                position.y,
+                position.z,
+                material.getFriction(),
+                material.getRestitution(),
+                filter.getCollisionGroup(),
+                filter.getCollisionMask());
+        } catch (UnsupportedOperationException exception) {
+            return Long.MIN_VALUE;
+        }
+    }
+
+    private static void applyInitialTargetState(@Nonnull PhysicsBackendRuntime backendRuntime,
+        @Nonnull BackendSpaceHandle spaceHandle,
+        @Nonnull BackendBodyHandle bodyHandle,
+        @Nonnull PhysicsBodyType bodyType,
+        @Nullable TargetComponent target) {
+        if (target == null) {
+            return;
+        }
+        if (target.isVelocityEnabled()) {
+            Vector3f linearVelocity = target.getLinearVelocity();
+            Vector3f angularVelocity = target.getAngularVelocity();
+            backendRuntime.setBodyVelocity(spaceHandle.value(),
+                bodyHandle.value(),
+                linearVelocity.x,
+                linearVelocity.y,
+                linearVelocity.z,
+                angularVelocity.x,
+                angularVelocity.y,
+                angularVelocity.z);
+        }
+        if (target.isActivate()) {
+            backendRuntime.activateBody(spaceHandle.value(), bodyHandle.value());
+        } else if (bodyType == PhysicsBodyType.DYNAMIC) {
+            backendRuntime.sleepBody(spaceHandle.value(), bodyHandle.value());
+        }
+    }
+
+    @Nullable
+    private static Ref<PhysicsStore> resolveSpaceRef(@Nonnull Store<PhysicsStore> store,
+        @Nonnull BodyComponent body) {
+        Ref<PhysicsStore> spaceRef = body.getSpaceRef();
+        UuidComponent uuid = PhysicsStoreSystemSupport.component(store,
+            spaceRef,
+            UuidComponent.getComponentType());
+        if (uuid == null || !body.getSpaceUuid().equals(uuid.getUuid())) {
+            spaceRef = store.getExternalData().getRefFromUUID(body.getSpaceUuid());
+        }
+        if (spaceRef != null && (spaceRef.getStore() != store || !spaceRef.isValid())) {
+            spaceRef = null;
+        }
+        body.setSpaceRef(spaceRef);
+        return spaceRef;
+    }
+
+    @Nullable
+    private static PhysicsBackendRuntime runtimeForSpace(@Nonnull PhysicsRuntimeResource runtime,
+        @Nonnull Ref<PhysicsStore> spaceRef) {
+        var backendId = runtime.getSpaceBackendId(spaceRef);
+        return backendId != null ? runtime.getRuntime(backendId) : null;
+    }
+
+    @Nonnull
+    @Override
+    public Query<PhysicsStore> getQuery() {
+        return PhysicsStoreSystemSupport.uuidQuery();
+    }
+
+    @Nonnull
+    @Override
+    public Set<Dependency<PhysicsStore>> getDependencies() {
+        return DEPENDENCIES;
+    }
+
+}

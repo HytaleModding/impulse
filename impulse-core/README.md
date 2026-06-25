@@ -13,16 +13,16 @@ Impulse core is divided in two categories:
 
 - `/impulse backend list` - list discovered backends and active physics spaces.
 
-Backend jars are Java service-provider jars. Impulse discovers `PhysicsBackend` providers from jars 
-anywhere under the configured Hytale `mods` directories.
+Backend jars are Java service-provider jars. Impulse discovers `PhysicsBackendRuntimeProvider`
+services from jars anywhere under the configured Hytale `mods` directories.
 
 ## Event frames
 
-`PhysicsWorldResource.getLatestEventFrame()` exposes the latest value-only physics event frame for
-diagnostics. When collection is enabled, backends emit bounded post-step `PhysicsBackendEvent`
-batches; core translates them to stable `PhysicsFrameEvent` values keyed by `RigidBodyKey` and
-`JointKey`, then publishes one `PhysicsEventFramePublishedEvent` Hytale world event for the
-completed frame.
+`PhysicsWorlds.latestEventFrame(physicsStore)` exposes the latest value-only physics event frame
+for diagnostics. When collection is enabled, backends emit bounded post-step event
+batches; core translates them to stable UUID-primary `PhysicsFrameEvent` values and copied
+PhysicsStore refs where available, then publishes one `PhysicsEventFramePublishedEvent` Hytale
+world event for the completed frame.
 
 Backend event collection is opt-in through `PhysicsWorldSettings.setEventCollectionMode(...)`.
 Worlds default to `PhysicsEventCollectionMode.DISABLED`; use
@@ -37,43 +37,17 @@ world and `/impulse settings simulation events disabled` to return to the defaul
 ## Profiling
 
 Spark plugin is advised to profile threaded physics benchmarks. By using the following command,
-the exported profile includes both Hytale world threads and Impulse's physics owner-lane executor threads:
+the exported profile includes Hytale world/store tick threads and PhysicsStore completion work:
 
 ```bash
-/spark profiler start --timeout 60 --save-to-file --regex --not-combined --ignore-sleeping --thread WorldThread.* --thread Impulse.*physics.*owner.* --thread ChunkLighting.* --thread WorldMap.*
+/spark profiler start --timeout 60 --save-to-file --regex --not-combined --ignore-sleeping --thread WorldThread.* --thread Impulse.*PhysicsStore.* --thread ChunkLighting.* --thread WorldMap.*
 ```
 
 Avoid contact debug rendering during benchmark captures; it calls backend contact enumeration and
 will distort the hot path.
 
-## Crucible tests
+## Runtime validation
 
-Install the patched Crucible runtime jar:
-
-```bash
-./scripts/ci/install-crucible-runtime.sh
-```
-
-Run the smoke-tagged runtime suite:
-
-```bash
-JAVA_TOOL_OPTIONS="-Dcrucible.autorun=true -Dcrucible.tags=smoke" \
-  ./gradlew runAllMods
-```
-
-Run the live-tagged runtime suite:
-
-```bash
-JAVA_TOOL_OPTIONS="-Dcrucible.autorun=true -Dcrucible.tags=live" \
-  ./gradlew runAllMods
-```
-
-Run the detached full-collision streaming benchmark scenario:
-
-```bash
-JAVA_TOOL_OPTIONS="-Dcrucible.autorun=true -Dcrucible.tags=benchmark" \
-  ./gradlew runAllMods
-```
-
-Crucible selects `impulse:rapier` when it is installed. Override that only for backend-specific
-debugging with `-Dimpulse.crucible.backend=<id>`.
+Use ordinary Gradle tests for backend physics, PhysicsStore topology, settings round trips, and
+module lifecycle predicates. When a failure depends on live Hytale server behavior, reproduce it
+with `./gradlew runAllMods` and document the world setup and commands used.

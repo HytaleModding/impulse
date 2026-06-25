@@ -10,11 +10,12 @@ import com.hypixel.hytale.server.core.command.system.basecommands.AbstractAsyncP
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.SpaceId;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
-import dev.hytalemodding.impulse.core.plugin.simulation.query.RaycastClosestBatchQuery;
-import dev.hytalemodding.impulse.core.plugin.simulation.RaycastSegment;
-import dev.hytalemodding.impulse.examples.commands.ExamplePhysicsUtils;
+import dev.hytalemodding.impulse.core.plugin.physics.PhysicsAsync;
+import dev.hytalemodding.impulse.core.plugin.physics.PhysicsRaycasts;
+import dev.hytalemodding.impulse.core.plugin.physics.RaycastSegment;
+import dev.hytalemodding.impulse.examples.utils.ExamplePhysicsUtils;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -49,15 +50,18 @@ public class StressRaycastCommand extends AbstractAsyncPlayerCommand {
         @Nonnull Ref<EntityStore> ref,
         @Nonnull PlayerRef playerRef,
         @Nonnull World world) {
-        Vector3d playerPos = ExamplePhysicsUtils.playerPosition(ctx, store, ref);
-        if (playerPos == null) {
-            return CompletableFuture.completedFuture(null);
-        }
+        Vector3d playerPos = new Vector3d(playerRef.getTransform().getPosition());
 
         int rays = ExamplePhysicsUtils.optionalInt(ctx, raysArg, DEFAULT_RAYS, 1, MAX_RAYS);
-        PhysicsWorldResource resource = ExamplePhysicsUtils.resource(store);
-        SpaceId spaceId = ExamplePhysicsUtils.spaceId(ctx, resource, spaceArg);
+        SpaceId spaceId = ExamplePhysicsUtils.spaceId(ctx, world, spaceArg);
         if (spaceId == null) {
+            return CompletableFuture.completedFuture(null);
+        }
+        Ref<PhysicsStore> spaceRef = ExamplePhysicsUtils.resolveSpaceRef(world,
+            spaceId);
+        if (spaceRef == null) {
+            ctx.sender().sendMessage(Message.raw("PhysicsStore space id=" + spaceId.value()
+                + " is not bound yet."));
             return CompletableFuture.completedFuture(null);
         }
 
@@ -65,16 +69,14 @@ public class StressRaycastCommand extends AbstractAsyncPlayerCommand {
         List<RaycastSegment> segments = getRaycastSegments(side, rays, playerPos);
 
         long startNanos = System.nanoTime();
-        long hits = resource.query(new RaycastClosestBatchQuery(spaceId, segments))
-            .completion()
-            .toCompletableFuture()
-            .join()
-            .hitCount();
-        long elapsedNanos = System.nanoTime() - startNanos;
-
-        ctx.sender().sendMessage(Message.raw("Ran " + rays + " raycasts: " + hits
-            + " hits in " + millis(elapsedNanos) + " ms."));
-        return CompletableFuture.completedFuture(null);
+        return PhysicsAsync.acceptOnWorldThread(world,
+            PhysicsRaycasts.closestBatchAsync(world, spaceRef, segments),
+            result -> {
+                long elapsedNanos = System.nanoTime() - startNanos;
+                ctx.sender().sendMessage(Message.raw("Ran " + rays + " raycasts: "
+                    + result.hitCount()
+                    + " hits in " + millis(elapsedNanos) + " ms."));
+            });
     }
 
     @Nonnull

@@ -10,26 +10,19 @@ import com.hypixel.hytale.server.core.command.system.basecommands.AbstractAsyncP
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.api.PhysicsBodyType;
+import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.SpaceId;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
-import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
-import dev.hytalemodding.impulse.core.plugin.events.PhysicsEventFrame;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
-import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsCommandHandle;
-import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
-import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
-import dev.hytalemodding.impulse.examples.commands.ExamplePhysicsUtils;
+import dev.hytalemodding.impulse.core.plugin.physics.PhysicsShapeSpec;
+import dev.hytalemodding.impulse.core.plugin.physics.RigidBodySpawnSettings;
+import dev.hytalemodding.impulse.examples.utils.ExamplePhysicsUtils;
 import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
 import org.joml.Vector3d;
 
 /**
- * Creates backend bodies without entity components.
- * Compare this with the visible body stress test to separate physics cost from Hytale entity,
- * networking, and rendering cost.
+ * Creates PhysicsStore body rows without EntityStore visual rows. Compare this with the visible
+ * body stress test to separate physics cost from Hytale entity, networking, and rendering cost.
  */
 public class StressRawBodiesCommand extends AbstractAsyncPlayerCommand {
 
@@ -47,7 +40,7 @@ public class StressRawBodiesCommand extends AbstractAsyncPlayerCommand {
         ArgTypes.INTEGER);
 
     public StressRawBodiesCommand() {
-        super("raw-bodies", "Spawn physics bodies without Hytale entities");
+        super("raw-bodies", "Spawn physics-only PhysicsStore body rows");
     }
 
     @Nonnull
@@ -57,15 +50,17 @@ public class StressRawBodiesCommand extends AbstractAsyncPlayerCommand {
         @Nonnull Ref<EntityStore> ref,
         @Nonnull PlayerRef playerRef,
         @Nonnull World world) {
-        Vector3d playerPos = ExamplePhysicsUtils.playerPosition(ctx, store, ref);
-        if (playerPos == null) {
-            return CompletableFuture.completedFuture(null);
-        }
+        Vector3d playerPos = new Vector3d(playerRef.getTransform().getPosition());
 
         int count = ExamplePhysicsUtils.optionalInt(ctx, countArg, DEFAULT_COUNT, 1, MAX_COUNT);
-        PhysicsWorldResource resource = ExamplePhysicsUtils.resource(store);
-        SpaceId spaceId = ExamplePhysicsUtils.spaceId(ctx, resource, spaceArg);
+        SpaceId spaceId = ExamplePhysicsUtils.spaceId(ctx, world, spaceArg);
         if (spaceId == null) {
+            return CompletableFuture.completedFuture(null);
+        }
+        Ref<PhysicsStore> spaceRef = ExamplePhysicsUtils.resolveSpaceRef(world, spaceId);
+        if (spaceRef == null) {
+            ctx.sender().sendMessage(Message.raw("PhysicsStore space id=" + spaceId.value()
+                + " is not bound."));
             return CompletableFuture.completedFuture(null);
         }
 
@@ -77,51 +72,42 @@ public class StressRawBodiesCommand extends AbstractAsyncPlayerCommand {
 
         PhysicsShapeSpec box = PhysicsShapeSpec.box(0.48f, 0.48f, 0.48f);
         RigidBodySpawnSettings spawnSettings = RigidBodySpawnSettings.material(0.65f, 0.15f);
-        long bodyKeyRunId = RigidBodyKey.random().mostSignificantBits();
-        long commandStartNanos = System.nanoTime();
-        PhysicsCommandHandle handle =
-            resource.submitCommands(Math.max(0L, world.getTick()), 1, commands ->
-                commands.spawnBodies(count,
-                    spaceId,
-                    box,
-                    1.0f,
-                    PhysicsBodyType.DYNAMIC,
-                    spawnSettings,
-                    PhysicsBodyKind.TEMPORARY,
-                    PhysicsBodyPersistenceMode.RUNTIME_ONLY,
-                    spawns -> {
-                        for (int i = 0; i < count; i++) {
-                            int x = i % side;
-                            int z = (i / side) % side;
-                            int y = i / (side * side);
+        long totalStartNanos = System.nanoTime();
+        StressBodyBatches.BodyEntityBatchTiming timing = StressBodyBatches.addDynamicBodyBatchMeasured(world,
+            spaceRef,
+            spaceId,
+            count,
+            box,
+            1.0f,
+            spawnSettings,
+            spawns -> {
+                for (int i = 0; i < count; i++) {
+                    int x = i % side;
+                    int z = (i / side) % side;
+                    int y = i / (side * side);
 
-                            spawns.body(bodyKeyRunId,
-                                i + 1L,
-                                (float) (originX + x * SPACING),
-                                (float) (originY + y * SPACING),
-                                (float) (originZ + z * SPACING));
-                        }
-                    }));
-        ExamplePhysicsUtils.requireApplied(handle, "spawn raw stress physics bodies");
-        PhysicsEventFrame eventFrame = resource.getLatestEventFrame();
-        boolean capturedSnapshotIncluded = handle.isIncludedInLatestCapturedSnapshot(eventFrame);
-        long capturedSnapshotTickLatency = handle.capturedSnapshotServerTickLatency(eventFrame);
-        long commandApplyNanos = System.nanoTime() - commandStartNanos;
-
-        ctx.sender().sendMessage(Message.raw("Spawned " + count
-            + " raw physics bodies without entities: commandApplyMs="
-            + millis(commandApplyNanos)
-            + " latestCapturedSnapshotIncluded=" + capturedSnapshotIncluded
-            + " latestCapturedSnapshotFrame=" + eventFrame.latestCapturedSnapshotFrameEpoch()
-            + " latestCapturedSnapshotTick=" + eventFrame.latestCapturedSnapshotServerTick()
-            + " capturedSnapshotTickLatency="
-            + (capturedSnapshotIncluded ? Long.toString(capturedSnapshotTickLatency) : "pending")
-            + ". Use this to separate backend cost from entity/render cost."));
+                    spawns.addBody((float) (originX + x * SPACING),
+                        (float) (originY + y * SPACING),
+                        (float) (originZ + z * SPACING));
+                }
+            });
+        ctx.sender().sendMessage(Message.raw(successMessage(timing,
+            System.nanoTime() - totalStartNanos)));
         return CompletableFuture.completedFuture(null);
     }
 
     private static String millis(long nanos) {
         return String.format(Locale.ROOT, "%.3f", nanos / 1_000_000.0);
+    }
+
+    @Nonnull
+    private static String successMessage(@Nonnull StressBodyBatches.BodyEntityBatchTiming timing,
+        long totalWallNanos) {
+        return "PhysicsStore added body rows for " + timing.count()
+            + " physics-only bodies: setupWallMs=" + millis(timing.setupWallNanos())
+            + " physicsStoreApplyMs=" + millis(timing.physicsStoreApplyNanos())
+            + " totalWallMs=" + millis(totalWallNanos)
+            + ". Body-count updates are visible after PhysicsStore binds the new rows.";
     }
 
 }

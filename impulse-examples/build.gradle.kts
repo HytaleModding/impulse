@@ -7,9 +7,15 @@ plugins {
 version = rootProject.version
 
 dependencies {
-    implementation(project(":impulse-api"))
+    implementation(project(":impulse-backends:api"))
     compileOnly(project(":impulse-core"))
+    compileOnly(project(":impulse-builtins:control"))
+    compileOnly(project(":impulse-early-plugin"))
     testImplementation(project(":impulse-core"))
+    testImplementation(project(":impulse-builtins:control"))
+    testImplementation(project(":impulse-early-plugin"))
+    testImplementation(testFixtures(project(":impulse-backends:api")))
+    testImplementation(libs.objenesis)
     testCompileOnly("com.hypixel.hytale:Server:${property("hytale_version") as String}")
     testRuntimeOnly("com.hypixel.hytale:Server:${property("hytale_version") as String}")
     compileOnly(libs.lombok)
@@ -37,5 +43,10 @@ hytaleTools {
     modUrl = property("mod_website") as String
     modDescription = "Example plugins for Impulse"
     manifestServerVersion = property("hytale_version") as String
-    manifestDependencies = "HytaleModding:Impulse=*"
+    manifestDependencies = listOf(
+        "HytaleModding:Impulse=*",
+        "HytaleModding:ImpulseControl=*",
+        "HytaleModding:ImpulsePhysicsEntity=*",
+        "HytaleModding:ImpulsePhysicsChunk=*"
+    ).joinToString(",")
 }
