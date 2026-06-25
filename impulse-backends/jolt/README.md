@@ -1,6 +1,6 @@
 # Impulse Jolt Backend
 
-`impulse-jolt` is the Jolt backend provider module for Impulse.
+`impulse-backends/jolt` is the Jolt backend provider module for Impulse.
 
 The backend id is `impulse:jolt`. The module is discovered through the same
 `PhysicsBackendRuntimeProvider` service mechanism used by the other backend provider jars.

@@ -7,12 +7,12 @@ plugins {
 version = rootProject.version
 
 dependencies {
-    implementation(project(":impulse-backend-api"))
+    implementation(project(":impulse-backends:api"))
     compileOnly(project(":impulse-core"))
     compileOnly(project(":impulse-early-plugin"))
     testImplementation(project(":impulse-core"))
     testImplementation(project(":impulse-early-plugin"))
-    testImplementation(testFixtures(project(":impulse-backend-api")))
+    testImplementation(testFixtures(project(":impulse-backends:api")))
     testImplementation(libs.objenesis)
     testCompileOnly("com.hypixel.hytale:Server:${property("hytale_version") as String}")
     testRuntimeOnly("com.hypixel.hytale:Server:${property("hytale_version") as String}")

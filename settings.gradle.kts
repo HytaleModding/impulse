@@ -22,10 +22,10 @@ dependencyResolutionManagement {
 
 rootProject.name = "impulse"
 
-include("impulse-backend-api")
-include("impulse-native-loader")
-include("impulse-jolt")
-include("impulse-rapier")
+include(":impulse-backends:api")
+include(":impulse-backends:native-loader")
+include(":impulse-backends:jolt")
+include(":impulse-backends:rapier")
 include("impulse-core")
 include("impulse-examples")
 include("impulse-early-plugin")

@@ -3,6 +3,10 @@ plugins {
     id("java-test-fixtures")
 }
 
+base {
+    archivesName.set("impulse-backend-api")
+}
+
 dependencies {
     api(libs.jsr305)
     api(libs.joml)

@@ -7,12 +7,13 @@ Impulse is a physics framework for Hytale that connects Hytale ECS worlds to plu
 Impulse codebase is divided as follows:
 
 - **impulse-core** - Hytale ECS integration and backend communication.
-- **impulse-api** - backend-agnostic API layer and contracts.
-- **impulse-native-loader** - native library loader for backend provider jars.
+- **impulse-backends/api** - backend-agnostic API layer and contracts.
+- **impulse-backends/native-loader** - native library loader for backend provider jars.
 - **impulse-examples** - example plugins to understand the framework usage.
   
 Official physics backend implementations:
-- **impulse-rapier** - Rapier backend with a small Rust/JNI native shim.
+- **impulse-backends/rapier** - Rapier backend with a small Rust/JNI native shim.
+- **impulse-backends/jolt** - Jolt backend with a C++/Panama native shim.
 
 ### Architecture
 
@@ -65,7 +66,7 @@ flowchart TB
         Dispatch["serialized backend calls"]
     end
 
-    subgraph API["impulse-api"]
+    subgraph API["impulse-backends/api"]
         direction TB
 
         Runtime["PhysicsBackendRuntime"]
@@ -76,7 +77,7 @@ flowchart TB
 
         Java["Java engines"]
         Native["native engines"]
-        Bridge["impulse-native-bridge\nFFM (WIP) or JNI"]
+        Bridge["native loader\nFFM or JNI"]
         Active["active backend instances\nper physics space"]
 
         Native --> Bridge
@@ -174,10 +175,10 @@ When multiple backend jars are installed, create spaces with an explicit backend
 /impulse space create --backend=impulse:rapier
 ```
 
-The Rapier backend needs a Rust toolchain to build its native library. If `cargo` is available, `:impulse-rapier:processResources` builds and packages the current build platform native library automatically. You can also force native compilation with:
+The Rapier backend needs a Rust toolchain to build its native library. If `cargo` is available, `:impulse-backends:rapier:processResources` builds and packages the current build platform native library automatically. You can also force native compilation with:
 
 ```bash
-./gradlew :impulse-rapier:build -PbuildRapierNative=true
+./gradlew :impulse-backends:rapier:build -PbuildRapierNative=true
 ```
 
 It also supports SIMD optimizations that can be enabled using:
@@ -199,7 +200,7 @@ Hytale runtime when the bug depends on plugin loading, live worlds, or command b
 
 ```bash
 ./gradlew :impulse-core:test
-./gradlew :impulse-rapier:test
+./gradlew :impulse-backends:rapier:test
 ./gradlew runAllMods
 ```
 

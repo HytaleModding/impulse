@@ -4,6 +4,8 @@ plugins {
 
 version = rootProject.version
 
+evaluationDependsOn(":impulse-backends:api")
+
 val coreModuleName = "dev.hytalemodding.impulse.core"
 // These parent dependencies are shared by the core plugin and inherited by bundled subplugins.
 val impulseManifestDependencies = listOf(
@@ -19,7 +21,7 @@ val moduleInfoModulePath by configurations.creating {
 }
 
 dependencies {
-    implementation(project(":impulse-backend-api"))
+    implementation(project(":impulse-backends:api"))
     compileOnly(project(":impulse-early-plugin"))
     compileOnly(libs.lombok)
 
@@ -28,7 +30,7 @@ dependencies {
 
     annotationProcessor(libs.lombok)
 
-    testImplementation(testFixtures(project(":impulse-backend-api")))
+    testImplementation(testFixtures(project(":impulse-backends:api")))
     testImplementation(libs.objenesis)
     testCompileOnly(project(":impulse-early-plugin"))
     testRuntimeOnly(project(":impulse-early-plugin"))
@@ -37,7 +39,7 @@ dependencies {
 
 }
 
-val impulseApiJar = project(":impulse-backend-api").tasks.named<org.gradle.jvm.tasks.Jar>("jar")
+val impulseApiJar = project(":impulse-backends:api").tasks.named<org.gradle.jvm.tasks.Jar>("jar")
 
 tasks.named<JavaCompile>("compileJava") {
     doFirst {

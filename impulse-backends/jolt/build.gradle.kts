@@ -8,6 +8,10 @@ plugins {
     id("java-library")
 }
 
+base {
+    archivesName.set("impulse-backend-jolt")
+}
+
 data class JoltBackendPlatform(
     val taskSuffix: String,
     val archiveClassifier: String,
@@ -288,7 +292,7 @@ tasks.register("packageJoltBackendPlatformJars") {
 }
 
 dependencies {
-    api(project(":impulse-backend-api"))
+    api(project(":impulse-backends:api"))
 
-    implementation(project(":impulse-native-loader"))
+    implementation(project(":impulse-backends:native-loader"))
 }

@@ -67,7 +67,7 @@ subprojects {
     }
 }
 
-val backendProjectPaths = setOf(":impulse-jolt", ":impulse-rapier")
+val backendProjectPaths = setOf(":impulse-backends:jolt", ":impulse-backends:rapier")
 val stagedBackendJarDirectory = layout.projectDirectory.dir("run/mods/impulse-backends")
 val stagedEarlyPluginJarDirectory = layout.projectDirectory.dir("run/earlyplugins")
 val physicsStoreEarlyPluginEnabled = providers.gradleProperty("impulse.physicsStoreEarlyPlugin")
@@ -137,8 +137,8 @@ tasks.register("packageBackendPlatformJars") {
     group = "build"
     description = "Packages all per-platform and universal backend provider jars"
     dependsOn(
-        ":impulse-jolt:packageJoltBackendPlatformJars",
-        ":impulse-rapier:packageRapierBackendPlatformJars"
+        ":impulse-backends:jolt:packageJoltBackendPlatformJars",
+        ":impulse-backends:rapier:packageRapierBackendPlatformJars"
     )
 }
 
@@ -146,10 +146,10 @@ tasks.register("headlessTest") {
     group = "verification"
     description = "Runs automated headless/serverless tests without booting the Hytale server"
     dependsOn(
-        ":impulse-backend-api:test",
-        ":impulse-native-loader:test",
-        ":impulse-jolt:test",
-        ":impulse-rapier:test",
+        ":impulse-backends:api:test",
+        ":impulse-backends:native-loader:test",
+        ":impulse-backends:jolt:test",
+        ":impulse-backends:rapier:test",
         ":impulse-core:test",
         ":impulse-examples:test",
         ":impulse-early-plugin:test"

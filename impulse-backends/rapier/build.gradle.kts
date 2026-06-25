@@ -7,6 +7,10 @@ plugins {
     id("java-library")
 }
 
+base {
+    archivesName.set("impulse-backend-rapier")
+}
+
 data class RapierBackendPlatform(
         val taskSuffix: String,
         val archiveClassifier: String,
@@ -246,9 +250,9 @@ tasks.processResources {
 }
 
 dependencies {
-    api(project(":impulse-backend-api"))
+    api(project(":impulse-backends:api"))
 
-    implementation(project(":impulse-native-loader"))
+    implementation(project(":impulse-backends:native-loader"))
 
 }
 
