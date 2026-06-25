@@ -426,11 +426,9 @@ public final class PhysicsProjectionIndexResource implements Resource<EntityStor
     private static boolean sameRef(@Nullable Ref<?> first,
         @Nullable Ref<?> second) {
         return first == second
-            || (first != null
-                && second != null
-                && first.getStore() != null
-                && first.getStore() == second.getStore()
-                && first.getIndex() == second.getIndex());
+            || first != null && second != null
+            && first.getStore() == second.getStore()
+            && first.getIndex() == second.getIndex();
     }
 
     private record BodyAttachmentRefs(@Nonnull Ref<PhysicsStore> bodyRef,
