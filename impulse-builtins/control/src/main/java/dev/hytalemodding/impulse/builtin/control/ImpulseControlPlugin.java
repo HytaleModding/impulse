@@ -22,6 +22,7 @@ import javax.annotation.Nonnull;
 /**
  * Builtin plugin that enables Impulse kinematic control sessions.
  */
+@Deprecated
 public final class ImpulseControlPlugin extends JavaPlugin {
 
     @Nonnull
