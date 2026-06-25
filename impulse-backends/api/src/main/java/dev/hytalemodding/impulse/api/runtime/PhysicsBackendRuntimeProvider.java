@@ -1,7 +1,6 @@
 package dev.hytalemodding.impulse.api.runtime;
 
 import dev.hytalemodding.impulse.api.BackendId;
-import java.util.logging.Level;
 import javax.annotation.Nonnull;
 
 /**
@@ -13,9 +12,6 @@ public interface PhysicsBackendRuntimeProvider {
     BackendId getId();
 
     default void init() {
-    }
-
-    default void setInternalLoggingLevel(@Nonnull Level level) {
     }
 
     @Nonnull

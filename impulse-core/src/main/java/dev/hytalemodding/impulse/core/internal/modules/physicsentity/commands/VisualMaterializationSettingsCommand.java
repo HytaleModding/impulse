@@ -20,6 +20,8 @@ import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
 
+// NOTE: there's already a system in hytale that handles Entities Materialization/Visibility, we
+// should probably integrate with that
 public class VisualMaterializationSettingsCommand extends AbstractAsyncPlayerCommand {
 
     private final OptionalArg<String> enabledArg = this.withOptionalArg(

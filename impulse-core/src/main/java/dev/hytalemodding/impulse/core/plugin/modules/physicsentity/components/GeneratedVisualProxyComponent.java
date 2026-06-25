@@ -9,7 +9,12 @@ import javax.annotation.Nonnull;
 
 /**
  * Durable ownership marker for Impulse-generated visual proxy entities.
+ *
+ * @deprecated This follows the old physics entity ownership model, the TransformComponent of the
+ * entities spawned with BodyAttachmentComponent is by definition owned by the bound PhysicsStore
+ * entity anyway
  */
+@Deprecated (forRemoval = true)
 public final class GeneratedVisualProxyComponent implements Component<EntityStore> {
 
     @Nonnull

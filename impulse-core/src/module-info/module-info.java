@@ -6,7 +6,6 @@ module dev.hytalemodding.impulse.core {
     exports dev.hytalemodding.impulse.core.plugin.codec;
     exports dev.hytalemodding.impulse.core.plugin.components;
     exports dev.hytalemodding.impulse.core.plugin.events;
-    exports dev.hytalemodding.impulse.core.plugin.modules.control;
     exports dev.hytalemodding.impulse.core.plugin.modules.physicsentity;
     exports dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components;
     exports dev.hytalemodding.impulse.core.plugin.modules.physicsentity.settings;

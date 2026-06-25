@@ -1,8 +1,5 @@
 package dev.hytalemodding.impulse.core.internal.commands;
 
-import com.hypixel.hytale.component.ArchetypeChunk;
-import com.hypixel.hytale.component.CommandBuffer;
-import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.Message;
@@ -14,16 +11,13 @@ import com.hypixel.hytale.server.core.modules.entity.component.TransformComponen
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
-import dev.hytalemodding.impulse.core.internal.modules.control.components.PhysicsControlSessionComponent;
-import dev.hytalemodding.impulse.core.internal.modules.control.systems.PhysicsControlSessionCleanup;
 import dev.hytalemodding.impulse.core.internal.modules.physicsentity.PhysicsEntityProjectionCleanup;
 import dev.hytalemodding.impulse.core.internal.modules.physicsentity.PhysicsEntityProjectionCleanup.Result;
 import dev.hytalemodding.impulse.core.internal.physics.PhysicsTopologyMutations;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResetResult;
-import dev.hytalemodding.impulse.core.plugin.components.UuidComponent;
-import dev.hytalemodding.impulse.core.plugin.modules.control.ImpulseControllableComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkCollision;
 import dev.hytalemodding.impulse.core.plugin.physics.PhysicsBodies;
+import dev.hytalemodding.impulse.core.plugin.physics.PhysicsCleanupHooks;
 import dev.hytalemodding.impulse.core.plugin.physics.PhysicsThreading;
 import dev.hytalemodding.impulse.core.plugin.snapshots.PhysicsBodySnapshot;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
@@ -31,7 +25,6 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
-import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.joml.Vector3d;
@@ -77,19 +70,9 @@ public class CleanCommand extends AbstractWorldCommand {
         @Nonnull World world,
         @Nonnull Store<EntityStore> store) {
         Result projectionCleanup =
-            PhysicsEntityProjectionCleanup.cleanAll(store, controllableTypeOrNull());
-
-        AtomicInteger removedSessions = new AtomicInteger();
-        ComponentType<EntityStore, PhysicsControlSessionComponent> controlSessionType =
-            controlSessionTypeOrNull();
-        if (controlSessionType != null) {
-            store.forEachEntityParallel(controlSessionType,
-                (index, archetypeChunk, commandBuffer) -> {
-                    removedSessions.incrementAndGet();
-                    commandBuffer.removeComponent(archetypeChunk.getReferenceTo(index),
-                        controlSessionType);
-                });
-        }
+            PhysicsEntityProjectionCleanup.cleanAll(store,
+                PhysicsCleanupHooks.detachableEntityMarkers());
+        int removedPluginEntities = PhysicsCleanupHooks.cleanupEntityStore(store);
 
         CompletionStage<PhysicsRuntimeResetResult> reset =
             PhysicsThreading.callWhenBackendIdleOnWorldThread(world,
@@ -98,7 +81,7 @@ public class CleanCommand extends AbstractWorldCommand {
         reset.whenComplete((result, failure) -> sendCleanAllResult(world,
             context,
             projectionCleanup,
-            removedSessions.get(),
+            removedPluginEntities,
             result,
             failure));
     }
@@ -209,33 +192,11 @@ public class CleanCommand extends AbstractWorldCommand {
             selectedBodies.bodyUuids(),
             center,
             radiusSquared,
-            controllableTypeOrNull());
-
-        AtomicInteger removedSessions = new AtomicInteger();
-        ComponentType<EntityStore, PhysicsControlSessionComponent> controlSessionType =
-            controlSessionTypeOrNull();
-        if (controlSessionType != null) {
-            store.forEachEntityParallel(controlSessionType,
-                (index, archetypeChunk, commandBuffer) -> {
-                    PhysicsControlSessionComponent session =
-                        archetypeChunk.getComponent(index, controlSessionType);
-                    assert session != null;
-                    if (!controlSessionSelected(commandBuffer,
-                        archetypeChunk,
-                        index,
-                        session,
-                        selectedBodies.bodyUuids(),
-                        center,
-                        radiusSquared)) {
-                        return;
-                    }
-
-                    removedSessions.incrementAndGet();
-                    PhysicsControlSessionCleanup.cleanup(store, session);
-                    commandBuffer.removeComponent(archetypeChunk.getReferenceTo(index),
-                        controlSessionType);
-                });
-        }
+            PhysicsCleanupHooks.detachableEntityMarkers());
+        int removedPluginEntities = PhysicsCleanupHooks.cleanupSelectedEntityStore(store,
+            selectedBodies.bodyUuids(),
+            center,
+            radiusSquared);
 
         int removedBodies = 0;
         for (UUID bodyUuid : selectedBodies.bodyUuids()) {
@@ -244,7 +205,7 @@ public class CleanCommand extends AbstractWorldCommand {
         }
 
         return new RadiusCleanResult(projectionCleanup,
-            removedSessions.get(),
+            removedPluginEntities,
             removedBodies);
     }
 
@@ -326,76 +287,12 @@ public class CleanCommand extends AbstractWorldCommand {
         return new SelectedBodies(bodyUuids);
     }
 
-    private static boolean controlSessionSelected(
-        @Nonnull CommandBuffer<EntityStore> commandBuffer,
-        @Nonnull ArchetypeChunk<EntityStore> archetypeChunk,
-        int index,
-        @Nonnull PhysicsControlSessionComponent session,
-        @Nonnull Set<UUID> selectedBodyUuids,
-        @Nonnull Vector3d center,
-        double radiusSquared) {
-        if (containsBody(selectedBodyUuids, session.getBodyRef())
-            || containsBody(selectedBodyUuids, session.getAnchorBodyRef())
-            || entityWithinRadius(archetypeChunk, index, center, radiusSquared)) {
-            return true;
-        }
-
-        Ref<EntityStore> targetRef = session.getTargetRef();
-        if (targetRef == null || !targetRef.isValid()) {
-            return false;
-        }
-
-        TransformComponent targetTransform =
-            commandBuffer.getComponent(targetRef, TransformComponent.getComponentType());
-        return targetTransform != null && positionWithinRadius(targetTransform.getPosition(),
-            center,
-            radiusSquared);
-    }
-
-    @Nullable
-    private static ComponentType<EntityStore, PhysicsControlSessionComponent> controlSessionTypeOrNull() {
-        return PhysicsControlSessionComponent.isComponentTypeRegistered()
-            ? PhysicsControlSessionComponent.getComponentType()
-            : null;
-    }
-
-    @Nullable
-    private static ComponentType<EntityStore, ImpulseControllableComponent> controllableTypeOrNull() {
-        return ImpulseControllableComponent.isComponentTypeRegistered()
-            ? ImpulseControllableComponent.getComponentType()
-            : null;
-    }
-
-    private static boolean containsBody(@Nonnull Set<UUID> bodyUuids,
-        @Nullable Ref<PhysicsStore> bodyRef) {
-        UUID bodyUuid = rowUuid(bodyRef);
-        return bodyUuid != null && bodyUuids.contains(bodyUuid);
-    }
-
     private record SelectedBodies(@Nonnull Set<UUID> bodyUuids) {
     }
 
     private record RadiusCleanResult(@Nonnull Result projectionCleanup,
                                      int removedSessions,
                                      int removedBodies) {
-    }
-
-    @Nullable
-    private static UUID rowUuid(@Nullable Ref<PhysicsStore> bodyRef) {
-        if (bodyRef == null || !bodyRef.isValid()) {
-            return null;
-        }
-        UuidComponent uuid = bodyRef.getStore().getComponent(bodyRef, UuidComponent.getComponentType());
-        return uuid != null ? uuid.getUuid() : null;
-    }
-
-    private static boolean entityWithinRadius(@Nonnull ArchetypeChunk<EntityStore> archetypeChunk,
-        int index,
-        @Nonnull Vector3d center,
-        double radiusSquared) {
-        TransformComponent transform =
-            archetypeChunk.getComponent(index, TransformComponent.getComponentType());
-        return transform != null && positionWithinRadius(transform.getPosition(), center, radiusSquared);
     }
 
     private static boolean positionWithinRadius(@Nonnull Vector3d position,

@@ -10,7 +10,6 @@ import dev.hytalemodding.impulse.core.internal.resources.PhysicsRestoreStatusRes
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSnapshotResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceCompatibilityIndexResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResetResult;
-import dev.hytalemodding.impulse.core.internal.modules.control.PhysicsControlRuntimeStates;
 import dev.hytalemodding.impulse.core.internal.physics.PhysicsStoreRowCleanup.BodyEntityRemoval;
 import dev.hytalemodding.impulse.core.plugin.physics.PhysicsThreading;
 import dev.hytalemodding.impulse.core.plugin.components.BodyComponent;
@@ -48,7 +47,6 @@ public final class PhysicsTopologyMutations {
         @Nonnull Store<PhysicsStore> store) {
         PhysicsThreading.requireBackendIdle(store, "clear PhysicsStore body entities");
         PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
-        PhysicsControlRuntimeStates.clear(store);
         TopologyCounts removed = countBackendTopology(runtime);
         List<RowRemoval> removals = collectRows(store, null, null, null, null);
         runtime.destroyBackendBindings();

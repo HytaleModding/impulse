@@ -23,6 +23,8 @@ import org.joml.Vector3f;
 
 /**
  * EntityStore projection relationship to an authoritative PhysicsStore body.
+ *
+ * TODO: probably refactor the name
  */
 public class BodyAttachmentComponent implements Component<EntityStore> {
 
@@ -86,6 +88,8 @@ public class BodyAttachmentComponent implements Component<EntityStore> {
     @Getter
     private final Quaternionf localRotationOffset = new Quaternionf();
 
+    // TODO: static/final?
+    @Getter
     private float visualOriginOffsetY = USE_BODY_VISUAL_ORIGIN_OFFSET_Y;
 
     public BodyAttachmentComponent() {
@@ -207,10 +211,6 @@ public class BodyAttachmentComponent implements Component<EntityStore> {
         return lifecycle;
     }
 
-    public float getVisualOriginOffsetY() {
-        return visualOriginOffsetY;
-    }
-
     public void setVisualOriginOffsetY(float visualOriginOffsetY) {
         this.visualOriginOffsetY = normalizeVisualOriginOffsetY(visualOriginOffsetY);
     }
@@ -257,12 +257,18 @@ public class BodyAttachmentComponent implements Component<EntityStore> {
         return normalizeVisualOriginOffsetY(Float.valueOf(value));
     }
 
+    // TODO: rework and think deeply if we can just infer ownership based
     public enum TransformAuthority {
         BODY,
         CONTROLLER,
         ENTITY_KINEMATIC
     }
 
+    /**
+     * @deprecated AttachmentLifecycle is basically legacy stuff, the lifecycle is trivial given the
+     * relationship with another Store or not.
+     */
+    @Deprecated(forRemoval = true)
     public enum AttachmentLifecycle {
         EXTERNAL_ENTITY,
         IMPULSE_OWNED_VISUAL,

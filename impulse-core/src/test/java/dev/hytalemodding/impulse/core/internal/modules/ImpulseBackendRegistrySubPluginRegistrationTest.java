@@ -1,6 +1,7 @@
 package dev.hytalemodding.impulse.core.internal.modules;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -31,11 +32,12 @@ class ImpulseBackendRegistrySubPluginRegistrationTest {
         for (PluginManifest subPlugin : prepared) {
             assertTrue(subPlugin.getDependencies().containsKey(parentId));
         }
-        assertSubPluginLoadsBefore(parent, "ImpulsePhysicsEntity", "ImpulseControl");
+        assertMissingSubPlugin(parent, "ImpulseControl");
+        assertSubPluginDoesNotLoadBefore(parent, "ImpulsePhysicsEntity", "ImpulseControl");
         assertSubPluginLoadsBefore(parent, "ImpulsePhysicsEntity", "ImpulsePhysicsChunk");
         assertSubPluginMain(parent,
             "ImpulsePhysicsEntity",
-            "dev.hytalemodding.impulse.core.internal.modules.physicsentity.PhysicsEntitySubPlugin");
+            "dev.hytalemodding.impulse.core.internal.modules.physicsentity.PhysicsEntityModule");
         assertSubPluginMain(parent,
             "ImpulsePhysicsChunk",
             "dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkSubPlugin");
@@ -48,8 +50,8 @@ class ImpulseBackendRegistrySubPluginRegistrationTest {
             "dev.hytalemodding.impulse.core.ImpulsePlugin",
             List.of(
                 manifest(null,
-                    "ImpulseControl",
-                    "dev.hytalemodding.impulse.core.internal.modules.control.ControlModule",
+                    "FixtureSubPlugin",
+                    "example.FixtureSubPlugin",
                     List.of(),
                     false)),
             false);
@@ -58,7 +60,7 @@ class ImpulseBackendRegistrySubPluginRegistrationTest {
             ImpulseSubPluginRegistration.prepareSubPluginManifests(parent);
 
         assertEquals(1, prepared.size());
-        assertPreparedSubPlugin(prepared.getFirst(), "ImpulseControl", false);
+        assertPreparedSubPlugin(prepared.getFirst(), "FixtureSubPlugin", false);
     }
 
     private static void assertPreparedSubPlugin(PluginManifest manifest,
@@ -84,6 +86,28 @@ class ImpulseBackendRegistrySubPluginRegistrationTest {
             }
         }
         throw new AssertionError("Missing subplugin " + subPluginName);
+    }
+
+    private static void assertSubPluginDoesNotLoadBefore(@Nonnull PluginManifest parent,
+        @Nonnull String subPluginName,
+        @Nonnull String dependencyName) {
+        PluginIdentifier dependencyId = new PluginIdentifier("HytaleModding", dependencyName);
+        for (PluginManifest subPlugin : parent.getSubPlugins()) {
+            if (subPluginName.equals(subPlugin.getName())) {
+                assertFalse(subPlugin.getLoadBefore().containsKey(dependencyId),
+                    subPluginName + " should not order against " + dependencyName);
+                return;
+            }
+        }
+        throw new AssertionError("Missing subplugin " + subPluginName);
+    }
+
+    private static void assertMissingSubPlugin(@Nonnull PluginManifest parent,
+        @Nonnull String subPluginName) {
+        for (PluginManifest subPlugin : parent.getSubPlugins()) {
+            assertFalse(subPluginName.equals(subPlugin.getName()),
+                "Unexpected bundled subplugin " + subPluginName);
+        }
     }
 
     private static void assertSubPluginMain(@Nonnull PluginManifest parent,
@@ -128,4 +152,5 @@ class ImpulseBackendRegistrySubPluginRegistrationTest {
             return PluginManifest.CODEC.decodeJson(reader, new ExtraInfo());
         }
     }
+
 }

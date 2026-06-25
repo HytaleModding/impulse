@@ -9,8 +9,10 @@ version = rootProject.version
 dependencies {
     implementation(project(":impulse-backends:api"))
     compileOnly(project(":impulse-core"))
+    compileOnly(project(":impulse-builtins:control"))
     compileOnly(project(":impulse-early-plugin"))
     testImplementation(project(":impulse-core"))
+    testImplementation(project(":impulse-builtins:control"))
     testImplementation(project(":impulse-early-plugin"))
     testImplementation(testFixtures(project(":impulse-backends:api")))
     testImplementation(libs.objenesis)
@@ -43,6 +45,7 @@ hytaleTools {
     manifestServerVersion = property("hytale_version") as String
     manifestDependencies = listOf(
         "HytaleModding:Impulse=*",
+        "HytaleModding:ImpulseControl=*",
         "HytaleModding:ImpulsePhysicsEntity=*",
         "HytaleModding:ImpulsePhysicsChunk=*"
     ).joinToString(",")

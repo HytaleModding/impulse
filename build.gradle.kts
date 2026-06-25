@@ -18,10 +18,11 @@ val coreOnlyWorkspace = providers.gradleProperty("impulse.coreOnlyWorkspace")
     .map(String::toBoolean)
     .orElse(false)
 val coreModProjects = listOf(":impulse-core")
+val builtinModProjects = listOf(":impulse-builtins:control")
 val workspaceModProjects = if (coreOnlyWorkspace.get()) {
     coreModProjects
 } else {
-    listOf(":impulse-examples") + coreModProjects
+    listOf(":impulse-examples") + builtinModProjects + coreModProjects
 }
 
 hytaleWorkspace {
@@ -150,6 +151,7 @@ tasks.register("headlessTest") {
         ":impulse-backends:native-loader:test",
         ":impulse-backends:jolt:test",
         ":impulse-backends:rapier:test",
+        ":impulse-builtins:control:test",
         ":impulse-core:test",
         ":impulse-examples:test",
         ":impulse-early-plugin:test"

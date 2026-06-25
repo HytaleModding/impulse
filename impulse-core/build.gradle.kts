@@ -98,15 +98,8 @@ hytaleTools {
     manifestDependencies = impulseManifestDependencies
 
     subPlugin (
-        "ImpulseControl",
-        "dev.hytalemodding.impulse.core.internal.modules.control.ControlModule",
-        false, /* disabledByDefault */
-        false  /* includeAssetPack */
-    )
-
-    subPlugin (
         "ImpulsePhysicsEntity",
-        "dev.hytalemodding.impulse.core.internal.modules.physicsentity.PhysicsEntitySubPlugin",
+        "dev.hytalemodding.impulse.core.internal.modules.physicsentity.PhysicsEntityModule",
         false, /* disabledByDefault */
         false  /* includeAssetPack */
     )
@@ -142,7 +135,6 @@ tasks.named("updatePluginManifest") {
 
         subPlugins.firstOrNull { it["Name"] == "ImpulsePhysicsEntity" }
             ?.mergeLoadBefore(mapOf(
-                "HytaleModding:ImpulseControl" to "*",
                 "HytaleModding:ImpulsePhysicsChunk" to "*"
             ))
 

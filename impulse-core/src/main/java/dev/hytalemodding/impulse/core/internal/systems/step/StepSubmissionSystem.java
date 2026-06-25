@@ -137,6 +137,7 @@ public final class StepSubmissionSystem extends TickingSystem<PhysicsStore> {
         for (RuntimeStepBinding binding : bindings) {
             counters.spaceCount++;
             for (int step = 0; step < steps; step++) {
+                //noinspection resource
                 binding.backendRuntime().step(binding.spaceHandle().value(), stepDt);
                 counters.substeps++;
             }
@@ -179,6 +180,7 @@ public final class StepSubmissionSystem extends TickingSystem<PhysicsStore> {
         PhysicsSnapshotResource.CompactSnapshotBuilder snapshot =
             PhysicsSnapshotResource.compactBuilder(runtimeBodyHandleCount(runtime, bindings));
         for (RuntimeStepBinding binding : bindings) {
+            //noinspection resource
             binding.backendRuntime().snapshotBodies(binding.spaceHandle().value(),
                 bodyIds -> runtime.forEachBodyHandle(binding.backendId(),
                     binding.spaceHandle(),
@@ -298,6 +300,7 @@ public final class StepSubmissionSystem extends TickingSystem<PhysicsStore> {
             sleeping);
     }
 
+    @SuppressWarnings("resource")
     @Nonnull
     private static StepBackendEvents collectOwnerLaneBackendEvents(
         @Nonnull PhysicsRuntimeResource runtime,
@@ -464,6 +467,7 @@ public final class StepSubmissionSystem extends TickingSystem<PhysicsStore> {
         StepPhaseStatsCapture capture = new StepPhaseStatsCapture();
         for (RuntimeStepBinding binding : bindings) {
             capture.reset();
+            //noinspection resource
             binding.backendRuntime().stepPhaseStats(binding.spaceHandle().value(), capture);
             stats.add(capture.value());
         }

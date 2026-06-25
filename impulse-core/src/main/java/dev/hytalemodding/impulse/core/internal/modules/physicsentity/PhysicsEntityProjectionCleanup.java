@@ -12,6 +12,8 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.PhysicsEntityAttachments;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.BodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.GeneratedVisualProxyComponent;
+import java.util.Collection;
+import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
@@ -36,9 +38,18 @@ public final class PhysicsEntityProjectionCleanup {
     @Nonnull
     public static Result cleanAll(@Nonnull Store<EntityStore> store,
         @Nullable ComponentType<EntityStore, ? extends Component<EntityStore>> detachableMarkerType) {
+        return cleanAll(store, markerList(detachableMarkerType));
+    }
+
+    @Nonnull
+    public static Result cleanAll(@Nonnull Store<EntityStore> store,
+        @Nonnull Collection<ComponentType<EntityStore, ? extends Component<EntityStore>>>
+            detachableMarkerTypes) {
         if (!PhysicsEntityAttachments.isAvailable()) {
             return Result.skippedResult();
         }
+        Collection<ComponentType<EntityStore, ? extends Component<EntityStore>>> checkedMarkerTypes =
+            Objects.requireNonNull(detachableMarkerTypes, "detachableMarkerTypes");
         AtomicIntegerArray counters = new AtomicIntegerArray(COUNTERS);
         ComponentType<EntityStore, BodyAttachmentComponent> attachmentType =
             BodyAttachmentComponent.getComponentType();
@@ -56,7 +67,7 @@ public final class PhysicsEntityProjectionCleanup {
                     commandBuffer,
                     archetypeChunk.getReferenceTo(index),
                     attachmentType,
-                    detachableMarkerType,
+                    checkedMarkerTypes,
                     attachment);
             });
 
@@ -77,12 +88,28 @@ public final class PhysicsEntityProjectionCleanup {
         @Nonnull Vector3d center,
         double radiusSquared,
         @Nullable ComponentType<EntityStore, ? extends Component<EntityStore>> detachableMarkerType) {
+        return cleanSelected(store,
+            selectedBodyUuids,
+            center,
+            radiusSquared,
+            markerList(detachableMarkerType));
+    }
+
+    @Nonnull
+    public static Result cleanSelected(@Nonnull Store<EntityStore> store,
+        @Nonnull Set<UUID> selectedBodyUuids,
+        @Nonnull Vector3d center,
+        double radiusSquared,
+        @Nonnull Collection<ComponentType<EntityStore, ? extends Component<EntityStore>>>
+            detachableMarkerTypes) {
         if (!PhysicsEntityAttachments.isAvailable()) {
             return Result.skippedResult();
         }
         Set<UUID> checkedBodyUuids = Objects.requireNonNull(selectedBodyUuids,
             "selectedBodyUuids");
         Vector3d checkedCenter = Objects.requireNonNull(center, "center");
+        Collection<ComponentType<EntityStore, ? extends Component<EntityStore>>> checkedMarkerTypes =
+            Objects.requireNonNull(detachableMarkerTypes, "detachableMarkerTypes");
         AtomicIntegerArray counters = new AtomicIntegerArray(COUNTERS);
         ComponentType<EntityStore, BodyAttachmentComponent> attachmentType =
             BodyAttachmentComponent.getComponentType();
@@ -100,7 +127,7 @@ public final class PhysicsEntityProjectionCleanup {
                     commandBuffer,
                     archetypeChunk.getReferenceTo(index),
                     attachmentType,
-                    detachableMarkerType,
+                    checkedMarkerTypes,
                     attachment);
             });
 
@@ -121,7 +148,8 @@ public final class PhysicsEntityProjectionCleanup {
         @Nonnull CommandBuffer<EntityStore> commandBuffer,
         @Nonnull Ref<EntityStore> entityRef,
         @Nonnull ComponentType<EntityStore, BodyAttachmentComponent> attachmentType,
-        @Nullable ComponentType<EntityStore, ? extends Component<EntityStore>> detachableMarkerType,
+        @Nonnull Collection<ComponentType<EntityStore, ? extends Component<EntityStore>>>
+            detachableMarkerTypes,
         @Nonnull BodyAttachmentComponent attachment) {
         if (attachment.shouldRemoveEntityWhenBodyMissing()) {
             counters.incrementAndGet(REMOVED_ATTACHMENT_ENTITIES);
@@ -129,16 +157,25 @@ public final class PhysicsEntityProjectionCleanup {
             return;
         }
         counters.incrementAndGet(DETACHED_EXTERNAL_ATTACHMENTS);
-        removeMarker(commandBuffer, entityRef, detachableMarkerType);
+        removeMarkers(commandBuffer, entityRef, detachableMarkerTypes);
         commandBuffer.removeComponent(entityRef, attachmentType);
     }
 
-    private static void removeMarker(@Nonnull CommandBuffer<EntityStore> commandBuffer,
+    private static void removeMarkers(@Nonnull CommandBuffer<EntityStore> commandBuffer,
         @Nonnull Ref<EntityStore> entityRef,
-        @Nullable ComponentType<EntityStore, ? extends Component<EntityStore>> markerType) {
-        if (markerType != null && commandBuffer.getComponent(entityRef, markerType) != null) {
-            commandBuffer.removeComponent(entityRef, markerType);
+        @Nonnull Collection<ComponentType<EntityStore, ? extends Component<EntityStore>>>
+            markerTypes) {
+        for (ComponentType<EntityStore, ? extends Component<EntityStore>> markerType : markerTypes) {
+            if (commandBuffer.getComponent(entityRef, markerType) != null) {
+                commandBuffer.removeComponent(entityRef, markerType);
+            }
         }
+    }
+
+    @Nonnull
+    private static List<ComponentType<EntityStore, ? extends Component<EntityStore>>> markerList(
+        @Nullable ComponentType<EntityStore, ? extends Component<EntityStore>> markerType) {
+        return markerType != null ? List.of(markerType) : List.of();
     }
 
     private static void removeOrphanProxy(@Nonnull AtomicIntegerArray counters,

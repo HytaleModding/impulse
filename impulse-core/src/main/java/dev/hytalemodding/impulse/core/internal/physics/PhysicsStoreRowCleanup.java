@@ -6,7 +6,6 @@ import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.BackendId;
 import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntime;
-import dev.hytalemodding.impulse.core.internal.modules.control.PhysicsControlRuntimeStates;
 import dev.hytalemodding.impulse.core.internal.resources.BackendBodyHandle;
 import dev.hytalemodding.impulse.core.internal.resources.BackendJointHandle;
 import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
@@ -161,7 +160,6 @@ public final class PhysicsStoreRowCleanup {
         for (BodyEntityRemoval removal : removals) {
             Objects.requireNonNull(removal, "removal");
             bodyUuids.add(removal.bodyUuid());
-            PhysicsControlRuntimeStates.clearControlled(removal.bodyRef());
         }
         store.getResource(PhysicsSnapshotResource.getResourceType()).removeBodies(bodyUuids);
     }

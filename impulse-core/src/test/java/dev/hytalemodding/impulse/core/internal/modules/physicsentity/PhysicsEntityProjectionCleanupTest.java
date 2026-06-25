@@ -19,6 +19,7 @@ import dev.hytalemodding.impulse.core.internal.testsupport.TestInstanceFactory;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.BodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.GeneratedVisualProxyComponent;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import javax.annotation.Nonnull;
@@ -53,7 +54,7 @@ class PhysicsEntityProjectionCleanupTest {
             Ref<EntityStore> orphanProxy = addOrphanProxy(store);
 
             PhysicsEntityProjectionCleanup.Result result =
-                PhysicsEntityProjectionCleanup.cleanAll(store, null);
+                PhysicsEntityProjectionCleanup.cleanAll(store, List.of());
 
             assertFalse(result.skipped());
             assertEquals(1, result.removedAttachmentEntities());
@@ -87,7 +88,7 @@ class PhysicsEntityProjectionCleanupTest {
                     Set.of(selectedBodyUuid),
                     new org.joml.Vector3d(),
                     1.0,
-                    null);
+                    List.of());
 
             assertEquals(1, result.detachedExternalAttachments());
             assertEquals(0, result.removedOrphanVisualEntities());
