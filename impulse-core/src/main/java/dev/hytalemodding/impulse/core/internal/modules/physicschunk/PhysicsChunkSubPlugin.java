@@ -7,7 +7,7 @@ import com.hypixel.hytale.server.core.plugin.JavaPluginInit;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.commands.PhysicsChunkCommandSet;
-import dev.hytalemodding.impulse.core.internal.registration.PhysicsStoreRegistration;
+import dev.hytalemodding.impulse.core.internal.PhysicsStoreRegistration;
 import java.util.logging.Level;
 import javax.annotation.Nonnull;
 

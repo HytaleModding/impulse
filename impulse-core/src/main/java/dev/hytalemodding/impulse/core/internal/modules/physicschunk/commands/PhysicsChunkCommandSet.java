@@ -2,7 +2,7 @@ package dev.hytalemodding.impulse.core.internal.modules.physicschunk.commands;
 
 import dev.hytalemodding.impulse.core.internal.commands.ImpulseCommandTreeRegistry;
 import dev.hytalemodding.impulse.core.internal.commands.debug.DebugFlagCommand;
-import dev.hytalemodding.impulse.core.internal.physics.resources.PhysicsDebugResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsDebugResource;
 
 /**
  * Command set owned by the PhysicsChunk subplugin.

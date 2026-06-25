@@ -3,7 +3,6 @@ package dev.hytalemodding.impulse.core.internal.resources;
 import com.hypixel.hytale.component.ComponentRegistryProxy;
 import com.hypixel.hytale.component.ResourceType;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
-import dev.hytalemodding.impulse.core.internal.physics.resources.PhysicsDebugResource;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;

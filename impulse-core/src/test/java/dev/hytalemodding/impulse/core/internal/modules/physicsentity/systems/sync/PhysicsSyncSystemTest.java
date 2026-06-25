@@ -7,7 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.core.internal.math.PhysicsVisualPoseMath;
-import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRuntimeState;
+import dev.hytalemodding.impulse.core.internal.modules.physicsentity.resources.PhysicsBodyRuntimeState;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.BodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.BodyAttachmentComponent.AttachmentLifecycle;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.BodyAttachmentComponent.TransformAuthority;

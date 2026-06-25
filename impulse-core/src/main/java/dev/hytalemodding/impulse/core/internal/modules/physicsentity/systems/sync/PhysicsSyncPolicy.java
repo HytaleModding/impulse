@@ -1,6 +1,6 @@
 package dev.hytalemodding.impulse.core.internal.modules.physicsentity.systems.sync;
 
-import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRuntimeState;
+import dev.hytalemodding.impulse.core.internal.modules.physicsentity.resources.PhysicsBodyRuntimeState;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsVisualRuntime.BodyVisualInterestState;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.settings.PhysicsVisualSyncSettings;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.settings.VisualOcclusionMode;

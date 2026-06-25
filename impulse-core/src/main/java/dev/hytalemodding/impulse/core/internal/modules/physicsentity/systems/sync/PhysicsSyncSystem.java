@@ -22,7 +22,7 @@ import dev.hytalemodding.impulse.core.internal.modules.physicsentity.resources.P
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsProjectionIndexResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSnapshotResource;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource;
-import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRuntimeState;
+import dev.hytalemodding.impulse.core.internal.modules.physicsentity.resources.PhysicsBodyRuntimeState;
 import dev.hytalemodding.impulse.core.internal.modules.physicsentity.systems.visual.PhysicsProjectionCleanupSystem;
 import dev.hytalemodding.impulse.core.internal.modules.physicsentity.systems.visual.VisualInterestCollector;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.PhysicsEntityTypes;
@@ -47,7 +47,7 @@ import org.joml.Vector3f;
  * Synchronizes physics bodies with Hytale transforms each tick.
  *
  * <p>Runs after the persistence restore group so that newly bootstrapped spaces,
- * hydrated bodies, and hydrated joints are all settled before this system reads
+ * hydrated bodies and hydrated joints are all settled before this system reads
  * body transforms.</p>
  *
  * <p>Entities attach to authoritative PhysicsStore body UUIDs. Backend body destruction is explicit

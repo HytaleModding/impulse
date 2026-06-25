@@ -7,7 +7,8 @@ import com.hypixel.hytale.codec.codecs.EnumCodec;
 import com.hypixel.hytale.component.Component;
 import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
-import dev.hytalemodding.impulse.core.internal.registration.PhysicsComponentTypeRegistry;
+import dev.hytalemodding.impulse.core.internal.PhysicsComponentTypeRegistry;
+import lombok.Getter;
 import java.util.Objects;
 import javax.annotation.Nonnull;
 
@@ -54,13 +55,17 @@ public final class ChunkCollisionSourceComponent implements Component<PhysicsSto
 
     @Nonnull
     private String sourceKey = "";
+    @Getter
     private int chunkX;
+    @Getter
     private int sectionY;
+    @Getter
     private int chunkZ;
     @Nonnull
     private String payloadResourceKey = "";
     @Nonnull
     private PartKind partKind = PartKind.BOX;
+    @Getter
     private int partIndex;
 
     public ChunkCollisionSourceComponent() {
@@ -88,18 +93,6 @@ public final class ChunkCollisionSourceComponent implements Component<PhysicsSto
         return sourceKey;
     }
 
-    public int getChunkX() {
-        return chunkX;
-    }
-
-    public int getSectionY() {
-        return sectionY;
-    }
-
-    public int getChunkZ() {
-        return chunkZ;
-    }
-
     @Nonnull
     public String getPayloadResourceKey() {
         return payloadResourceKey;
@@ -108,10 +101,6 @@ public final class ChunkCollisionSourceComponent implements Component<PhysicsSto
     @Nonnull
     public PartKind getPartKind() {
         return partKind;
-    }
-
-    public int getPartIndex() {
-        return partIndex;
     }
 
     @Nonnull

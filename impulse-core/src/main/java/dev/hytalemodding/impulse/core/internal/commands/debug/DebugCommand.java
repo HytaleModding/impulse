@@ -2,9 +2,8 @@ package dev.hytalemodding.impulse.core.internal.commands.debug;
 
 import com.hypixel.hytale.server.core.command.system.AbstractCommand;
 import com.hypixel.hytale.server.core.command.system.basecommands.AbstractCommandCollection;
-import dev.hytalemodding.impulse.core.internal.physics.resources.PhysicsDebugResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsDebugResource;
 import java.util.Collection;
-import java.util.List;
 import javax.annotation.Nonnull;
 
 public class DebugCommand extends AbstractCommandCollection {

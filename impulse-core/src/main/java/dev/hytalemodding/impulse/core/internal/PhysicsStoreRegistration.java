@@ -1,4 +1,4 @@
-package dev.hytalemodding.impulse.core.internal.registration;
+package dev.hytalemodding.impulse.core.internal;
 
 import com.hypixel.hytale.component.ComponentRegistryProxy;
 import com.hypixel.hytale.component.Resource;

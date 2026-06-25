@@ -3,6 +3,7 @@ package dev.hytalemodding.impulse.core.internal.physics.resources;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsDebugResource;
 import org.junit.jupiter.api.Test;
 
 class PhysicsDebugResourceTest {

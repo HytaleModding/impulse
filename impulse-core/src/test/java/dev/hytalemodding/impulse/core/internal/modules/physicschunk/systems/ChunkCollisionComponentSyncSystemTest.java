@@ -25,7 +25,7 @@ import dev.hytalemodding.impulse.core.internal.modules.physicschunk.components.C
 import dev.hytalemodding.impulse.core.internal.systems.IdentityIndexSystem;
 import dev.hytalemodding.impulse.core.internal.systems.PersistenceHydrationSystem;
 import dev.hytalemodding.impulse.core.internal.systems.SpaceSettingsApplicationSystem;
-import dev.hytalemodding.impulse.core.internal.registration.PhysicsComponentTypeRegistry;
+import dev.hytalemodding.impulse.core.internal.PhysicsComponentTypeRegistry;
 import dev.hytalemodding.impulse.core.internal.resources.BackendBodyHandle;
 import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsResourceTypes;
